@@ -1,0 +1,11 @@
+{
+  "name": "aplicativo-pao",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Calculadora de pão de fermentação natural — starter, receita, custos e diário de fornadas",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "build": "node build.mjs"
+  }
+}
