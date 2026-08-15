@@ -70,10 +70,10 @@ function montarPng(largura, altura, rgba) {
 // Desenho do ícone: um pão com três pestanas, em coordenadas normalizadas
 // ---------------------------------------------------------------------------
 
-const FUNDO = [0xef, 0xe5, 0xd2];
-const CROSTA = [0xb0, 0x50, 0x28];
-const CORTE = [0xf4, 0xed, 0xe1];
-const BASE = [0x7d, 0x38, 0x1b];
+const FUNDO = [0xed, 0xeb, 0xe1];
+const CROSTA = [0xb0, 0x4d, 0x1c];
+const CORTE = [0xf0, 0xee, 0xe5];
+const BASE = [0x6d, 0x30, 0x10];
 
 const PESTANAS = [
   [0.31, 0.63, 0.43, 0.44],
@@ -176,8 +176,8 @@ const manifesto = encodeURIComponent(
     description: DESCRICAO,
     start_url: '.',
     display: 'standalone',
-    background_color: '#f2ebdd',
-    theme_color: '#f2ebdd',
+    background_color: '#e5e2d6',
+    theme_color: '#e5e2d6',
     icons: [{ src: icone512, sizes: '512x512', type: 'image/png', purpose: 'any' }],
   })
 );
@@ -185,8 +185,8 @@ const manifesto = encodeURIComponent(
 const css = fs.readFileSync(src('styles.css'), 'utf8');
 const js = empacotar();
 
-const cabecalho = `<meta name="theme-color" content="#f2ebdd" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#16120f" media="(prefers-color-scheme: dark)">
+const cabecalho = `<meta name="theme-color" content="#e5e2d6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#131410" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">

@@ -4,21 +4,48 @@
    sai de pilhas do sistema escolhidas por caráter, não por conveniência.
    ========================================================================== */
 
+/* Os valores das duas paletas ficam declarados uma vez só; o que se repete
+   abaixo é apenas a lista de apelidos, porque custom properties não têm como
+   ser herdadas em bloco. O tema segue o sistema por padrão, e o atributo
+   data-theme — que o visualizador do Artifact carimba na raiz — vence nos dois
+   sentidos. */
 :root {
-  --papel: #f2ebdd;
-  --papel-2: #eae0cd;
-  --papel-3: #e0d4bc;
-  --tinta: #2a201a;
-  --tinta-suave: #6f5f50;
-  --tinta-fraca: #9b8a78;
-  --crosta: #b8552a;
-  --crosta-viva: #d9702f;
-  --centeio: #6b7050;
-  --agua: #43657a;
-  --alerta: #9e3b23;
-  --linha: rgba(42, 32, 26, 0.16);
-  --linha-forte: rgba(42, 32, 26, 0.3);
-  --sombra: 0 1px 0 rgba(42, 32, 26, 0.06), 0 8px 24px -16px rgba(42, 32, 26, 0.5);
+  /* Claro: linho de couche, cinza-esverdeado em vez de creme, que faz a crosta
+     cantar. Os cartões vêm mais claros que o fundo, como papel sobre a bancada. */
+  --claro-papel: #e5e2d6;
+  --claro-papel-2: #f0eee5;
+  --claro-papel-3: #d6d2c2;
+  --claro-tinta: #232620;
+  --claro-tinta-suave: #5c6055;
+  --claro-tinta-fraca: #8b8f81;
+  --claro-crosta: #b04d1c;
+  --claro-crosta-viva: #cf6220;
+  --claro-centeio: #6b7050;
+  --claro-agua: #3c6274;
+  --claro-alerta: #98351c;
+  --claro-linha: rgba(35, 38, 32, 0.16);
+  --claro-linha-forte: rgba(35, 38, 32, 0.3);
+  --claro-sombra: 0 1px 0 rgba(35, 38, 32, 0.05), 0 8px 24px -16px rgba(35, 38, 32, 0.55);
+  --claro-grao: multiply;
+  --claro-grao-forca: 0.5;
+
+  /* Escuro: preto-centeio, não carvão neutro. */
+  --escuro-papel: #131410;
+  --escuro-papel-2: #1c1e17;
+  --escuro-papel-3: #282b21;
+  --escuro-tinta: #e8e6d8;
+  --escuro-tinta-suave: #9ba08d;
+  --escuro-tinta-fraca: #6f7463;
+  --escuro-crosta: #dd7f3b;
+  --escuro-crosta-viva: #ef944d;
+  --escuro-centeio: #a3a97a;
+  --escuro-agua: #79a4bb;
+  --escuro-alerta: #dd7a5c;
+  --escuro-linha: rgba(232, 230, 216, 0.14);
+  --escuro-linha-forte: rgba(232, 230, 216, 0.28);
+  --escuro-sombra: 0 8px 24px -16px rgba(0, 0, 0, 0.9);
+  --escuro-grao: screen;
+  --escuro-grao-forca: 0.22;
 
   --fonte-titulo: "Iowan Old Style", "Palatino Linotype", Palatino, Charter, Georgia, serif;
   --fonte-corpo: Optima, "Avenir Next", Avenir, "Gill Sans", "Segoe UI", sans-serif;
@@ -28,23 +55,64 @@
   --barra-altura: 62px;
 }
 
+:root,
+:root[data-theme="light"] {
+  --papel: var(--claro-papel);
+  --papel-2: var(--claro-papel-2);
+  --papel-3: var(--claro-papel-3);
+  --tinta: var(--claro-tinta);
+  --tinta-suave: var(--claro-tinta-suave);
+  --tinta-fraca: var(--claro-tinta-fraca);
+  --crosta: var(--claro-crosta);
+  --crosta-viva: var(--claro-crosta-viva);
+  --centeio: var(--claro-centeio);
+  --agua: var(--claro-agua);
+  --alerta: var(--claro-alerta);
+  --linha: var(--claro-linha);
+  --linha-forte: var(--claro-linha-forte);
+  --sombra: var(--claro-sombra);
+  --grao: var(--claro-grao);
+  --grao-forca: var(--claro-grao-forca);
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
-    --papel: #16120f;
-    --papel-2: #1e1915;
-    --papel-3: #29221c;
-    --tinta: #ecdfcb;
-    --tinta-suave: #a89684;
-    --tinta-fraca: #7b6a5a;
-    --crosta: #e0803f;
-    --crosta-viva: #f0964f;
-    --centeio: #9aa072;
-    --agua: #7ba3bc;
-    --alerta: #e07a5f;
-    --linha: rgba(236, 223, 203, 0.14);
-    --linha-forte: rgba(236, 223, 203, 0.28);
-    --sombra: 0 8px 24px -16px rgba(0, 0, 0, 0.9);
+    --papel: var(--escuro-papel);
+    --papel-2: var(--escuro-papel-2);
+    --papel-3: var(--escuro-papel-3);
+    --tinta: var(--escuro-tinta);
+    --tinta-suave: var(--escuro-tinta-suave);
+    --tinta-fraca: var(--escuro-tinta-fraca);
+    --crosta: var(--escuro-crosta);
+    --crosta-viva: var(--escuro-crosta-viva);
+    --centeio: var(--escuro-centeio);
+    --agua: var(--escuro-agua);
+    --alerta: var(--escuro-alerta);
+    --linha: var(--escuro-linha);
+    --linha-forte: var(--escuro-linha-forte);
+    --sombra: var(--escuro-sombra);
+    --grao: var(--escuro-grao);
+    --grao-forca: var(--escuro-grao-forca);
   }
+}
+
+:root[data-theme="dark"] {
+  --papel: var(--escuro-papel);
+  --papel-2: var(--escuro-papel-2);
+  --papel-3: var(--escuro-papel-3);
+  --tinta: var(--escuro-tinta);
+  --tinta-suave: var(--escuro-tinta-suave);
+  --tinta-fraca: var(--escuro-tinta-fraca);
+  --crosta: var(--escuro-crosta);
+  --crosta-viva: var(--escuro-crosta-viva);
+  --centeio: var(--escuro-centeio);
+  --agua: var(--escuro-agua);
+  --alerta: var(--escuro-alerta);
+  --linha: var(--escuro-linha);
+  --linha-forte: var(--escuro-linha-forte);
+  --sombra: var(--escuro-sombra);
+  --grao: var(--escuro-grao);
+  --grao-forca: var(--escuro-grao-forca);
 }
 
 *,
@@ -75,16 +143,9 @@ body::before {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.5;
+  opacity: var(--grao-forca);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)' opacity='0.28'/%3E%3C/svg%3E");
-  mix-blend-mode: multiply;
-}
-
-@media (prefers-color-scheme: dark) {
-  body::before {
-    mix-blend-mode: screen;
-    opacity: 0.22;
-  }
+  mix-blend-mode: var(--grao);
 }
 
 button,
