@@ -1,0 +1,2529 @@
+<title>Levain — calculadora de pão</title>
+<meta name="theme-color" content="#f2ebdd" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16120f" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Levain">
+<link rel="apple-touch-icon" href="data:image/png;base64,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">
+<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAAHXklEQVR42u2dPYsmRRCA+38oiqJoZiocB4IKwqFoZiRsYmTiRyQY+IkYKIgeXmSwiPgRHBh4gtwmiiiHwSkXiAYnHBgoJuav1EIvc3vzznTP9HRXVT/Bw3JwvNsz/UxtdVX3O+HfG1d3AF4I3ARAaACEBkBoAIQGhAZAaACEBkBoAIQGhAZAaACEBkBoAIQGhAZAaACEBkBoAIQGhAZAaACEBkBoAIQGhAZAaACEBkBoAIQGhAZAaACEBkBoAIQGhAZAaACEBkBoQGhuBCA0AEIDIDQAQgNCAyA0AEIDIDQAQm/Pb19dKAr3FKE34a9fj04k+/61gxMuPnl/VYa/O45HxsYcIfRklP3l8K1jab4+OFNd2qXIWGXMMnaie6dCx8hrTd5cyXuN5KGXCOxV4BzBEdqBxL0JnJKTe5bbldDXv/sSiTPllnuG0MqQRVGP6UTJtETuIUIjMmIjNCIjNkKfLPQQua7Y1haQwUrtmMVe28WjlZp2ICqDp2itWmiiss5ojdALUozLzz+BQEqRudGaggSNMpNi2EhBNEodkBk8SR2QGTxJrUZocmbbOTVCU82g+uFRaKltIoQPNNSpA3kzeMqnmwp95f2XEMEZMqddCi1PMgL4pGWUDkRn8BSlA9E5nZ/Pv7z745vD3d+/Xzn+Kf+2MO5LB2d31z5973jMN366dPzz6MWnXEbpQHROE0Ik/u+f67cgcmge+w9vPNtk7K2idBOhrVU29gmhXeqpBzGy1V8ZmeMuhJZTxtbSjCkhIiKPtrHLgzY3bhF+q9/f4kR5daHlrJqlVCNFZkH+tGtLNVLHvlU+3eJcYqDNvR9ZQNUUWj4jsjbiz6UaNR7GFu3w6kJ7SzVKSCERckzApbm5VDRyxr7lfXQttJVyXcpiqlQeKjKXXHDOfV7tBW3t8l1gI9KyxVSpHDTlwcmpROQ8iDUWs7U3LAUWhO0iXGpak/o7ctOkGo2h2gvDwIJweYST/7s0wuVUUFJSmpzPE2TB63GfNEKvWEytiXA5FZSUCJ3zeVuW6hDaaKqxJsLl1IhTHpzcz5MH1+tJlkDLe1mEW5NqlKyg1KzIWGiBB2rQdRdTuRWUufp2zYqMhVp090LnLqa2rDnn5s7aas4ITc15VQWlVkUGoY0IXXMxVbqCUrMig9AGhF6ymKpRc06poGitOSO0oZrzms1HpSsotSoyCG1EaI3t7dS0RmN7G6ENtbfX1pxLVlBqVmQQ2ojQmmvOcxUUCzVnhFZcc67Z3p5LNTS3txHaSHubmjNCqxW69OKsZgWlZkUGoQ0IrelIVW5aY6W9jdC0t5MqKNqOVCF0Y6E115znKigWa85dCd1iPzTt7fZfgs6JFedHqlLSGq1Hqjix0khozUeqPNecEZojVaaOVCF0gy+a4UhVv2/Gqir0j198uHvlwduOufDo3RypclhzFmRu4zzLnLsV+s+rl08u9PUzt3OkylF7e4jMbZxnmXPX3z4aL1T44OG7OFJl8EjVFDKnwzl2/3W6hy88fdMFf/74fdScndScZS6Hcytz7V7obz969aaLfvvsHU1yZ01HqnL/smhNNWQuh3Mrc+1e6GEeXTL1yJFC05Gq3LFbSTVa5M/N3oJ1/plHbrn4jx+7p1qE1nKkKldorTVnmbvT8ylz3M1r3U6nHaWkTkkFNB2pys3/Ndacx2RulW40fTXy2E1YK3Xp1zusqRHnVlDmorTG9vY+mVtUN5oLffHN5zaTuuQLeJZE56UVlH1vfbUms8xtd0KPLQ5Lph8lX5FW+xVvpcdeU+ZWi8HmQk/l0pF3H7rT3Jc6aq0Rl0LmZGrOWuXOKoQW3jn3wOQNkjZqyebL1p1BrTXiEk2TYUt7DJnL1j41F/ra0WeTN2nrzUwWXgSvabPRFDKX3QudknoMo/Un5+5t+vW7+6TWuvNtDXKv56KyllRDldBjezymkBZrK7ElUkv6IQJLviw/te9JXiLy6Tb2FC32bKgXOlfq1mJ7JFdkbTKrE3qJ1FHs1jm29Rw5V2SNMqsUeqnUMceWTTJE7bRoLPcqNUe2ILNaoddIjdzbSaxdZtVCnz6DWELutd1Hi8g1l5C41RlBV0LHFvlc82VJzh0F19C0Kdn8iAIvyYnnmiYtW9puhE7ZzFQCaelGyS2kKTLGKO9cO3otLTcbuRU6RuuxwwFbiz6UPVIjVYhEabcWd2yTvoWobFboYbu8ttipqUwUL5XSqUEpkTW0sbsRWrvYVrEssguhh2JvnWN7Ru6ddZFdCT3MsWWTDFE7LRrLvbKWI3clNHL3KXEXQo/Jvbb7aBG5Zu8Sdyf0WM4dBS/dtGmJXEsU2EtOjNAr2uxRcgtpiowxyqu9HY3QykQfyh6pkSpEorSIi9DVU5koXiq9pgYIDYDQgNAACA2A0AAIDYDQgNAACA2A0AAIDYDQgNAACA2A0AAIDYDQgNAACA2A0AAIDYDQgNAACA2A0AAIDYDQgNAACA2A0AAIDQgNgNAACA2A0AAIDQgNgNAAevgfkh7uUvsy8qMAAAAASUVORK5CYII=">
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Levain%22%2C%22short_name%22%3A%22Levain%22%2C%22description%22%3A%22Calculadora%20de%20p%C3%A3o%20de%20fermenta%C3%A7%C3%A3o%20natural%3A%20starter%2C%20receita%2C%20custos%20e%20di%C3%A1rio%20de%20fornadas.%20Funciona%20offline.%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23f2ebdd%22%2C%22theme_color%22%3A%22%23f2ebdd%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAAAD0eNT6AAAWWElEQVR42u3dz6tdVxUH8P4fSqXFojOnQggIbUEIBp11VHgTR05SMxIcNGopDhRCG5qRg1CktoiQQSqUvEmDVIJCGzIIOohQyEBx4vzJohy9uX0%2F7n33nrPX3usz%2BEDbUXNz797fs%2Fba6zzz788%2FPQIAannGhwAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAAAoAPAgAEAABAAAAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAHAhwAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAgAAAAAgAwFAe3b65FZ8ZCABAow363rWDY929cvnoD9%2F%2FZirx%2F3TS%2F6%2BAAQIAlPHkweGJm3nGDTxbgFj97OKz9J0CAQBSPbF%2FdusNG3ujoBCfvYoCCAAw2yZ%2F%2F%2FpVG3xnASH%2BzoQDEABgo41%2BerK0kY5p%2FXjBdx8BwIdAsXP56YnepsgUDKaKgX4DBACw2SMUCAUIAJDd448%2F%2BF9Dng2MuUJBfMfiu%2BY3hwAADc%2Ft4wlNYx4tGw6nKoHfJAIA2PARCPxmEQBglzN8JX1GODLQQ4AAABs%2B5d85uGADYSjxnVYdQACAtU3fUz4VqwPCAAIAJUv7zvLh%2F70DjgoQABiWTR82DwPWDAQAlPfBMQEIAPQxkEcjH%2By%2FgdAAIgQAlPjBEQEIALR%2F2rcww%2FJUBRAAaHK272kf8lQF9AogADB7md%2FZPuTtFXA8gADAXu%2FtK%2FNDf8cD5gogAGDjB0EABABs%2FCAIgACAjR8EAQQAbPyAIIAAgK5%2BwK0BBABGGuBj4wemIGCgkABAgXK%2FAT7ASQOFHAsIAAzIOT%2BwaX%2BANVMAQLkfcCyAAICnfkA1AAEAT%2F2AagACAJ76AdUABAAadPh76gfmrga4KSAAkEi8C9ziBCwl1hxrrwBAY%2FeuHViQgMXF2mMNFgAw1AcwPAgBAF3%2BgFsCCAA47wf0BSAA4Iof4KogAgCa%2FQDNgQgA2PwBIQABAJs%2FIAQgANj8AYQABACbP4AQgABg8wcQAhAAbP4AQgACgM0fQAhAAEjns1tvWCCA4cVaZ80XADDeFzA2GAGg7ot9LAhANV4gJACUf6Wvt%2FoBFcXa51XCAoCmPwBNgQgA3uwHUIU3CAoAzv0B9AMgADj3B9APgADg3B9APwACgPv%2BAOYDIAB0Q%2Bkf4PSjAHuFAKDrH8CtAASA%2Fhv%2F%2FLABNqMhUAAYxt0rl%2F2oATYUa6a9QwBw5x%2FAbAAEAI1%2FABoCEQCSi%2Fde%2ByEDnE%2BsofYSAcDTP4AqAAKAp38AVQAEAE%2F%2FAKoACAA6%2FwHcCEAAcO%2BfJg5%2F%2FIOjh7%2F99dHnf%2F7w6D%2F%2FevyUf%2F7t%2FtHf%2F3jr6E8%2F%2F6HPynfiqe%2FEX2785OjDg4s%2BL3MBBABP%2F%2FQmFvBYzNcX%2BNPEpmDR953wnVAFEADM%2FKdDsVhvu8ivPwGqCIz3nTjuaX8bER58lt4RIAB0wA%2B1pti4d1nkV0UZ2Gc6xndil0DoO%2FFl9hgBIK14l7Ufqc3fgo%2FvxDxijbXXCACa%2F0jT1LXvhV7pt%2FZRkBCgGVAA8MpfOjDXQj%2BJgOFz7suuZ%2F5nqd4n4lXBAoDJfzQXXdpzLvQhNhOfdV%2Fd%2FnN%2FJyJ0mgxozxEAlP9pWOade6FXBVD6dzzkGEAAUP6nWJnXuW9%2F4u9pqe9E9cqQYwABQPc%2Fw5Z51%2Fnc6zaDnqTykCC3AQSANO5dO7AIKvM6BtAMuqjKzYCx5tp7BADDfxi2zGux1wx61qhgQ4EQAMz%2Bp9PhLgKA0r%2FeEO8GEABc%2F0OZVwDQDCoAuA4oADj%2FR5l3rAAQf4b4HGPjWhX%2FvccehxbNoAKAPgABwPk%2FRcq8vQeA%2BOw2fUqOCksv99uXnAOhKqQPQABw%2F5%2BCZd5er3zt8hrcHoJAq2ZQAcA8AAHA%2FX%2BKlHl7HP26r2bJrCXuls2gZkOYByAAJHH%2F%2BlU%2FQuN%2BXfeacXOM8JOp%2BtFqDoQrgMeLNdheJABoAGTI0n9P5f%2B5nowzVQJaN4MaDKURUADQAEiRMm8vT3pzV0syfA4ZmkF1%2F2sEFAAEAAqUeXs6%2B1%2BiWtK6EpLhO1H9HQACgACgAZASZd5euryXqpa0fPLN0Axa%2FTXAGgEFAAEAZd7C1ZIWT79ZmkGrvwJYABAANAAyfJk3W%2Bd7pmpJiydgzaAaAQUABAClf2XextWSpSsjWUr%2Frv0JAAJAIncOLvjxufNfuszbqlqiGZRVsRbbkwQANwBQ5i1QLak07tedfzcBBAABAGVe1ZIFA4BmUAFAAOBYjz%2F%2BwI%2FOnX93%2FgcOAJpB%2BxJrsr1JAHAFEGXewasl5kDgKqAAIABg3G%2BxasncJfEspX93%2FgUAAUAAQJlXtWTBsKQZVAAQADADwJ1%2FZd6E1ZI5j0qM%2BzULQABAADDuV5k3YbVkzs8ryxwId%2F4FAAFAAECZV7Vkwad%2FzaACgACAAODOvzJvsWqJZlABQABAADDuV%2Bm%2FWLXEHAgBQADAFEClf2XegtUSzaCmAQoACADu%2FCvzFquWGPcrAAgAPgQBwLhfZd6C1ZIM3wl3%2FgUAAUAAwJ1%2F1ZIFqyWaQQUABAABwJ1%2FZd5i1RLNoAIAAoAAYNyvcb8FqyXmQAgACAACgNK%2FMm%2BxakmW0r87%2FwKAACAAoMyrWrJQtUQzqACAACAAuPOvzFuwWmLcrwCAACAAGPerzOvOv2ZQAUAA8CEIAO78u%2FM%2FerVEM6gAgACwsycPDv3YElPmVS0xB6KmWJvtUQLArB7dvunHZoDNMKX%2F0aslFd5myBdibbZHCQACgDv%2FyryqJZpBBQAEAAHAnX9lXuN%2BzYEQABAABADjfpV5S9z5z%2FCdcOdfABAABAB0sauWLFgt0QwqACAACADu%2FCvzFquWaAYVABAABADjfpX%2Bi1VLzIEQABAABAClf2XegtUSzaACAAKAAODOvzKvcb%2FG%2FQoACAACgHG%2Fxv2OXi3J8J1w518AEAAEAHSxq5a4848AIAAIACjzqpY43kAAEAAEAAywUS1xswEBQAAQAOhrM3PnP0%2B1pMLbDBEABAABwJ1%2FZV7VEs2gCAACgADgzr8yb%2B1qiXG%2FCAACgABg3K8yrzv%2FmkEFAHuUACAAuPPvzv%2Fo1RLNoAgAAoAAMDhlXtUScyAQAASANPzYDLBRLWlTLanwNkPOx94kAAgA7vyXLfNWqJZoBkUAEAAEAHf%2BlXmN%2BzUHAgFAABAAjPt153%2F0O%2F8ZvhPu%2FAsAAoAAgC521ZIFqyWaQREABAABwJ1%2FZd5i1RLNoAgAAoAAYNyv0n%2Bxaok5EAgAAoAAoPSvzFuwWqIZFAFAABAA3PlX5jXu17hfBAABQAAw7te439GrJRm%2BE%2B78CwACAAKALnbVEnf%2BEQAEgOruHFzwg1PmVS1xvEESsSbbmwSARdy7duBHZ4CNaombDSQRa7K9SQAQAJT%2B3fnvuFpS4W2GCAACgADgzr8yr2qJZlAEAAFAAHDnX5m3drXEuF8EAAEgvfvXr%2FrRKfOqljjeIIlYk%2B1NAsAiHt2%2B6UenzKta4niDJGJNtjcJAAJAcsq8qiXmQCAACAACgHG%2FSv%2FFqyUV3maIACAADOTJg0M%2FOmVe1RLHGyQRa7K9SQAwDlgXu3G%2Fxv0a92sMMAKAAGCAjTv%2FWe%2F8Z%2FhOuPMvAAgAbO3ulct%2BeMq8qiWON2gs1mJ7kgBgGJAuduN%2BO6iWaAbFECABwDAg436V%2FotVS8yBwBAgAaB7f%2F39jaNffedrJ%2Frd976h9J9kM3PnP0%2B1RDMo24q19LS1NtZie5IAsKhP3n%2F76Kff%2FsqJ3nrxOXf%2BlXlVS4z7ZUexlp621sZabE8SABZ32pcyVK0CKPOqlmS92eDOf39P%2F2ets%2FYiAaCJX176liqAMq9qieMNGj39xxpsLxIAmrj12iuqAMq8qiWON2j09B9rsL1IAGgzDOgXPzrzC1qtCmDcr2qJORAs8fQfYg22FwkAKRsBJ%2B9eekHpX5m3ZLWkwtsM2b9YMzdZWzUACgCpGwHDmxefdedfmbfkuF%2FNoJxHrJmbrK32IAEgdSPg5ObLz7vzr8xbqlqS5c9o3G9fYq3cZE3VACgAdNEIGH524avDNgRmKWW785%2BnWpLlz%2BjOf3%2BNf7FWbrKmagAUALrpAwgxtWrEH22GF7u485%2BrWpLh6b%2BnZlC%2BEGvkpuup838BoLl%2FfHp34y9s%2BM13vz7cj1aZV1Ncxv4G4377EmvjNmtprL32IAGgmz6AEY8CMgyx6an0X6EpLkP5353%2FcUv%2Fzv8FgO7mAYx6FND6ibanMm%2BGo5IlqiUZQqHS%2F7ilf%2Ff%2FBYBu%2BwBGOwpovakZ95uvWtL6z2rc79ilf%2Bf%2FAkCX8wBGHBPcMgC485%2BzWtIyALjzP964X%2Ff%2FBYBhrgOO1g%2FQMgC485%2BzWtIyALjzP%2B65v%2Bt%2FAsBQxwAj9AO06gEw7jdvtaRVADDud%2Bxzf%2BV%2FAWC4Y4DeQ0CLxb6n0n%2FFCYktQo%2FSf43NX%2FlfABjqGGCEpkBl3tx3%2FltUSzSDss%2BmP%2BV%2FASC9h4fvnfuL3XMIWPIp17jfPqolS%2FY9GPdbY%2FMPscbaawSAIYYCjfLq4KWOAYz77adasuQxgDv%2FY73i1%2FAfAaBbH73z%2Bk5f8l5vBiyx4bnz31e1ZInvhDv%2FY3f8r4q11R4jAAz1boBRQsDcT3y9lHmrjPvNcAxi3G%2Bdzd%2FsfwFg2NHAo4SAuZreehr3W%2B3Of6tqiDf91dr8jf4VAMo0A%2FYcAvY9GKi3hT7D5p%2BtWjJHCDDwp87mr%2FlPAOjOjVdf2lsI6K0xcF9Pwb1t%2FhnO%2FrN%2BZvv6bDz599Pwt6%2FNP9ZSe4oAULIK0OsVwVjwdzkL73GqW4a3%2FWVuioun9l2%2BE%2FH52vzHv%2Brn6V8AUAUYZE5AbEjbLPqxyPda3m3d%2FNdLU9y234n4cyn519z8Pf0LAKoAK9568bkuF4ZYwOOpPjb41cU%2F%2Fj1ExaD3p7tK4373%2FZ1YvTIY%2Fxz%2FLYKCJ%2F5%2BxNq07%2FXO078AoAow2AuERlX5zj9m%2B%2B97nfP0LwCYCzDwq4QFAC%2FCQae%2Fe%2F8CgLkA5wwBPb9ESABwJY6%2Bz%2Fvn2vzd%2BxcAhqoC7PqOgBH7AkbTYv6%2F0j%2BjnPevzvz39C8AeEfAFt68%2BKwjgWLXAN2Jp0XJP9aaOdcyM%2F8FAA2BjgS8FXGQlyOh5K%2FxTwBwFDBTQ%2BBxtwRUA8aeBeBFOCz51D9Hl7%2FGPwHAUYBqwFDmeiFS73f%2B8dSv9C8AsMBRgGrA2FWAzON%2B8dSv9C8A0PBWwHHVgJsvP29hW3DCndI%2FvYq1Yqmnfl3%2FAkBJn7z%2F9mI%2FMDcFxmgI1PVP7x3%2Bx4m10J4gABgQtJC4wysI9BUCbP7MufHPea%2FfwB8BgBPceu2VJj88xwJ9vBbZa3AZqdy%2FKtY%2Be4AAoB9gwX4AtwWWF5t3TOw7z1O%2FMb%2F03t3v3F8AIHEImPoD3r30gsVx5iAQHfynjQyOTT%2Be%2BG38zCF%2B4y3O%2BW3%2BAgDJmgIFgfaBII4IJj4TRt74Nf0JAHQQAgQBsPHb%2FAUACoeAKQjoEYD%2Bzvgzbfw2fwGAZOOC3RoAXf3G%2FAoAuB64cRAwRwDy3ePPuPG77icAMFgIWH3PgD4BaHe%2Bv%2BS8fpu%2FAEDxnoDTjgdUBWD%2Bp%2F2sZX5n%2FgIARUPAalVA0yDsv6kv%2B9O%2BzV8AQAh4qlfAEQGcv8Sf%2BWzf5i8AsHAIaD0x0BEBKPGfNOHP5i8AMPjY4F3nCggD8OVNP9u9feN9BQCShoDsNwQ2DQOOCahc3u9501%2Ft9Lf5CwAsLN6l3fvisd4zoIGQkRv5ejzTP02sQdZiAQDNgXu%2FTeCogBFK%2Bz1172v2EwDQF5CuOjBdLxQIyLzhT9f1RnrKd94vAOBIQCCAghu%2Bkr8AgKuCXQQCDYXM2bhXbcN3xU8AwC2BLnsIpqZCVQLO%2B3Qf36FRz%2FB1%2BSMAqAYIBdjsbfae%2BgUARqwGVOkNOO8sgunGgWBQY6OfOvNHuIM%2F51m%2Fp34BgEE8PHxPNeAcwWCqGOgt6O%2Bsfnqit9Fv99Qfa4U1UwBgQB%2B987ogsOdwICC02eBt8vvd%2BGNtsEYKADgWYA%2B3EtZDgiOGzUr065t7xa575X4EAGYPAjdefckimKCasGp1E1zV08jb46z%2FOT21txW%2FfRu%2FAOCD0B8gCAx002FOPuMxNn7n%2FAgAaBQEDX4IAKBREDT4IQCgIuBoAJT6EQAQBCyqYONHAKBoEHB9EPJe57PxIwAw%2B%2FVBfQKQ53zfdT4EAJq8cMjxACxf5veiHgQAUk0XVBWA%2BZ72Te1DACB9VSDeIW7Rht3Fb8nTPgIAXfYKOCKA7Uv8zvYRABAGwKYPAgDCANj0QQBgkDCgZ4BKZ%2Fo2fQQAOKGB0G0CRure18iHAABbTh5UHaDnp3yT%2BRAAYI%2BjiPUOkPEs3yheBABY8LhAhYCWT%2FjK%2BggAkKRCoIeAOc%2FwPeEjAECHVQKhgE03e0%2F3CAAwaCiYKgX6CWqf209P9jZ7BAAoPI9gtVogGIy30U9P9e7fgwAAW1UMostbOMi9ycffkSd6EABgscbD6UhhYlPef9f9ZPq8NeSBAADdhIT1oFC1OXFqtjtuY7e5gwAA5Y8d1k3HEGfZ5zHFVF4%2Fy2r5fZ2%2FUxAAAAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAABAAfBAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAKADwEABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAABAAAEAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAAEAAAAAEAABAAAAABAAAQAAAAAQAABAAfBAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAACAAAAACAAAgAAAAAgAAIAAAAAIAADANv4LqVXVHOFI3F0AAAAASUVORK5CYII%3D%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%22%7D%5D%7D">
+<style>
+/* ==========================================================================
+   Caderno de padaria — papel cru, tinta café, laranja de crosta.
+   Nenhuma fonte é baixada: o app precisa abrir offline, então a tipografia
+   sai de pilhas do sistema escolhidas por caráter, não por conveniência.
+   ========================================================================== */
+
+:root {
+  --papel: #f2ebdd;
+  --papel-2: #eae0cd;
+  --papel-3: #e0d4bc;
+  --tinta: #2a201a;
+  --tinta-suave: #6f5f50;
+  --tinta-fraca: #9b8a78;
+  --crosta: #b8552a;
+  --crosta-viva: #d9702f;
+  --centeio: #6b7050;
+  --agua: #43657a;
+  --alerta: #9e3b23;
+  --linha: rgba(42, 32, 26, 0.16);
+  --linha-forte: rgba(42, 32, 26, 0.3);
+  --sombra: 0 1px 0 rgba(42, 32, 26, 0.06), 0 8px 24px -16px rgba(42, 32, 26, 0.5);
+
+  --fonte-titulo: "Iowan Old Style", "Palatino Linotype", Palatino, Charter, Georgia, serif;
+  --fonte-corpo: Optima, "Avenir Next", Avenir, "Gill Sans", "Segoe UI", sans-serif;
+  --fonte-numero: ui-monospace, "SF Mono", Menlo, "Roboto Mono", "Courier New", monospace;
+
+  --raio: 3px;
+  --barra-altura: 62px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --papel: #16120f;
+    --papel-2: #1e1915;
+    --papel-3: #29221c;
+    --tinta: #ecdfcb;
+    --tinta-suave: #a89684;
+    --tinta-fraca: #7b6a5a;
+    --crosta: #e0803f;
+    --crosta-viva: #f0964f;
+    --centeio: #9aa072;
+    --agua: #7ba3bc;
+    --alerta: #e07a5f;
+    --linha: rgba(236, 223, 203, 0.14);
+    --linha-forte: rgba(236, 223, 203, 0.28);
+    --sombra: 0 8px 24px -16px rgba(0, 0, 0, 0.9);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--papel);
+  color: var(--tinta);
+  font-family: var(--fonte-corpo);
+  font-size: 16px;
+  line-height: 1.45;
+  overscroll-behavior-y: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Grão de papel: SVG embutido, nada é buscado na rede. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)' opacity='0.28'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+}
+
+@media (prefers-color-scheme: dark) {
+  body::before {
+    mix-blend-mode: screen;
+    opacity: 0.22;
+  }
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+}
+
+/* ==========================================================================
+   Estrutura
+   ========================================================================== */
+
+#app {
+  position: relative;
+  z-index: 1;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+.conteudo {
+  flex: 1;
+  padding: 0 18px calc(var(--barra-altura) + env(safe-area-inset-bottom) + 28px);
+  max-width: 680px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* --- Cabeçalho da receita ------------------------------------------------ */
+
+.topo {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: calc(env(safe-area-inset-top) + 12px) 18px 12px;
+  background: color-mix(in srgb, var(--papel) 88%, transparent);
+  backdrop-filter: saturate(1.4) blur(12px);
+  -webkit-backdrop-filter: saturate(1.4) blur(12px);
+  border-bottom: 1px solid var(--linha);
+}
+
+.topo-interno {
+  max-width: 680px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topo-marca {
+  font-family: var(--fonte-titulo);
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--tinta-fraca);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  line-height: 1;
+  padding: 2px 0;
+  border-right: 1px solid var(--linha);
+  padding-right: 10px;
+  margin-right: 2px;
+}
+
+.seletor-receita {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  text-align: left;
+}
+
+.seletor-receita .nome {
+  font-family: var(--fonte-titulo);
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.seletor-receita .seta {
+  color: var(--crosta);
+  font-size: 0.7rem;
+  flex: none;
+}
+
+.botao-icone {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 1.15rem;
+  color: var(--tinta-suave);
+  border: 1px solid var(--linha);
+  transition: background 0.15s, color 0.15s;
+}
+
+.botao-icone:active {
+  background: var(--papel-3);
+  color: var(--tinta);
+}
+
+/* --- Barra de abas ------------------------------------------------------- */
+
+.abas {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background: color-mix(in srgb, var(--papel) 92%, transparent);
+  backdrop-filter: saturate(1.4) blur(14px);
+  -webkit-backdrop-filter: saturate(1.4) blur(14px);
+  border-top: 1px solid var(--linha);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.aba {
+  height: var(--barra-altura);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: var(--tinta-fraca);
+  position: relative;
+  transition: color 0.18s;
+}
+
+.aba .glifo {
+  font-size: 1.25rem;
+  line-height: 1;
+  filter: grayscale(1) opacity(0.55);
+  transition: filter 0.18s, transform 0.18s;
+}
+
+.aba .rotulo {
+  font-size: 0.64rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.aba[aria-selected="true"] {
+  color: var(--crosta);
+}
+
+.aba[aria-selected="true"] .glifo {
+  filter: none;
+  transform: translateY(-1px) scale(1.08);
+}
+
+.aba[aria-selected="true"]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 26px;
+  height: 2px;
+  background: var(--crosta);
+}
+
+/* ==========================================================================
+   Blocos de conteúdo
+   ========================================================================== */
+
+.painel[hidden] {
+  display: none;
+}
+
+.painel > * {
+  animation: surgir 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) backwards;
+}
+
+.painel > *:nth-child(1) { animation-delay: 0.01s; }
+.painel > *:nth-child(2) { animation-delay: 0.05s; }
+.painel > *:nth-child(3) { animation-delay: 0.09s; }
+.painel > *:nth-child(4) { animation-delay: 0.13s; }
+.painel > *:nth-child(n + 5) { animation-delay: 0.16s; }
+
+@keyframes surgir {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .painel > * {
+    animation: none;
+  }
+}
+
+.secao {
+  margin: 26px 0 0;
+}
+
+.secao-titulo {
+  font-family: var(--fonte-titulo);
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--tinta-fraca);
+  margin: 0 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.secao-titulo::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--linha);
+}
+
+.cartao {
+  background: var(--papel-2);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+}
+
+/* --- Ticket de pesagem --------------------------------------------------- */
+
+.ticket {
+  background: var(--papel-2);
+  border: 1px solid var(--linha);
+  border-bottom: none;
+  border-radius: var(--raio) var(--raio) 0 0;
+  padding: 4px 16px 10px;
+  box-shadow: var(--sombra);
+  position: relative;
+}
+
+/* Borda serrilhada, como papel destacado do rolo. */
+.ticket-borda {
+  height: 9px;
+  margin-bottom: 4px;
+  background:
+    radial-gradient(circle at 6px -3px, transparent 6px, var(--papel-2) 6.5px) 0 0 / 12px 9px repeat-x;
+  filter: drop-shadow(0 1px 0 var(--linha));
+}
+
+.ticket-linha {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 11px 0;
+  border-bottom: 1px dashed var(--linha);
+}
+
+.ticket-linha:last-child {
+  border-bottom: none;
+}
+
+.ticket-linha.apagada {
+  opacity: 0.32;
+}
+
+.ticket-nome {
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+}
+
+.ticket-pontilhado {
+  flex: 1;
+  border-bottom: 1px dotted var(--linha-forte);
+  transform: translateY(-3px);
+}
+
+.ticket-valor {
+  font-family: var(--fonte-numero);
+  font-size: 1.45rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+}
+
+.ticket-valor .unidade {
+  font-size: 0.72rem;
+  color: var(--tinta-fraca);
+  margin-left: 3px;
+  letter-spacing: 0;
+}
+
+.ticket-rodape {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-top: 2px solid var(--tinta);
+  margin-top: 6px;
+  padding-top: 10px;
+  font-family: var(--fonte-numero);
+  font-variant-numeric: tabular-nums;
+}
+
+.ticket-rodape .rotulo {
+  font-family: var(--fonte-corpo);
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+}
+
+.ticket-rodape .valor {
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+}
+
+/* --- Grade de métricas --------------------------------------------------- */
+
+.metricas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 1px;
+  /* O fundo é o do cartão, não o da linha: com número ímpar de métricas sobra
+     uma célula vazia, e ela precisa desaparecer em vez de virar um bloco cinza.
+     As divisórias vêm do box-shadow de cada métrica. */
+  background: var(--papel-2);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  overflow: hidden;
+}
+
+.metricas.tres {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.metrica {
+  background: var(--papel-2);
+  box-shadow: 0 0 0 1px var(--linha);
+  padding: 13px 14px;
+}
+
+.metricas.tres .metrica {
+  padding: 13px 11px;
+}
+
+.metrica .rotulo {
+  display: block;
+  font-size: 0.66rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--tinta-fraca);
+  margin-bottom: 5px;
+}
+
+.metrica .valor {
+  font-family: var(--fonte-numero);
+  font-size: 1.3rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+.metrica .valor .unidade {
+  font-size: 0.68rem;
+  color: var(--tinta-fraca);
+  margin-left: 2px;
+}
+
+.metrica.destaque {
+  background: var(--tinta);
+  color: var(--papel);
+}
+
+.metrica.destaque .rotulo {
+  color: color-mix(in srgb, var(--papel) 62%, transparent);
+}
+
+/* --- Número herói -------------------------------------------------------- */
+
+.heroi {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 18px;
+  background: var(--tinta);
+  color: var(--papel);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+}
+
+.heroi .rotulo {
+  font-family: var(--fonte-titulo);
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.65;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.heroi .valor {
+  font-family: var(--fonte-numero);
+  font-size: 2.7rem;
+  line-height: 0.95;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.045em;
+  color: var(--crosta-viva);
+}
+
+.heroi .valor .unidade {
+  font-size: 1rem;
+  letter-spacing: 0;
+  opacity: 0.8;
+}
+
+.heroi .lateral {
+  text-align: right;
+  font-family: var(--fonte-numero);
+  font-size: 0.78rem;
+  line-height: 1.65;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.72;
+}
+
+/* --- Campos de entrada --------------------------------------------------- */
+
+.grupo {
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  background: var(--papel-2);
+  overflow: hidden;
+}
+
+.campo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--linha);
+  min-height: 52px;
+}
+
+.campo:last-child {
+  border-bottom: none;
+}
+
+.campo-texto {
+  flex: 1;
+  min-width: 0;
+}
+
+.campo-rotulo {
+  display: block;
+  font-size: 0.92rem;
+}
+
+.campo-dica {
+  display: block;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--tinta-fraca);
+  margin-top: 2px;
+}
+
+.campo-controle {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  padding: 2px;
+}
+
+.passo {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  font-family: var(--fonte-numero);
+  font-size: 1rem;
+  color: var(--tinta-suave);
+  border-radius: 2px;
+  transition: background 0.12s, color 0.12s;
+}
+
+.passo:active {
+  background: var(--papel-3);
+  color: var(--crosta);
+}
+
+.campo-controle input {
+  width: 62px;
+  border: none;
+  background: none;
+  text-align: right;
+  font-family: var(--fonte-numero);
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  padding: 0 1px;
+  -moz-appearance: textfield;
+}
+
+.campo-controle input::-webkit-outer-spin-button,
+.campo-controle input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.campo-controle input:focus {
+  outline: none;
+  color: var(--crosta);
+}
+
+.campo-unidade {
+  font-size: 0.7rem;
+  color: var(--tinta-fraca);
+  min-width: 26px;
+  padding-right: 2px;
+}
+
+/* --- Avisos e notas ------------------------------------------------------ */
+
+.aviso {
+  display: flex;
+  gap: 9px;
+  padding: 11px 14px;
+  border-left: 3px solid var(--alerta);
+  background: color-mix(in srgb, var(--alerta) 9%, var(--papel-2));
+  border-radius: 0 var(--raio) var(--raio) 0;
+  font-size: 0.85rem;
+  margin-top: 12px;
+}
+
+.nota-rodape {
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: var(--tinta-fraca);
+  margin: 9px 2px 0;
+  padding-left: 13px;
+  position: relative;
+}
+
+.nota-rodape::before {
+  content: "†";
+  position: absolute;
+  left: 0;
+  color: var(--crosta);
+}
+
+/* --- Diário -------------------------------------------------------------- */
+
+.diario-controles {
+  display: flex;
+  gap: 8px;
+  margin: 20px 0 4px;
+}
+
+.filtro {
+  flex: 1;
+  padding: 9px 12px;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  color: var(--tinta-suave);
+  background: var(--papel-2);
+  transition: all 0.15s;
+}
+
+.filtro[aria-pressed="true"] {
+  background: var(--tinta);
+  color: var(--papel);
+  border-color: var(--tinta);
+}
+
+.botao-principal {
+  width: 100%;
+  padding: 15px;
+  background: var(--crosta);
+  color: #fff;
+  border-radius: var(--raio);
+  font-size: 0.82rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  box-shadow: var(--sombra);
+  transition: transform 0.12s, background 0.15s;
+}
+
+.botao-principal:active {
+  transform: scale(0.985);
+  background: var(--crosta-viva);
+}
+
+.botao-secundario {
+  padding: 11px 16px;
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--raio);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+  transition: background 0.15s;
+}
+
+.botao-secundario:active {
+  background: var(--papel-3);
+}
+
+.registro {
+  background: var(--papel-2);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  padding: 15px 16px;
+  margin-top: 12px;
+  box-shadow: var(--sombra);
+}
+
+.registro-topo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.registro-data {
+  font-family: var(--fonte-titulo);
+  font-size: 1.02rem;
+  font-weight: 600;
+}
+
+.registro-receita {
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tinta-fraca);
+}
+
+.diffs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 11px;
+}
+
+.diff {
+  font-size: 0.74rem;
+  padding: 4px 9px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--crosta) 12%, var(--papel));
+  border: 1px solid color-mix(in srgb, var(--crosta) 26%, transparent);
+  color: var(--tinta);
+}
+
+.diff .de {
+  color: var(--tinta-fraca);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.diff .para {
+  font-family: var(--fonte-numero);
+  color: var(--crosta);
+  font-weight: 600;
+}
+
+.diff-vazio {
+  font-size: 0.74rem;
+  color: var(--tinta-fraca);
+  font-style: italic;
+  margin-bottom: 10px;
+}
+
+.observacao {
+  font-family: var(--fonte-titulo);
+  font-size: 1rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  margin: 0 0 11px;
+}
+
+.observacao:empty {
+  display: none;
+}
+
+.notas-rapidas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 0.72rem;
+  color: var(--tinta-suave);
+  margin-bottom: 10px;
+}
+
+.nota-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pontos {
+  display: flex;
+  gap: 2px;
+}
+
+.ponto {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1px solid var(--linha-forte);
+}
+
+.ponto.cheio {
+  background: var(--crosta);
+  border-color: var(--crosta);
+}
+
+.pesagem-real {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 11px 12px;
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  font-family: var(--fonte-numero);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 10px;
+}
+
+.pesagem-real .sep {
+  color: var(--tinta-fraca);
+}
+
+.pesagem-real .real {
+  color: var(--crosta);
+  font-weight: 600;
+}
+
+.pesagem-real .calibrar {
+  margin-left: auto;
+  font-family: var(--fonte-corpo);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--agua);
+  border-bottom: 1px solid currentColor;
+}
+
+/* Apagar é destrutivo e raro: fica discreto, no canto, longe do polegar. */
+.registro-acoes {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.registro-acoes button {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tinta-fraca);
+  padding: 4px 2px;
+}
+
+.registro-acoes button:active {
+  color: var(--alerta);
+}
+
+details.retrato {
+  border-top: 1px dashed var(--linha);
+  padding-top: 9px;
+}
+
+details.retrato summary {
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tinta-fraca);
+  cursor: pointer;
+  list-style: none;
+}
+
+details.retrato summary::-webkit-details-marker {
+  display: none;
+}
+
+details.retrato summary::before {
+  content: "▸ ";
+  color: var(--crosta);
+}
+
+details.retrato[open] summary::before {
+  content: "▾ ";
+}
+
+.retrato-lista {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  margin-top: 9px;
+  font-size: 0.75rem;
+}
+
+.retrato-lista dt {
+  color: var(--tinta-suave);
+}
+
+.retrato-lista dd {
+  margin: 0;
+  font-family: var(--fonte-numero);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.vazio {
+  text-align: center;
+  padding: 46px 20px;
+  color: var(--tinta-fraca);
+}
+
+.vazio .glifo {
+  font-size: 2.4rem;
+  display: block;
+  margin-bottom: 12px;
+  filter: grayscale(1) opacity(0.4);
+}
+
+.vazio p {
+  margin: 0;
+  font-family: var(--fonte-titulo);
+  font-size: 0.98rem;
+  line-height: 1.5;
+}
+
+/* --- Folha modal --------------------------------------------------------- */
+
+.folha {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.folha[hidden] {
+  display: none;
+}
+
+.folha-fundo {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 14, 10, 0.55);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: aparecer 0.22s ease backwards;
+}
+
+.folha-corpo {
+  position: relative;
+  width: 100%;
+  max-width: 680px;
+  max-height: 90svh;
+  overflow-y: auto;
+  background: var(--papel);
+  border-radius: 14px 14px 0 0;
+  border-top: 1px solid var(--linha);
+  padding: 8px 18px calc(env(safe-area-inset-bottom) + 22px);
+  animation: subir 0.28s cubic-bezier(0.22, 0.61, 0.36, 1) backwards;
+}
+
+@keyframes aparecer {
+  from { opacity: 0; }
+}
+
+@keyframes subir {
+  from { transform: translateY(18px); opacity: 0; }
+}
+
+.folha-alca {
+  width: 38px;
+  height: 4px;
+  border-radius: 99px;
+  background: var(--linha-forte);
+  margin: 6px auto 14px;
+}
+
+.folha-titulo {
+  font-family: var(--fonte-titulo);
+  font-size: 1.3rem;
+  margin: 0 0 16px;
+}
+
+.folha-acoes {
+  display: flex;
+  gap: 9px;
+  margin-top: 20px;
+}
+
+.folha-acoes .botao-principal {
+  flex: 2;
+}
+
+.folha-acoes .botao-secundario {
+  flex: 1;
+}
+
+.campo-livre {
+  display: block;
+  margin-bottom: 14px;
+}
+
+.campo-livre > span {
+  display: block;
+  font-size: 0.68rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--tinta-fraca);
+  margin-bottom: 6px;
+}
+
+.campo-livre input,
+.campo-livre textarea {
+  width: 100%;
+  padding: 11px 12px;
+  background: var(--papel-2);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  font-size: 0.95rem;
+}
+
+.campo-livre textarea {
+  font-family: var(--fonte-titulo);
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 92px;
+}
+
+.campo-livre input:focus,
+.campo-livre textarea:focus {
+  outline: 2px solid color-mix(in srgb, var(--crosta) 45%, transparent);
+  outline-offset: -1px;
+}
+
+.escalas {
+  display: grid;
+  gap: 9px;
+  margin-bottom: 14px;
+}
+
+.escala {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.escala > span {
+  flex: 1;
+  font-size: 0.85rem;
+}
+
+.escala-botoes {
+  display: flex;
+  gap: 3px;
+}
+
+.escala-botoes button {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--raio);
+  border: 1px solid var(--linha);
+  background: var(--papel-2);
+  font-family: var(--fonte-numero);
+  font-size: 0.85rem;
+  color: var(--tinta-suave);
+  transition: all 0.13s;
+}
+
+.escala-botoes button[aria-pressed="true"] {
+  background: var(--crosta);
+  border-color: var(--crosta);
+  color: #fff;
+}
+
+.trio {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+}
+
+.lista-receitas {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.item-receita {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  background: var(--papel-2);
+  text-align: left;
+}
+
+.item-receita[aria-current="true"] {
+  border-color: var(--crosta);
+  background: color-mix(in srgb, var(--crosta) 8%, var(--papel-2));
+}
+
+.item-receita .nome {
+  flex: 1;
+  font-family: var(--fonte-titulo);
+  font-size: 1.02rem;
+}
+
+.item-receita .marca {
+  color: var(--crosta);
+}
+
+.item-receita .contagem {
+  font-size: 0.68rem;
+  color: var(--tinta-fraca);
+  letter-spacing: 0.05em;
+}
+</style>
+<div id="app"></div>
+<script>
+(function () {
+// ===== calc.js =====
+/**
+ * Motor de cálculo do aplicativo de pão.
+ *
+ * Função pura, sem DOM e sem estado: recebe as entradas, devolve todos os
+ * resultados das três abas de uma vez. As abas da interface são recortes deste
+ * objeto — nenhum valor derivado é guardado em outro lugar.
+ *
+ * Fiel à planilha Tabela_de_pao.xlsx. Ver docs/superpowers/specs/ para a
+ * referência de fórmulas e os valores que servem de critério de aceitação.
+ */
+
+const ENTRADAS_PADRAO = {
+  // Pão
+  pesoAssadoDesejado: 500,
+  numeroPaes: 2,
+  pctIntegral: 0.1,
+  pctCenteio: 0,
+  hidratacao: 0.7,
+  pctStarter: 0.2,
+  pctSal: 0.02,
+  pctMelado: 0,
+  extras: 0,
+  fatorArredondamento: 10,
+  perdaForno: 0.11,
+  tempoPreAquecimento: 45,
+  tempoCozimento: 40,
+  // Starter
+  hidratacaoMae: 1,
+  propAtivacaoStarter: 1,
+  propAtivacaoFarinha: 3,
+  propAtivacaoAgua: 3,
+  // Custos
+  precoFarinha: 4.46,
+  precoIntegral: 11,
+  precoCenteio: 9,
+  precoSal: 2.5,
+  precoMelado: 41,
+  precoExtras: 10,
+  precoKwh: 0.8653,
+  potenciaForno: 0.6,
+  embalagemExterna: 1.44,
+  embalagemInterna: 0.63,
+  etiqueta: 0.04,
+};
+
+/**
+ * O Excel normaliza para 15 dígitos significativos antes de arredondar. Sem
+ * isso, (590+60)*0,7 vale 454,99999999999994 em ponto flutuante e a água sai
+ * 390 g em vez de 400 g — a planilha dá 400.
+ */
+function precisao15(x) {
+  if (!Number.isFinite(x) || x === 0) return x;
+  return Number(x.toPrecision(15));
+}
+
+/** Arredondamento do Excel: metade para longe do zero (JS arredonda para +∞). */
+function excelRound(x) {
+  const v = precisao15(x);
+  return v < 0 ? -Math.round(-v) : Math.round(v);
+}
+
+/** ROUNDUP do Excel: teto em valor absoluto. */
+function roundUp(x) {
+  const v = precisao15(x);
+  return v < 0 ? -Math.ceil(-v) : Math.ceil(v);
+}
+
+function num(valor, padrao) {
+  const n = typeof valor === 'number' ? valor : Number(valor);
+  return Number.isFinite(n) ? n : padrao;
+}
+
+const fin = (x) => (Number.isFinite(x) ? x : 0);
+
+function calcular(entradas = {}) {
+  const avisos = [];
+  const e = {};
+  for (const [chave, padrao] of Object.entries(ENTRADAS_PADRAO)) {
+    e[chave] = num(entradas?.[chave], padrao);
+  }
+
+  const R = e.fatorArredondamento;
+  // Fator de arredondamento zero ou negativo significa "não arredondar".
+  const snap = (x) => (R > 0 ? excelRound(x / R) * R : x);
+
+  // --- 1. Starter ativado -------------------------------------------------
+  // Precisa vir primeiro: a hidratação do starter entra na conta da farinha.
+  const rSt = e.propAtivacaoStarter;
+  const rFl = e.propAtivacaoFarinha;
+  const rWa = e.propAtivacaoAgua;
+  const somaProp = rSt + rFl + rWa;
+  const divisorMae = 1 + e.hidratacaoMae;
+
+  let hAct = 0;
+  if (rSt <= 0) {
+    avisos.push('A proporção de starter na ativação precisa ser maior que zero.');
+  } else if (divisorMae <= 0) {
+    avisos.push('A hidratação do starter-mãe precisa ser maior que -100%.');
+  } else {
+    const farinhaDaProporcao = rFl + rSt / divisorMae;
+    if (farinhaDaProporcao === 0) {
+      avisos.push('As proporções de ativação não produzem farinha alguma.');
+    } else {
+      hAct = (rWa + (rSt * e.hidratacaoMae) / divisorMae) / farinhaDaProporcao;
+    }
+  }
+  const divisorAtivado = 1 + hAct;
+
+  // --- 2. Peso-alvo da massa e farinha total ------------------------------
+  let alvoMassa = 0;
+  if (e.numeroPaes <= 0) {
+    avisos.push('O número de pães precisa ser maior que zero.');
+  } else if (e.perdaForno >= 1) {
+    avisos.push('A perda no forno precisa ser menor que 100%.');
+  } else {
+    alvoMassa = (e.pesoAssadoDesejado * e.numeroPaes) / (1 - e.perdaForno);
+  }
+
+  // Soma dos percentuais expressa em função da farinha adicionada, descontando
+  // a farinha e a água que já chegam dentro do starter.
+  const denom =
+    divisorAtivado === 0
+      ? 0
+      : 1 +
+        e.pctStarter +
+        e.pctSal +
+        e.pctMelado +
+        e.hidratacao * (1 + e.pctStarter / divisorAtivado) -
+        (e.pctStarter * hAct) / divisorAtivado;
+
+  let farinhaTotal = 0;
+  if (denom <= 0) {
+    avisos.push('Os percentuais informados não fecham numa receita possível.');
+  } else {
+    farinhaTotal = snap(alvoMassa / denom);
+  }
+
+  // --- 3. Ingredientes ----------------------------------------------------
+  // Cada linha arredonda por conta própria, como na planilha — a soma das
+  // farinhas pode não bater exatamente com a farinha total.
+  const farinhaBranca = snap(farinhaTotal * (1 - e.pctIntegral - e.pctCenteio));
+  const integral = snap(farinhaTotal * e.pctIntegral);
+  const centeio = snap(farinhaTotal * e.pctCenteio);
+  const starter = snap(farinhaTotal * e.pctStarter);
+  const farinhaNoStarter = divisorAtivado === 0 ? 0 : starter / divisorAtivado;
+  const aguaNoStarter = divisorAtivado === 0 ? 0 : (starter * hAct) / divisorAtivado;
+  const agua = snap((farinhaTotal + farinhaNoStarter) * e.hidratacao - aguaNoStarter);
+  const sal = snap(farinhaTotal * e.pctSal);
+  const melado = snap(farinhaTotal * e.pctMelado);
+
+  // --- 4. Métricas --------------------------------------------------------
+  // Extras ficam de fora do peso, como na planilha: entram só no custo.
+  const pesoTotal = farinhaBranca + integral + centeio + agua + starter + sal + melado;
+  const pesoPorPao = e.numeroPaes > 0 ? excelRound(pesoTotal / e.numeroPaes) : 0;
+
+  const farinhaParaHidratacao = farinhaBranca + integral + centeio + farinhaNoStarter;
+  const hidratacaoReal =
+    farinhaParaHidratacao > 0 ? (agua + aguaNoStarter) / farinhaParaHidratacao : 0;
+
+  const pesoAssado = pesoPorPao * (1 - e.perdaForno);
+  const largura = pesoAssado > 0 ? Math.cbrt((pesoAssado * 2.7) / 0.75) : 0;
+  const comprimento = largura * 2.2;
+  const altura = largura * 0.85;
+  const fornadas = e.numeroPaes > 0 ? roundUp(e.numeroPaes / 2) : 0;
+
+  // --- 5. Ativação do starter ---------------------------------------------
+  let maeParaAtivar = 0;
+  let farinhaAtivar = 0;
+  let aguaAtivar = 0;
+  if (rSt > 0 && somaProp > 0) {
+    maeParaAtivar = roundUp((starter * rSt) / somaProp);
+    farinhaAtivar = (maeParaAtivar * rFl) / rSt;
+    aguaAtivar = (maeParaAtivar * rWa) / rSt;
+  }
+  const totalAtivado = maeParaAtivar + farinhaAtivar + aguaAtivar;
+  const sobra = Math.max(totalAtivado - starter, 0);
+
+  // --- 6. Custos ----------------------------------------------------------
+  // Preços de ingredientes são por quilo; embalagens e etiqueta, por unidade.
+  const embalagem = e.embalagemExterna + e.embalagemInterna + e.etiqueta;
+  const energia =
+    ((e.tempoPreAquecimento + e.tempoCozimento * fornadas) / 60) * e.potenciaForno * e.precoKwh;
+  // A farinha que vem no starter é cobrada ao preço da branca, como na planilha.
+  const custoIngredientes =
+    (e.precoFarinha * (farinhaBranca + farinhaNoStarter) +
+      e.precoIntegral * integral +
+      e.precoCenteio * centeio +
+      e.precoSal * sal +
+      e.precoMelado * melado +
+      e.precoExtras * e.extras) /
+    1000;
+  const embalagemTotal = embalagem * e.numeroPaes;
+  const producao = embalagemTotal + custoIngredientes + energia;
+  const porPaoEmbalado = e.numeroPaes > 0 ? producao / e.numeroPaes : 0;
+  const porPao = e.numeroPaes > 0 ? porPaoEmbalado - embalagem : 0;
+
+  return {
+    starter: {
+      hidratacaoAtivado: fin(hAct),
+      maeParaAtivar: fin(maeParaAtivar),
+      farinhaAtivar: fin(farinhaAtivar),
+      aguaAtivar: fin(aguaAtivar),
+      farinhaNoStarter: fin(farinhaNoStarter),
+      aguaNoStarter: fin(aguaNoStarter),
+      totalAtivado: fin(totalAtivado),
+      sobra: fin(sobra),
+    },
+    pao: {
+      farinhaBranca: fin(farinhaBranca),
+      integral: fin(integral),
+      centeio: fin(centeio),
+      agua: fin(agua),
+      starter: fin(starter),
+      sal: fin(sal),
+      melado: fin(melado),
+      farinhaTotal: fin(farinhaTotal),
+      alvoMassa: fin(alvoMassa),
+      pesoTotal: fin(pesoTotal),
+      pesoPorPao: fin(pesoPorPao),
+      hidratacaoReal: fin(hidratacaoReal),
+      pesoAssado: fin(pesoAssado),
+      largura: fin(largura),
+      comprimento: fin(comprimento),
+      altura: fin(altura),
+      fornadas: fin(fornadas),
+    },
+    custos: {
+      embalagem: fin(embalagem),
+      embalagemTotal: fin(embalagemTotal),
+      ingredientes: fin(custoIngredientes),
+      energia: fin(energia),
+      producao: fin(producao),
+      porPao: fin(porPao),
+      porPaoEmbalado: fin(porPaoEmbalado),
+    },
+    avisos,
+  };
+}
+
+/**
+ * Resolve a perda real no forno a partir de um pão que foi de fato pesado.
+ * É o que substitui o chute de 11% por medição.
+ */
+function calibrarPerda(pesoPorPao, pesoRealAssado) {
+  if (!(pesoPorPao > 0) || !(pesoRealAssado > 0)) return null;
+  const perda = 1 - pesoRealAssado / pesoPorPao;
+  if (!Number.isFinite(perda) || perda < 0 || perda >= 1) return null;
+  return perda;
+}
+
+// ===== campos.js =====
+/**
+ * Metadados dos campos de entrada: rótulo, aba, unidade e formatação.
+ *
+ * Uma definição só, usada em três lugares — para desenhar os formulários, para
+ * escrever o diff do diário em português e para formatar os retratos de
+ * parâmetros. Acrescentar um campo aqui o faz aparecer nos três.
+ *
+ * `fator` converte entre o valor guardado e o exibido: percentuais são
+ * guardados como fração (0,7) e mostrados como número (70).
+ */
+
+const CAMPOS = [
+  // --- Pão ---------------------------------------------------------------
+  { chave: 'pesoAssadoDesejado', rotulo: 'Peso assado desejado por pão', aba: 'pao', grupo: 'Objetivo', unidade: 'g', passo: 10, dica: 'Peso desejado do pão depois de assado.' },
+  { chave: 'numeroPaes', rotulo: 'Número de pães', aba: 'pao', grupo: 'Objetivo', unidade: '', passo: 1, casas: 0 },
+
+  { chave: 'pctIntegral', rotulo: 'Farinha integral', aba: 'pao', grupo: 'Percentuais de padeiro', unidade: '%', fator: 100, passo: 1, casas: 1 },
+  { chave: 'pctCenteio', rotulo: 'Farinha de centeio', aba: 'pao', grupo: 'Percentuais de padeiro', unidade: '%', fator: 100, passo: 1, casas: 1 },
+  { chave: 'hidratacao', rotulo: 'Hidratação', aba: 'pao', grupo: 'Percentuais de padeiro', unidade: '%', fator: 100, passo: 1, casas: 1 },
+  { chave: 'pctStarter', rotulo: 'Starter', aba: 'pao', grupo: 'Percentuais de padeiro', unidade: '%', fator: 100, passo: 1, casas: 1 },
+  { chave: 'pctSal', rotulo: 'Sal', aba: 'pao', grupo: 'Percentuais de padeiro', unidade: '%', fator: 100, passo: 0.1, casas: 2 },
+  { chave: 'pctMelado', rotulo: 'Melado', aba: 'pao', grupo: 'Percentuais de padeiro', unidade: '%', fator: 100, passo: 0.5, casas: 1 },
+  { chave: 'extras', rotulo: 'Extras', aba: 'pao', grupo: 'Percentuais de padeiro', unidade: 'g', passo: 10, dica: 'Entra no custo, mas não no peso da massa — igual à planilha.' },
+
+  { chave: 'fatorArredondamento', rotulo: 'Fator de arredondamento', aba: 'pao', grupo: 'Ajustes', unidade: 'g', passo: 1, dica: 'Arredonda cada ingrediente para múltiplos deste valor. Zero desliga o arredondamento.' },
+  { chave: 'perdaForno', rotulo: 'Perda estimada no forno', aba: 'pao', grupo: 'Ajustes', unidade: '%', fator: 100, passo: 0.5, casas: 1, dica: 'Percentual de peso perdido no forno. O diário calibra este valor a partir de pães pesados de verdade.' },
+  { chave: 'tempoPreAquecimento', rotulo: 'Pré-aquecimento', aba: 'pao', grupo: 'Ajustes', unidade: 'min', passo: 5, casas: 0 },
+  { chave: 'tempoCozimento', rotulo: 'Cozimento', aba: 'pao', grupo: 'Ajustes', unidade: 'min', passo: 5, casas: 0 },
+
+  // --- Starter -----------------------------------------------------------
+  { chave: 'hidratacaoMae', rotulo: 'Hidratação do starter-mãe', aba: 'starter', grupo: 'Starter-mãe', unidade: '%', fator: 100, passo: 5, casas: 0, dica: '100% significa partes iguais de água e farinha no pote.' },
+  { chave: 'propAtivacaoStarter', rotulo: 'Proporção — starter', aba: 'starter', grupo: 'Ativação', unidade: '', passo: 1, casas: 1 },
+  { chave: 'propAtivacaoFarinha', rotulo: 'Proporção — farinha', aba: 'starter', grupo: 'Ativação', unidade: '', passo: 1, casas: 1 },
+  { chave: 'propAtivacaoAgua', rotulo: 'Proporção — água', aba: 'starter', grupo: 'Ativação', unidade: '', passo: 1, casas: 1 },
+
+  // --- Custos ------------------------------------------------------------
+  { chave: 'precoFarinha', rotulo: 'Farinha branca', aba: 'custos', grupo: 'Preço por quilo', unidade: 'R$/kg', passo: 0.1, casas: 2 },
+  { chave: 'precoIntegral', rotulo: 'Farinha integral', aba: 'custos', grupo: 'Preço por quilo', unidade: 'R$/kg', passo: 0.1, casas: 2 },
+  { chave: 'precoCenteio', rotulo: 'Farinha de centeio', aba: 'custos', grupo: 'Preço por quilo', unidade: 'R$/kg', passo: 0.1, casas: 2 },
+  { chave: 'precoSal', rotulo: 'Sal', aba: 'custos', grupo: 'Preço por quilo', unidade: 'R$/kg', passo: 0.1, casas: 2 },
+  { chave: 'precoMelado', rotulo: 'Melado', aba: 'custos', grupo: 'Preço por quilo', unidade: 'R$/kg', passo: 1, casas: 2 },
+  { chave: 'precoExtras', rotulo: 'Extras', aba: 'custos', grupo: 'Preço por quilo', unidade: 'R$/kg', passo: 1, casas: 2 },
+
+  { chave: 'precoKwh', rotulo: 'Preço do kWh', aba: 'custos', grupo: 'Energia', unidade: 'R$', passo: 0.01, casas: 4 },
+  { chave: 'potenciaForno', rotulo: 'Potência do forno', aba: 'custos', grupo: 'Energia', unidade: 'kW', passo: 0.1, casas: 2 },
+
+  { chave: 'embalagemExterna', rotulo: 'Embalagem externa', aba: 'custos', grupo: 'Embalagem (por pão)', unidade: 'R$', passo: 0.01, casas: 2 },
+  { chave: 'embalagemInterna', rotulo: 'Embalagem interna', aba: 'custos', grupo: 'Embalagem (por pão)', unidade: 'R$', passo: 0.01, casas: 2 },
+  { chave: 'etiqueta', rotulo: 'Etiqueta', aba: 'custos', grupo: 'Embalagem (por pão)', unidade: 'R$', passo: 0.01, casas: 2 },
+];
+
+const CAMPO_POR_CHAVE = Object.fromEntries(CAMPOS.map((c) => [c.chave, c]));
+
+/** Valor guardado → número mostrado no formulário. */
+function paraExibicao(campo, valor) {
+  return valor * (campo.fator ?? 1);
+}
+
+/** Número digitado no formulário → valor guardado. */
+function paraArmazenamento(campo, valor) {
+  return valor / (campo.fator ?? 1);
+}
+
+/** Formata com vírgula decimal e sem zeros à direita: 70,0 → "70"; 2,50 → "2,5". */
+function enxugar(numero, casas) {
+  let texto = numero.toFixed(casas);
+  if (texto.includes('.')) texto = texto.replace(/0+$/, '').replace(/\.$/, '');
+  return texto.replace('.', ',');
+}
+
+/** Valor guardado → texto para dentro do campo do formulário, sem unidade. */
+function formatarEntrada(campo, valor) {
+  if (!Number.isFinite(Number(valor))) return '';
+  return enxugar(paraExibicao(campo, Number(valor)), campo.casas ?? 0);
+}
+
+/** Valor guardado → texto legível com unidade, para o diff e os retratos. */
+function formatarValor(campo, valor) {
+  if (valor === null || valor === undefined || !Number.isFinite(Number(valor))) return '—';
+  const texto = formatarEntrada(campo, valor);
+  if (!campo.unidade) return texto;
+  if (campo.unidade === '%') return `${texto}%`;
+  if (campo.unidade.startsWith('R$')) {
+    const sufixo = campo.unidade === 'R$/kg' ? '/kg' : '';
+    return `R$ ${texto}${sufixo}`;
+  }
+  return `${texto} ${campo.unidade}`;
+}
+
+// ===== store.js =====
+/**
+ * Estado do aplicativo: receitas nomeadas, diário de fornadas e persistência.
+ *
+ * O diff entre fornadas não é guardado — é calculado na hora, comparando o
+ * retrato de uma fornada com o da anterior. Assim o dado canônico é único e
+ * mudar o formato de exibição do diff melhora o histórico inteiro sem migração.
+ */
+
+
+
+
+const CHAVE_STORAGE = 'aplicativo-pao';
+const VERSAO = 1;
+
+/** Abaixo disto é ruído de ponto flutuante, não uma alteração do usuário. */
+const TOLERANCIA_DIFF = 1e-9;
+
+function agoraISO() {
+  return new Date().toISOString();
+}
+
+function gerarId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// ---------------------------------------------------------------------------
+// Receitas
+// ---------------------------------------------------------------------------
+
+function novaReceita(nome, opcoes = {}) {
+  const agora = opcoes.agora ?? agoraISO();
+  return {
+    id: opcoes.id ?? gerarId(),
+    nome,
+    criadaEm: agora,
+    atualizadaEm: agora,
+    entradas: { ...ENTRADAS_PADRAO, ...(opcoes.entradas ?? {}) },
+  };
+}
+
+function estadoInicial(opcoes = {}) {
+  const receita = novaReceita(opcoes.nome ?? 'Minha receita', opcoes);
+  return {
+    versao: VERSAO,
+    receitas: [receita],
+    receitaAtivaId: receita.id,
+    registros: [],
+  };
+}
+
+function receitaAtiva(estado) {
+  return estado.receitas.find((r) => r.id === estado.receitaAtivaId) ?? estado.receitas[0] ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Diário
+// ---------------------------------------------------------------------------
+
+function criarRegistro(receita, dados = {}, opcoes = {}) {
+  const agora = opcoes.agora ?? agoraISO();
+  return {
+    id: opcoes.id ?? gerarId(),
+    receitaId: receita.id,
+    quando: dados.quando ?? agora,
+    observacao: dados.observacao ?? '',
+    // Cópia rasa basta: entradas é um objeto plano de números.
+    snapshot: { ...receita.entradas },
+    pesoRealAssado: dados.pesoRealAssado ?? null,
+    notas: { crescimento: null, miolo: null, casca: null, acidez: null, ...(dados.notas ?? {}) },
+    processo: {
+      fermentacaoH: null,
+      geladeiraH: null,
+      temperaturaC: null,
+      ...(dados.processo ?? {}),
+    },
+  };
+}
+
+/** Do mais recente para o mais antigo. */
+function registrosDaReceita(estado, receitaId) {
+  return (estado.registros ?? [])
+    .filter((r) => r.receitaId === receitaId)
+    .sort((a, b) => (a.quando < b.quando ? 1 : a.quando > b.quando ? -1 : 0));
+}
+
+function diffEntradas(anterior, atual) {
+  if (!anterior || !atual) return [];
+  const mudancas = [];
+  for (const campo of CAMPOS) {
+    const de = Number(anterior[campo.chave]);
+    const para = Number(atual[campo.chave]);
+    if (!Number.isFinite(de) || !Number.isFinite(para)) continue;
+    if (Math.abs(de - para) <= TOLERANCIA_DIFF) continue;
+    mudancas.push({
+      chave: campo.chave,
+      rotulo: campo.rotulo,
+      de: formatarValor(campo, de),
+      para: formatarValor(campo, para),
+    });
+  }
+  return mudancas;
+}
+
+/** O que mudou entre esta fornada e a anterior da mesma receita. */
+function diffDoRegistro(estado, registro) {
+  const lista = registrosDaReceita(estado, registro.receitaId);
+  const posicao = lista.findIndex((r) => r.id === registro.id);
+  if (posicao === -1 || posicao === lista.length - 1) return [];
+  return diffEntradas(lista[posicao + 1].snapshot, registro.snapshot);
+}
+
+// ---------------------------------------------------------------------------
+// Export / import
+// ---------------------------------------------------------------------------
+
+function exportar(estado) {
+  return JSON.stringify(
+    {
+      app: CHAVE_STORAGE,
+      versao: VERSAO,
+      exportadoEm: agoraISO(),
+      receitas: estado.receitas,
+      receitaAtivaId: estado.receitaAtivaId,
+      registros: estado.registros,
+    },
+    null,
+    2
+  );
+}
+
+function normalizarReceita(bruta) {
+  return {
+    id: String(bruta.id),
+    nome: String(bruta.nome ?? 'Sem nome'),
+    criadaEm: bruta.criadaEm ?? agoraISO(),
+    atualizadaEm: bruta.atualizadaEm ?? bruta.criadaEm ?? agoraISO(),
+    entradas: { ...ENTRADAS_PADRAO, ...(bruta.entradas ?? {}) },
+  };
+}
+
+function normalizarRegistro(bruto) {
+  return {
+    id: String(bruto.id ?? gerarId()),
+    receitaId: String(bruto.receitaId),
+    quando: bruto.quando ?? agoraISO(),
+    observacao: String(bruto.observacao ?? ''),
+    snapshot: { ...ENTRADAS_PADRAO, ...(bruto.snapshot ?? {}) },
+    pesoRealAssado: bruto.pesoRealAssado ?? null,
+    notas: { crescimento: null, miolo: null, casca: null, acidez: null, ...(bruto.notas ?? {}) },
+    processo: {
+      fermentacaoH: null,
+      geladeiraH: null,
+      temperaturaC: null,
+      ...(bruto.processo ?? {}),
+    },
+  };
+}
+
+function importar(texto) {
+  let dados;
+  try {
+    dados = JSON.parse(texto);
+  } catch {
+    return { ok: false, erro: 'O arquivo não é um JSON válido.' };
+  }
+
+  if (!dados || typeof dados !== 'object' || Array.isArray(dados)) {
+    return { ok: false, erro: 'O arquivo não parece um backup deste aplicativo.' };
+  }
+  if (!Array.isArray(dados.receitas)) {
+    return { ok: false, erro: 'O arquivo não parece um backup deste aplicativo.' };
+  }
+
+  const receitas = dados.receitas.filter((r) => r && r.id !== undefined && r.id !== null).map(normalizarReceita);
+  if (receitas.length === 0) {
+    return { ok: false, erro: 'O backup não contém nenhuma receita.' };
+  }
+
+  const idsValidos = new Set(receitas.map((r) => r.id));
+  const registros = (Array.isArray(dados.registros) ? dados.registros : [])
+    .filter((r) => r && idsValidos.has(String(r.receitaId)))
+    .map(normalizarRegistro);
+
+  const ativa = String(dados.receitaAtivaId ?? '');
+  return {
+    ok: true,
+    estado: {
+      versao: VERSAO,
+      receitas,
+      receitaAtivaId: idsValidos.has(ativa) ? ativa : receitas[0].id,
+      registros,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Persistência
+// ---------------------------------------------------------------------------
+
+/**
+ * O storage é injetado para poder ser testado fora do navegador, e todo acesso
+ * é protegido: navegação privada e cota estourada lançam exceção em vez de
+ * falhar silenciosamente, e nenhum dos dois pode derrubar o aplicativo.
+ */
+function criarPersistencia(storage, chave = CHAVE_STORAGE) {
+  return {
+    carregar() {
+      try {
+        const bruto = storage.getItem(chave);
+        if (!bruto) return null;
+        const resultado = importar(bruto);
+        return resultado.ok ? resultado.estado : null;
+      } catch {
+        return null;
+      }
+    },
+    salvar(estado) {
+      try {
+        storage.setItem(chave, exportar(estado));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+  };
+}
+
+// ===== app.js =====
+/**
+ * Interface: quatro abas sobre um motor de cálculo só.
+ *
+ * Regra de renderização: apenas o painel ativo existe no DOM. Enquanto o
+ * usuário digita, nada é reconstruído — só os nós marcados com `data-saida`
+ * recebem texto novo. É o que impede o campo de perder o foco a cada tecla.
+ */
+
+
+
+
+
+const ABAS = [
+  { id: 'starter', glifo: '🫧', rotulo: 'Starter' },
+  { id: 'pao', glifo: '🍞', rotulo: 'Pão' },
+  { id: 'custos', glifo: '💰', rotulo: 'Custos' },
+  { id: 'diario', glifo: '📓', rotulo: 'Diário' },
+];
+
+const ESCALAS = [
+  { chave: 'crescimento', rotulo: 'Crescimento' },
+  { chave: 'miolo', rotulo: 'Abertura do miolo' },
+  { chave: 'casca', rotulo: 'Casca' },
+  { chave: 'acidez', rotulo: 'Acidez' },
+];
+
+const persistencia = criarPersistencia(
+  typeof localStorage !== 'undefined' ? localStorage : { getItem: () => null, setItem: () => {}, removeItem: () => {} }
+);
+
+let estado = persistencia.carregar() ?? estadoInicial();
+let abaAtiva = 'pao';
+let filtroDiario = 'receita';
+let temporizadorSalvar = null;
+
+// ---------------------------------------------------------------------------
+// Utilidades
+// ---------------------------------------------------------------------------
+
+const formatadores = new Map();
+function fmtNum(valor, casas) {
+  if (!formatadores.has(casas)) {
+    formatadores.set(
+      casas,
+      new Intl.NumberFormat('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas })
+    );
+  }
+  return formatadores.get(casas).format(valor);
+}
+
+function unidade(texto) {
+  return `<span class="unidade">${texto}</span>`;
+}
+
+/** Converte o valor cru num pedaço de HTML já formatado, conforme o tipo. */
+function formatarSaida(valor, tipo) {
+  const n = Number.isFinite(valor) ? valor : 0;
+  switch (tipo) {
+    case 'g': return `${fmtNum(n, 0)}${unidade('g')}`;
+    case 'g1': return `${fmtNum(n, 1)}${unidade('g')}`;
+    case 'pct': return `${fmtNum(n * 100, 1)}${unidade('%')}`;
+    case 'brl': return `${unidade('R$')}${fmtNum(n, 2)}`;
+    case 'brl4': return `${unidade('R$')}${fmtNum(n, 4)}`;
+    case 'cm': return `${fmtNum(n, 1)}${unidade('cm')}`;
+    default: return fmtNum(n, 0);
+  }
+}
+
+function caminho(objeto, rota) {
+  return rota.split('.').reduce((acc, parte) => (acc == null ? acc : acc[parte]), objeto);
+}
+
+/** Aceita tanto "70,5" quanto "70.5"; ponto vira separador de milhar se houver vírgula. */
+function paraNumero(texto) {
+  const t = String(texto ?? '').trim();
+  if (!t) return NaN;
+  const normalizado = t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : t;
+  const n = Number(normalizado);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function escapar(texto) {
+  return String(texto ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+const fmtData = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+const fmtHora = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+function dataLegivel(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return `${fmtData.format(d)} · ${fmtHora.format(d)}`;
+}
+
+/** Date → "AAAA-MM-DDTHH:mm" no fuso local, que é o que datetime-local espera. */
+function paraCampoDataHora(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function salvar() {
+  clearTimeout(temporizadorSalvar);
+  temporizadorSalvar = setTimeout(() => persistencia.salvar(estado), 300);
+}
+
+// ---------------------------------------------------------------------------
+// Blocos reutilizáveis
+// ---------------------------------------------------------------------------
+
+function linhaTicket(rotulo, rota, tipo, zeroSe) {
+  return `<div class="ticket-linha${zeroSe ? ' apagada' : ''}">
+    <span class="ticket-nome">${rotulo}</span>
+    <span class="ticket-pontilhado"></span>
+    <span class="ticket-valor" data-saida="${rota}" data-fmt="${tipo}"></span>
+  </div>`;
+}
+
+function metrica(rotulo, rota, tipo, destaque) {
+  return `<div class="metrica${destaque ? ' destaque' : ''}">
+    <span class="rotulo">${rotulo}</span>
+    <span class="valor" data-saida="${rota}" data-fmt="${tipo}"></span>
+  </div>`;
+}
+
+function campoEntrada(chave, entradas) {
+  const campo = CAMPO_POR_CHAVE[chave];
+  const valor = formatarEntrada(campo, entradas[chave]);
+  return `<div class="campo">
+    <span class="campo-texto">
+      <span class="campo-rotulo">${campo.rotulo}</span>
+      ${campo.dica ? `<span class="campo-dica">${campo.dica}</span>` : ''}
+    </span>
+    <span class="campo-controle">
+      <button class="passo" data-acao="passo" data-campo-alvo="${chave}" data-sinal="-1" aria-label="Diminuir ${campo.rotulo}">−</button>
+      <input type="text" inputmode="decimal" data-campo="${chave}" value="${valor}" aria-label="${campo.rotulo}">
+      <span class="campo-unidade">${campo.unidade === '%' ? '%' : campo.unidade.replace('R$/kg', '/kg').replace('R$', '')}</span>
+      <button class="passo" data-acao="passo" data-campo-alvo="${chave}" data-sinal="1" aria-label="Aumentar ${campo.rotulo}">+</button>
+    </span>
+  </div>`;
+}
+
+function grupoDeCampos(aba, grupo, entradas) {
+  const chaves = CAMPOS.filter((c) => c.aba === aba && c.grupo === grupo).map((c) => c.chave);
+  if (chaves.length === 0) return '';
+  return `<section class="secao">
+    <h2 class="secao-titulo">${grupo}</h2>
+    <div class="grupo">${chaves.map((k) => campoEntrada(k, entradas)).join('')}</div>
+  </section>`;
+}
+
+function blocoAvisos() {
+  return `<div id="avisos"></div>`;
+}
+
+// ---------------------------------------------------------------------------
+// Painéis
+// ---------------------------------------------------------------------------
+
+function painelStarter(entradas) {
+  return `
+    <section class="secao">
+      <h2 class="secao-titulo">Ativação para esta receita</h2>
+      <div class="ticket">
+        <div class="ticket-borda"></div>
+        ${linhaTicket('Starter-mãe do pote', 'starter.maeParaAtivar', 'g')}
+        ${linhaTicket('Farinha', 'starter.farinhaAtivar', 'g')}
+        ${linhaTicket('Água', 'starter.aguaAtivar', 'g')}
+        <div class="ticket-rodape">
+          <span class="rotulo">Starter ativado</span>
+          <span class="valor" data-saida="starter.totalAtivado" data-fmt="g"></span>
+        </div>
+      </div>
+      <p class="nota-rodape">As quantidades saem da necessidade de starter da receita, arredondada para cima — por isso costuma sobrar um pouco.</p>
+    </section>
+
+    <section class="secao">
+      <h2 class="secao-titulo">O que o starter carrega</h2>
+      <div class="metricas">
+        ${metrica('Hidratação do ativado', 'starter.hidratacaoAtivado', 'pct', true)}
+        ${metrica('Sobra', 'starter.sobra', 'g')}
+        ${metrica('Farinha embutida', 'starter.farinhaNoStarter', 'g1')}
+        ${metrica('Água embutida', 'starter.aguaNoStarter', 'g1')}
+      </div>
+      <p class="nota-rodape">A farinha e a água de dentro do starter são descontadas da receita — é por isso que mexer aqui muda os pesos da aba Pão.</p>
+    </section>
+
+    ${blocoAvisos()}
+    ${grupoDeCampos('starter', 'Starter-mãe', entradas)}
+    ${grupoDeCampos('starter', 'Ativação', entradas)}
+  `;
+}
+
+function painelPao(entradas) {
+  const zero = (chave) => !(Number(entradas[chave]) > 0);
+  return `
+    <section class="secao">
+      <h2 class="secao-titulo">Pesagem</h2>
+      <div class="ticket">
+        <div class="ticket-borda"></div>
+        ${linhaTicket('Farinha branca', 'pao.farinhaBranca', 'g')}
+        ${linhaTicket('Farinha integral', 'pao.integral', 'g', zero('pctIntegral'))}
+        ${linhaTicket('Farinha de centeio', 'pao.centeio', 'g', zero('pctCenteio'))}
+        ${linhaTicket('Água', 'pao.agua', 'g')}
+        ${linhaTicket('Starter ativado', 'pao.starter', 'g')}
+        ${linhaTicket('Sal', 'pao.sal', 'g')}
+        ${linhaTicket('Melado', 'pao.melado', 'g', zero('pctMelado'))}
+        <div class="ticket-rodape">
+          <span class="rotulo">Peso total da massa</span>
+          <span class="valor" data-saida="pao.pesoTotal" data-fmt="g"></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="secao">
+      <h2 class="secao-titulo">Resultado esperado</h2>
+      <div class="metricas">
+        ${metrica('Hidratação real', 'pao.hidratacaoReal', 'pct', true)}
+        ${metrica('Massa por pão', 'pao.pesoPorPao', 'g')}
+        ${metrica('Assado por pão', 'pao.pesoAssado', 'g1')}
+        ${metrica('Fornadas', 'pao.fornadas', 'int')}
+      </div>
+      <p class="nota-rodape">A hidratação real passa de 70% porque conta também a água que veio dentro do starter.</p>
+    </section>
+
+    <section class="secao">
+      <h2 class="secao-titulo">Fôrma estimada</h2>
+      <div class="metricas tres">
+        ${metrica('Comprimento', 'pao.comprimento', 'cm')}
+        ${metrica('Largura', 'pao.largura', 'cm')}
+        ${metrica('Altura', 'pao.altura', 'cm')}
+      </div>
+    </section>
+
+    ${blocoAvisos()}
+    ${grupoDeCampos('pao', 'Objetivo', entradas)}
+    ${grupoDeCampos('pao', 'Percentuais de padeiro', entradas)}
+    ${grupoDeCampos('pao', 'Ajustes', entradas)}
+  `;
+}
+
+function painelCustos(entradas) {
+  return `
+    <section class="secao">
+      <div class="heroi">
+        <div>
+          <span class="rotulo">Custo por pão embalado</span>
+          <span class="valor" data-saida="custos.porPaoEmbalado" data-fmt="brl"></span>
+        </div>
+        <div class="lateral">
+          <div>pão só: <span data-saida="custos.porPao" data-fmt="brl"></span></div>
+          <div>fornada: <span data-saida="custos.producao" data-fmt="brl"></span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="secao">
+      <h2 class="secao-titulo">De onde vem o custo</h2>
+      <div class="metricas tres">
+        ${metrica('Ingredientes', 'custos.ingredientes', 'brl')}
+        ${metrica('Embalagem', 'custos.embalagemTotal', 'brl')}
+        ${metrica('Energia', 'custos.energia', 'brl')}
+      </div>
+      <p class="nota-rodape">A farinha que vem dentro do starter é cobrada ao preço da branca, e a água não entra no custo — igual à planilha.</p>
+    </section>
+
+    ${blocoAvisos()}
+    ${grupoDeCampos('custos', 'Preço por quilo', entradas)}
+    ${grupoDeCampos('custos', 'Energia', entradas)}
+    ${grupoDeCampos('custos', 'Embalagem (por pão)', entradas)}
+  `;
+}
+
+// --- Diário ----------------------------------------------------------------
+
+function pontos(valor) {
+  let html = '<span class="pontos">';
+  for (let i = 1; i <= 5; i += 1) html += `<span class="ponto${valor >= i ? ' cheio' : ''}"></span>`;
+  return `${html}</span>`;
+}
+
+function blocoPesagem(registro) {
+  if (!(Number(registro.pesoRealAssado) > 0)) return '';
+  const estimado = calcular(registro.snapshot).pao.pesoAssado;
+  const perda = calibrarPerda(calcular(registro.snapshot).pao.pesoPorPao, Number(registro.pesoRealAssado));
+  return `<div class="pesagem-real">
+    <span class="sep">estimado</span> ${fmtNum(estimado, 0)} g
+    <span class="sep">·</span>
+    <span class="sep">real</span> <span class="real">${fmtNum(Number(registro.pesoRealAssado), 0)} g</span>
+    ${perda === null ? '' : `<button class="calibrar" data-acao="calibrar" data-id="${registro.id}">calibrar perda → ${fmtNum(perda * 100, 1)}%</button>`}
+  </div>`;
+}
+
+function blocoRetrato(registro) {
+  const linhas = CAMPOS.map(
+    (c) => `<dt>${c.rotulo}</dt><dd>${formatarValor(c, registro.snapshot[c.chave])}</dd>`
+  ).join('');
+  return `<details class="retrato">
+    <summary>Parâmetros desta fornada</summary>
+    <dl class="retrato-lista">${linhas}</dl>
+  </details>`;
+}
+
+function cartaoRegistro(registro, mostrarReceita) {
+  const diffs = diffDoRegistro(estado, registro);
+  const receita = estado.receitas.find((r) => r.id === registro.receitaId);
+
+  // Diff vazio tem dois significados diferentes, e confundi-los engana quem lê:
+  // ou nada mudou, ou esta é a fornada mais antiga e não há com o que comparar.
+  const daReceita = registrosDaReceita(estado, registro.receitaId);
+  const ehAPrimeira = daReceita.length > 0 && daReceita[daReceita.length - 1].id === registro.id;
+
+  const notas = ESCALAS.filter((e) => Number(registro.notas?.[e.chave]) > 0)
+    .map((e) => `<span class="nota-item">${e.rotulo} ${pontos(Number(registro.notas[e.chave]))}</span>`)
+    .join('');
+
+  const proc = registro.processo ?? {};
+  const partesProcesso = [
+    Number(proc.fermentacaoH) > 0 ? `${fmtNum(Number(proc.fermentacaoH), 1)} h em massa` : '',
+    Number(proc.geladeiraH) > 0 ? `${fmtNum(Number(proc.geladeiraH), 1)} h de geladeira` : '',
+    Number(proc.temperaturaC) > 0 ? `${fmtNum(Number(proc.temperaturaC), 0)} °C ambiente` : '',
+  ].filter(Boolean);
+
+  return `<article class="registro">
+    <div class="registro-topo">
+      <span class="registro-data">${dataLegivel(registro.quando)}</span>
+      ${mostrarReceita && receita ? `<span class="registro-receita">${escapar(receita.nome)}</span>` : ''}
+    </div>
+    ${
+      diffs.length
+        ? `<div class="diffs">${diffs
+            .map(
+              (d) =>
+                `<span class="diff">${escapar(d.rotulo)} <span class="de">${escapar(d.de)}</span> → <span class="para">${escapar(d.para)}</span></span>`
+            )
+            .join('')}</div>`
+        : `<p class="diff-vazio">${
+            ehAPrimeira
+              ? 'Primeira fornada registrada desta receita.'
+              : 'Sem alterações nos parâmetros desde a fornada anterior.'
+          }</p>`
+    }
+    ${blocoPesagem(registro)}
+    <p class="observacao">${escapar(registro.observacao)}</p>
+    ${notas ? `<div class="notas-rapidas">${notas}</div>` : ''}
+    ${partesProcesso.length ? `<div class="notas-rapidas">${partesProcesso.map((p) => `<span class="nota-item">${p}</span>`).join('')}</div>` : ''}
+    ${blocoRetrato(registro)}
+    <div class="registro-acoes">
+      <button data-acao="apagar-registro" data-id="${registro.id}">Apagar fornada</button>
+    </div>
+  </article>`;
+}
+
+function painelDiario() {
+  const ativa = receitaAtiva(estado);
+  const lista =
+    filtroDiario === 'todas'
+      ? [...estado.registros].sort((a, b) => (a.quando < b.quando ? 1 : -1))
+      : registrosDaReceita(estado, ativa.id);
+
+  const corpo = lista.length
+    ? lista.map((r) => cartaoRegistro(r, filtroDiario === 'todas')).join('')
+    : `<div class="vazio">
+         <span class="glifo">📓</span>
+         <p>Nenhuma fornada registrada ainda.<br>Asse, prove, e anote o que mudaria da próxima vez.</p>
+       </div>`;
+
+  return `
+    <div class="diario-controles">
+      <button class="filtro" data-acao="filtro" data-valor="receita" aria-pressed="${filtroDiario === 'receita'}">Esta receita</button>
+      <button class="filtro" data-acao="filtro" data-valor="todas" aria-pressed="${filtroDiario === 'todas'}">Todas</button>
+    </div>
+    <section class="secao">
+      <button class="botao-principal" data-acao="nova-fornada">Registrar fornada</button>
+    </section>
+    <section class="secao">${corpo}</section>
+  `;
+}
+
+// ---------------------------------------------------------------------------
+// Renderização
+// ---------------------------------------------------------------------------
+
+function render() {
+  const ativa = receitaAtiva(estado);
+  const topo = document.getElementById('topo');
+  topo.innerHTML = `
+    <div class="topo-interno">
+      <span class="topo-marca">Levain</span>
+      <button class="seletor-receita" data-acao="abrir-receitas">
+        <span class="nome">${escapar(ativa.nome)}</span>
+        <span class="seta">▼</span>
+      </button>
+      <button class="botao-icone" data-acao="abrir-receitas" aria-label="Receitas e backup">☰</button>
+    </div>`;
+
+  const painel = document.getElementById('painel');
+  painel.innerHTML =
+    abaAtiva === 'starter'
+      ? painelStarter(ativa.entradas)
+      : abaAtiva === 'pao'
+        ? painelPao(ativa.entradas)
+        : abaAtiva === 'custos'
+          ? painelCustos(ativa.entradas)
+          : painelDiario();
+
+  document.querySelectorAll('.aba').forEach((b) => {
+    b.setAttribute('aria-selected', String(b.dataset.aba === abaAtiva));
+  });
+
+  atualizar();
+}
+
+function atualizar() {
+  const ativa = receitaAtiva(estado);
+  const resultado = calcular(ativa.entradas);
+
+  document.querySelectorAll('#painel [data-saida]').forEach((el) => {
+    el.innerHTML = formatarSaida(caminho(resultado, el.dataset.saida), el.dataset.fmt);
+  });
+
+  const caixa = document.getElementById('avisos');
+  if (caixa) {
+    caixa.innerHTML = resultado.avisos
+      .map((a) => `<div class="aviso"><span>⚠</span><span>${escapar(a)}</span></div>`)
+      .join('');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Folhas modais
+// ---------------------------------------------------------------------------
+
+function abrirFolha(html) {
+  const folha = document.getElementById('folha');
+  folha.innerHTML = `<div class="folha-fundo" data-acao="fechar-folha"></div>
+    <div class="folha-corpo"><div class="folha-alca"></div>${html}</div>`;
+  folha.hidden = false;
+}
+
+function fecharFolha() {
+  const folha = document.getElementById('folha');
+  folha.hidden = true;
+  folha.innerHTML = '';
+}
+
+function folhaReceitas() {
+  const itens = estado.receitas
+    .map((r) => {
+      const n = estado.registros.filter((g) => g.receitaId === r.id).length;
+      const atual = r.id === estado.receitaAtivaId;
+      return `<button class="item-receita" data-acao="trocar-receita" data-id="${r.id}" aria-current="${atual}">
+        <span class="marca">${atual ? '●' : '○'}</span>
+        <span class="nome">${escapar(r.nome)}</span>
+        <span class="contagem">${n} ${n === 1 ? 'fornada' : 'fornadas'}</span>
+      </button>`;
+    })
+    .join('');
+
+  abrirFolha(`
+    <h2 class="folha-titulo">Receitas</h2>
+    <div class="lista-receitas">${itens}</div>
+    <div class="trio" style="margin-top:12px">
+      <button class="botao-secundario" data-acao="nova-receita">Nova</button>
+      <button class="botao-secundario" data-acao="renomear-receita">Renomear</button>
+      <button class="botao-secundario" data-acao="duplicar-receita">Duplicar</button>
+    </div>
+    <div style="margin-top:9px">
+      <button class="botao-secundario" style="width:100%" data-acao="apagar-receita">Apagar receita atual</button>
+    </div>
+
+    <h2 class="folha-titulo" style="margin-top:28px">Backup</h2>
+    <p class="nota-rodape" style="margin-bottom:12px">O aplicativo guarda tudo só neste aparelho. Limpar os dados do navegador apaga o diário — exporte de vez em quando.</p>
+    <div class="folha-acoes" style="margin-top:0">
+      <button class="botao-principal" data-acao="exportar">Exportar tudo</button>
+      <button class="botao-secundario" data-acao="importar">Importar</button>
+    </div>
+    <input type="file" id="arquivo-importar" accept="application/json,.json" hidden>
+  `);
+}
+
+function folhaNomeReceita(titulo, valorInicial, acao) {
+  abrirFolha(`
+    <h2 class="folha-titulo">${titulo}</h2>
+    <label class="campo-livre">
+      <span>Nome da receita</span>
+      <input type="text" id="nome-receita" value="${escapar(valorInicial)}" placeholder="Integral 500 g">
+    </label>
+    <div class="folha-acoes">
+      <button class="botao-principal" data-acao="${acao}">Salvar</button>
+      <button class="botao-secundario" data-acao="fechar-folha">Cancelar</button>
+    </div>
+  `);
+  const campo = document.getElementById('nome-receita');
+  campo.focus();
+  campo.select();
+}
+
+function folhaFornada() {
+  const ativa = receitaAtiva(estado);
+  const previsto = calcular(ativa.entradas).pao.pesoAssado;
+
+  abrirFolha(`
+    <h2 class="folha-titulo">Registrar fornada</h2>
+
+    <label class="campo-livre">
+      <span>Quando</span>
+      <input type="datetime-local" id="f-quando" value="${paraCampoDataHora(new Date().toISOString())}">
+    </label>
+
+    <label class="campo-livre">
+      <span>Observação</span>
+      <textarea id="f-obs" placeholder="O que você mudou, o que reparou, o que tentaria da próxima vez."></textarea>
+    </label>
+
+    <label class="campo-livre">
+      <span>Peso real assado, por pão — estimado ${fmtNum(previsto, 0)} g</span>
+      <input type="text" inputmode="decimal" id="f-peso" placeholder="pese um pão e anote">
+    </label>
+
+    <div class="escalas">
+      ${ESCALAS.map(
+        (e) => `<div class="escala" data-escala="${e.chave}">
+          <span>${e.rotulo}</span>
+          <span class="escala-botoes">
+            ${[1, 2, 3, 4, 5]
+              .map((n) => `<button type="button" data-acao="escala" data-chave="${e.chave}" data-nota="${n}" aria-pressed="false">${n}</button>`)
+              .join('')}
+          </span>
+        </div>`
+      ).join('')}
+    </div>
+
+    <div class="trio">
+      <label class="campo-livre"><span>Massa (h)</span><input type="text" inputmode="decimal" id="f-fermentacao"></label>
+      <label class="campo-livre"><span>Geladeira (h)</span><input type="text" inputmode="decimal" id="f-geladeira"></label>
+      <label class="campo-livre"><span>Ambiente (°C)</span><input type="text" inputmode="decimal" id="f-temp"></label>
+    </div>
+
+    <div class="folha-acoes">
+      <button class="botao-principal" data-acao="salvar-fornada">Salvar fornada</button>
+      <button class="botao-secundario" data-acao="fechar-folha">Cancelar</button>
+    </div>
+  `);
+}
+
+// ---------------------------------------------------------------------------
+// Ações
+// ---------------------------------------------------------------------------
+
+function salvarFornada() {
+  const ativa = receitaAtiva(estado);
+  const quandoCampo = document.getElementById('f-quando').value;
+  const notas = {};
+  document.querySelectorAll('#folha [data-acao="escala"][aria-pressed="true"]').forEach((b) => {
+    notas[b.dataset.chave] = Number(b.dataset.nota);
+  });
+
+  const numeroOuNulo = (id) => {
+    const n = paraNumero(document.getElementById(id).value);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  estado.registros.push(
+    criarRegistro(ativa, {
+      quando: quandoCampo ? new Date(quandoCampo).toISOString() : undefined,
+      observacao: document.getElementById('f-obs').value.trim(),
+      pesoRealAssado: numeroOuNulo('f-peso'),
+      notas,
+      processo: {
+        fermentacaoH: numeroOuNulo('f-fermentacao'),
+        geladeiraH: numeroOuNulo('f-geladeira'),
+        temperaturaC: numeroOuNulo('f-temp'),
+      },
+    })
+  );
+
+  salvar();
+  fecharFolha();
+  abaAtiva = 'diario';
+  render();
+}
+
+function calibrarPerdaForno(id) {
+  const registro = estado.registros.find((r) => r.id === id);
+  if (!registro) return;
+  const perda = calibrarPerda(calcular(registro.snapshot).pao.pesoPorPao, Number(registro.pesoRealAssado));
+  if (perda === null) return;
+
+  const ativa = receitaAtiva(estado);
+  const atual = fmtNum(ativa.entradas.perdaForno * 100, 1);
+  const nova = fmtNum(perda * 100, 1);
+  if (!confirm(`Trocar a perda no forno de ${atual}% para ${nova}% na receita "${ativa.nome}"?`)) return;
+
+  ativa.entradas = { ...ativa.entradas, perdaForno: perda };
+  ativa.atualizadaEm = new Date().toISOString();
+  salvar();
+  render();
+}
+
+function baixarBackup() {
+  const blob = new Blob([exportar(estado)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const dia = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `paes-${dia}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function lerBackup(arquivo) {
+  const leitor = new FileReader();
+  leitor.onload = () => {
+    const resultado = importar(String(leitor.result));
+    if (!resultado.ok) {
+      alert(`Não deu para importar: ${resultado.erro}`);
+      return;
+    }
+    const n = resultado.estado.receitas.length;
+    const g = resultado.estado.registros.length;
+    if (!confirm(`Substituir tudo que está neste aparelho por ${n} receita(s) e ${g} fornada(s) do arquivo?`)) return;
+    estado = resultado.estado;
+    persistencia.salvar(estado);
+    fecharFolha();
+    render();
+  };
+  leitor.readAsText(arquivo);
+}
+
+const ACOES = {
+  'abrir-receitas': folhaReceitas,
+  'fechar-folha': fecharFolha,
+  'nova-fornada': folhaFornada,
+  'salvar-fornada': salvarFornada,
+  exportar: baixarBackup,
+
+  importar() {
+    document.getElementById('arquivo-importar').click();
+  },
+
+  filtro(el) {
+    filtroDiario = el.dataset.valor;
+    render();
+  },
+
+  'trocar-receita'(el) {
+    estado.receitaAtivaId = el.dataset.id;
+    salvar();
+    fecharFolha();
+    render();
+  },
+
+  'nova-receita'() {
+    folhaNomeReceita('Nova receita', '', 'confirmar-nova-receita');
+  },
+
+  'confirmar-nova-receita'() {
+    const nome = document.getElementById('nome-receita').value.trim();
+    if (!nome) return;
+    // A receita nova parte dos valores da atual: quase sempre é uma variação.
+    const receita = novaReceita(nome, { entradas: receitaAtiva(estado).entradas });
+    estado.receitas.push(receita);
+    estado.receitaAtivaId = receita.id;
+    salvar();
+    fecharFolha();
+    render();
+  },
+
+  'renomear-receita'() {
+    folhaNomeReceita('Renomear receita', receitaAtiva(estado).nome, 'confirmar-renomear');
+  },
+
+  'confirmar-renomear'() {
+    const nome = document.getElementById('nome-receita').value.trim();
+    if (!nome) return;
+    receitaAtiva(estado).nome = nome;
+    salvar();
+    fecharFolha();
+    render();
+  },
+
+  'duplicar-receita'() {
+    const atual = receitaAtiva(estado);
+    const copia = novaReceita(`${atual.nome} (cópia)`, { entradas: atual.entradas });
+    estado.receitas.push(copia);
+    estado.receitaAtivaId = copia.id;
+    salvar();
+    fecharFolha();
+    render();
+  },
+
+  'apagar-receita'() {
+    if (estado.receitas.length === 1) {
+      alert('Esta é a única receita. Crie outra antes de apagar esta.');
+      return;
+    }
+    const atual = receitaAtiva(estado);
+    const n = estado.registros.filter((r) => r.receitaId === atual.id).length;
+    const aviso = n ? ` Isso também apaga ${n} fornada(s) do diário.` : '';
+    if (!confirm(`Apagar a receita "${atual.nome}"?${aviso}`)) return;
+
+    estado.receitas = estado.receitas.filter((r) => r.id !== atual.id);
+    estado.registros = estado.registros.filter((r) => r.receitaId !== atual.id);
+    estado.receitaAtivaId = estado.receitas[0].id;
+    salvar();
+    fecharFolha();
+    render();
+  },
+
+  'apagar-registro'(el) {
+    if (!confirm('Apagar esta fornada do diário?')) return;
+    estado.registros = estado.registros.filter((r) => r.id !== el.dataset.id);
+    salvar();
+    render();
+  },
+
+  calibrar(el) {
+    calibrarPerdaForno(el.dataset.id);
+  },
+
+  escala(el) {
+    const jaMarcado = el.getAttribute('aria-pressed') === 'true';
+    el.closest('.escala-botoes')
+      .querySelectorAll('button')
+      .forEach((b) => b.setAttribute('aria-pressed', 'false'));
+    el.setAttribute('aria-pressed', String(!jaMarcado));
+  },
+
+  passo(el) {
+    const chave = el.dataset.campoAlvo;
+    const campo = CAMPO_POR_CHAVE[chave];
+    const entrada = document.querySelector(`[data-campo="${chave}"]`);
+    const atual = paraNumero(entrada.value);
+    const base = Number.isFinite(atual) ? atual : 0;
+    const proximo = Math.max(0, base + Number(el.dataset.sinal) * (campo.passo ?? 1));
+    // Passos fracionários acumulam ruído binário; a casa decimal do campo corta.
+    const limpo = Number(proximo.toFixed(campo.casas ?? 0));
+
+    entrada.value = formatarEntrada(campo, paraArmazenamento(campo, limpo));
+    aplicarEntrada(chave, limpo);
+  },
+};
+
+function aplicarEntrada(chave, valorExibido) {
+  const campo = CAMPO_POR_CHAVE[chave];
+  const ativa = receitaAtiva(estado);
+  ativa.entradas = { ...ativa.entradas, [chave]: paraArmazenamento(campo, valorExibido) };
+  ativa.atualizadaEm = new Date().toISOString();
+  atualizar();
+  salvar();
+}
+
+// ---------------------------------------------------------------------------
+// Ligação com o DOM
+// ---------------------------------------------------------------------------
+
+function montar() {
+  document.getElementById('app').innerHTML = `
+    <header class="topo" id="topo"></header>
+    <main class="conteudo"><div class="painel" id="painel"></div></main>
+    <nav class="abas" role="tablist">
+      ${ABAS.map(
+        (a) => `<button class="aba" role="tab" data-aba="${a.id}" aria-selected="false">
+          <span class="glifo">${a.glifo}</span>
+          <span class="rotulo">${a.rotulo}</span>
+        </button>`
+      ).join('')}
+    </nav>
+    <div class="folha" id="folha" hidden></div>`;
+
+  document.addEventListener('click', (evento) => {
+    const aba = evento.target.closest('.aba');
+    if (aba) {
+      abaAtiva = aba.dataset.aba;
+      render();
+      return;
+    }
+    const alvo = evento.target.closest('[data-acao]');
+    if (alvo && ACOES[alvo.dataset.acao]) {
+      evento.preventDefault();
+      ACOES[alvo.dataset.acao](alvo);
+    }
+  });
+
+  document.addEventListener('input', (evento) => {
+    const entrada = evento.target.closest('[data-campo]');
+    if (entrada) {
+      const valor = paraNumero(entrada.value);
+      // Estados intermediários como "70," não devem zerar a receita.
+      if (Number.isFinite(valor)) aplicarEntrada(entrada.dataset.campo, valor);
+      return;
+    }
+    const arquivo = evento.target.closest('#arquivo-importar');
+    if (arquivo && arquivo.files?.[0]) lerBackup(arquivo.files[0]);
+  });
+
+  render();
+}
+
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', montar);
+  } else {
+    montar();
+  }
+}
+})();
+</script>

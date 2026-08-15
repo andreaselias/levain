@@ -189,7 +189,8 @@ export function calcular(entradas = {}) {
       e.precoMelado * melado +
       e.precoExtras * e.extras) /
     1000;
-  const producao = embalagem * e.numeroPaes + custoIngredientes + energia;
+  const embalagemTotal = embalagem * e.numeroPaes;
+  const producao = embalagemTotal + custoIngredientes + energia;
   const porPaoEmbalado = e.numeroPaes > 0 ? producao / e.numeroPaes : 0;
   const porPao = e.numeroPaes > 0 ? porPaoEmbalado - embalagem : 0;
 
@@ -225,6 +226,8 @@ export function calcular(entradas = {}) {
     },
     custos: {
       embalagem: fin(embalagem),
+      embalagemTotal: fin(embalagemTotal),
+      ingredientes: fin(custoIngredientes),
       energia: fin(energia),
       producao: fin(producao),
       porPao: fin(porPao),

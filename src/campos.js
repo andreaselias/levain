@@ -68,11 +68,16 @@ function enxugar(numero, casas) {
   return texto.replace('.', ',');
 }
 
+/** Valor guardado → texto para dentro do campo do formulário, sem unidade. */
+export function formatarEntrada(campo, valor) {
+  if (!Number.isFinite(Number(valor))) return '';
+  return enxugar(paraExibicao(campo, Number(valor)), campo.casas ?? 0);
+}
+
 /** Valor guardado → texto legível com unidade, para o diff e os retratos. */
 export function formatarValor(campo, valor) {
   if (valor === null || valor === undefined || !Number.isFinite(Number(valor))) return '—';
-  const numero = paraExibicao(campo, Number(valor));
-  const texto = enxugar(numero, campo.casas ?? 0);
+  const texto = formatarEntrada(campo, valor);
   if (!campo.unidade) return texto;
   if (campo.unidade === '%') return `${texto}%`;
   if (campo.unidade.startsWith('R$')) {

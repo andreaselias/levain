@@ -102,6 +102,17 @@ test('custos reproduzem a planilha', () => {
   perto(custos.porPaoEmbalado, 4.1359525, 'custo por pão embalado');
 });
 
+test('custos separam ingredientes, embalagem e energia, e as partes somam o total', () => {
+  const { custos } = calcular(ENTRADAS_PADRAO);
+  perto(custos.ingredientes, 3.3164, 'custo dos ingredientes');
+  perto(custos.embalagemTotal, 4.22, 'custo total de embalagem');
+  perto(
+    custos.ingredientes + custos.embalagemTotal + custos.energia,
+    custos.producao,
+    'soma das partes'
+  );
+});
+
 test('a farinha que vem no starter é cobrada ao preço da farinha branca', () => {
   const base = calcular(ENTRADAS_PADRAO);
   const maisCara = calcular({ ...ENTRADAS_PADRAO, precoFarinha: ENTRADAS_PADRAO.precoFarinha + 1 });
