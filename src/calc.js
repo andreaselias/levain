@@ -20,15 +20,28 @@ export const ENTRADAS_PADRAO = {
   pctSal: 0.02,
 
   /**
-   * Catálogo de farinhas. A PRIMEIRA da lista é a base: `pct` e `pctStarter`
-   * dela são ignorados e valem o resto para fechar 100%. É como a planilha se
-   * comporta e como o padeiro pensa — declara-se só a farinha especial.
+   * Catálogo de farinhas: só o que é da farinha em si, nome e preço. Quanto
+   * entra na massa e quanto entra no pote são duas coisas independentes, e por
+   * isso vivem em duas listas separadas — dá para ter centeio na massa sem ter
+   * centeio no starter, que é o caso comum.
    */
   farinhas: [
-    { id: 'f-branca', nome: 'Farinha branca', preco: 4.46, pct: 0, pctStarter: 0 },
-    { id: 'f-integral', nome: 'Farinha integral', preco: 11, pct: 0.1, pctStarter: 0 },
-    { id: 'f-centeio', nome: 'Farinha de centeio', preco: 9, pct: 0, pctStarter: 0 },
+    { id: 'f-branca', nome: 'Farinha branca', preco: 4.46 },
+    { id: 'f-integral', nome: 'Farinha integral', preco: 11 },
+    { id: 'f-centeio', nome: 'Farinha de centeio', preco: 9 },
   ],
+
+  /**
+   * Participação de cada farinha, em percentual sobre a farinha total. A
+   * PRIMEIRA de cada lista é a base daquela composição: o percentual dela é
+   * ignorado e vale o resto para fechar 100%. É como a planilha se comporta e
+   * como o padeiro pensa — declara-se só a farinha especial.
+   */
+  composicaoPao: [
+    { farinhaId: 'f-branca', pct: 0 },
+    { farinhaId: 'f-integral', pct: 0.1 },
+  ],
+  composicaoStarter: [{ farinhaId: 'f-branca', pct: 0 }],
 
   // Entram na massa. `fracaoAgua` é quanto do líquido é água de fato:
   // azeite 0, melado 0,25, mel 0,18, leite 0,87.
@@ -40,6 +53,7 @@ export const ENTRADAS_PADRAO = {
   // Ajustes
   fatorArredondamento: 10,
   perdaForno: 0.11,
+  paesPorFornada: 2,
   tempoPreAquecimento: 45,
   tempoCozimento: 40,
 
@@ -59,7 +73,7 @@ export const ENTRADAS_PADRAO = {
 };
 
 /** Campos que são listas — tratados à parte da cópia de escalares. */
-export const LISTAS = ['farinhas', 'liquidos', 'solidos'];
+export const LISTAS = ['farinhas', 'composicaoPao', 'composicaoStarter', 'liquidos', 'solidos'];
 
 /**
  * O Excel normaliza para 15 dígitos significativos antes de arredondar. Sem
@@ -108,9 +122,8 @@ export function calcular(entradas) {
     id: f.id ?? `f${i}`,
     nome: String(f.nome ?? 'Farinha'),
     preco: num(f.preco, 0),
-    pct: num(f.pct, 0),
-    pctStarter: num(f.pctStarter, 0),
   }));
+  const catalogo = new Map(farinhas.map((f) => [f.id, f]));
   const liquidos = comoLista(bruto.liquidos).map((l, i) => ({
     id: l.id ?? `l${i}`,
     nome: String(l.nome ?? 'Líquido'),
@@ -129,21 +142,39 @@ export function calcular(entradas) {
   // Fator de arredondamento zero ou negativo significa "não arredondar".
   const snap = (x) => (R > 0 ? excelRound(x / R) * R : x);
 
-  // --- 1. Percentuais das farinhas ----------------------------------------
-  // A base fecha os 100%; as demais valem o que foi declarado.
-  if (farinhas.length === 0) {
-    avisos.push('A receita precisa de pelo menos uma farinha.');
+  // --- 1. Composições ------------------------------------------------------
+  // Cada composição é uma lista própria com a sua própria base, que fecha os
+  // 100%. Entrada apontando para farinha que não existe mais é descartada.
+  function resolverComposicao(bruta, ondeErro) {
+    const itens = comoLista(bruta)
+      .filter((c) => catalogo.has(c.farinhaId))
+      .map((c) => ({ farinha: catalogo.get(c.farinhaId), pct: Math.max(0, num(c.pct, 0)) }));
+    if (itens.length === 0) return [];
+
+    const somaOutras = itens.slice(1).reduce((s, c) => s + c.pct, 0);
+    if (somaOutras > 1) {
+      avisos.push(`As farinhas ${ondeErro} somam mais de 100%. Reduza alguma para sobrar espaço para a base.`);
+    }
+    return itens.map((c, i) => ({
+      id: c.farinha.id,
+      nome: c.farinha.nome,
+      preco: c.farinha.preco,
+      base: i === 0,
+      pct: i === 0 ? Math.max(0, 1 - somaOutras) : c.pct,
+    }));
   }
-  const somaOutras = farinhas.slice(1).reduce((s, f) => s + Math.max(0, f.pct), 0);
-  const somaOutrasSt = farinhas.slice(1).reduce((s, f) => s + Math.max(0, f.pctStarter), 0);
-  if (somaOutras > 1) {
-    avisos.push('As farinhas do pão somam mais de 100%. Reduza alguma para sobrar espaço para a base.');
+
+  const composicaoPao = resolverComposicao(
+    bruto.composicaoPao ?? ENTRADAS_PADRAO.composicaoPao,
+    'da massa'
+  );
+  const composicaoStarter = resolverComposicao(
+    bruto.composicaoStarter ?? ENTRADAS_PADRAO.composicaoStarter,
+    'do starter'
+  );
+  if (composicaoPao.length === 0) {
+    avisos.push('A massa precisa de pelo menos uma farinha.');
   }
-  if (somaOutrasSt > 1) {
-    avisos.push('As farinhas do starter somam mais de 100%.');
-  }
-  const pctDe = (f, i) => (i === 0 ? Math.max(0, 1 - somaOutras) : Math.max(0, f.pct));
-  const pctStarterDe = (f, i) => (i === 0 ? Math.max(0, 1 - somaOutrasSt) : Math.max(0, f.pctStarter));
 
   // --- 2. Starter ativado --------------------------------------------------
   // Precisa vir antes da farinha: a hidratação do starter entra no denominador.
@@ -195,7 +226,7 @@ export function calcular(entradas) {
         somaLiquidosAgua;
 
   let farinhaTotal = 0;
-  if (farinhas.length === 0) {
+  if (composicaoPao.length === 0) {
     farinhaTotal = 0;
   } else if (denom <= 0) {
     avisos.push('Os percentuais informados não fecham numa receita possível.');
@@ -205,15 +236,7 @@ export function calcular(entradas) {
 
   // --- 4. Ingredientes -----------------------------------------------------
   // Cada linha arredonda por conta própria, como na planilha.
-  const pesosFarinha = farinhas.map((f, i) => ({
-    id: f.id,
-    nome: f.nome,
-    preco: f.preco,
-    pct: pctDe(f, i),
-    pctStarter: pctStarterDe(f, i),
-    base: i === 0,
-    gramas: snap(farinhaTotal * pctDe(f, i)),
-  }));
+  const pesosFarinha = composicaoPao.map((f) => ({ ...f, gramas: snap(farinhaTotal * f.pct) }));
 
   const starter = snap(farinhaTotal * e.pctStarter);
   const farinhaNoStarter = divisorAtivado === 0 ? 0 : starter / divisorAtivado;
@@ -258,7 +281,10 @@ export function calcular(entradas) {
   const largura = pesoAssado > 0 ? Math.cbrt((pesoAssado * 2.7) / 0.75) : 0;
   const comprimento = largura * 2.2;
   const altura = largura * 0.85;
-  const fornadas = e.numeroPaes > 0 ? roundUp(e.numeroPaes / 2) : 0;
+  if (!(e.paesPorFornada > 0)) {
+    avisos.push('Quantos pães cabem por fornada precisa ser maior que zero.');
+  }
+  const fornadas = e.numeroPaes > 0 && e.paesPorFornada > 0 ? roundUp(e.numeroPaes / e.paesPorFornada) : 0;
   const tempoTotal = e.tempoPreAquecimento + e.tempoCozimento * fornadas;
 
   // --- 6. Ativação do starter ---------------------------------------------
@@ -273,13 +299,14 @@ export function calcular(entradas) {
   const totalAtivado = maeParaAtivar + farinhaAtivar + aguaAtivar;
   const sobra = Math.max(totalAtivado - starter, 0);
 
-  // A farinha embutida no starter, repartida pela composição dele — é o que
-  // permite cobrar o preço certo de um starter de centeio.
-  const farinhasDoStarter = pesosFarinha.map((f) => ({
+  // A farinha embutida no starter, repartida pela composição DELE — que é
+  // independente da massa. É o que permite cobrar o preço certo de um starter
+  // de centeio dentro de um pão branco.
+  const farinhasDoStarter = composicaoStarter.map((f) => ({
     id: f.id,
     nome: f.nome,
-    pct: f.pctStarter,
-    gramas: farinhaNoStarter * f.pctStarter,
+    pct: f.pct,
+    gramas: farinhaNoStarter * f.pct,
   }));
 
   // --- 7. Custos -----------------------------------------------------------
@@ -287,14 +314,75 @@ export function calcular(entradas) {
   const embalagem = e.embalagemExterna + e.embalagemInterna + e.etiqueta;
   const energia = (tempoTotal / 60) * e.potenciaForno * e.precoKwh;
 
-  const custoFarinhas = pesosFarinha.reduce((soma, f, i) => {
-    const noStarter = farinhasDoStarter[i]?.gramas ?? 0;
-    return soma + f.preco * (f.gramas + noStarter);
-  }, 0);
-  const custoLiquidos = pesosLiquido.reduce((s, l) => s + l.preco * l.gramas, 0);
-  const custoSolidos = pesosSolido.reduce((s, x) => s + x.preco * x.gramas, 0);
-  const custoIngredientes =
-    (custoFarinhas + custoLiquidos + custoSolidos + e.precoSal * sal) / 1000;
+  /**
+   * Uma linha por ingrediente que está de fato na receita. Existe porque
+   * ingrediente é opcional: sem enxergar item a item, um extra sem preço sai
+   * de graça e o custo total mente sem dar sinal.
+   */
+  const itensDeCusto = [];
+
+  // Uma farinha pode estar nas duas composições, e aí é uma compra só: os
+  // gramas se somam numa linha, não em duas.
+  const gramasPorFarinha = new Map();
+  const somarGramas = (id, chave, valor) => {
+    if (!gramasPorFarinha.has(id)) gramasPorFarinha.set(id, { gramasPao: 0, gramasStarter: 0 });
+    gramasPorFarinha.get(id)[chave] += valor;
+  };
+  for (const f of pesosFarinha) somarGramas(f.id, 'gramasPao', f.gramas);
+  for (const f of farinhasDoStarter) somarGramas(f.id, 'gramasStarter', f.gramas);
+
+  for (const f of farinhas) {
+    const parcelas = gramasPorFarinha.get(f.id);
+    if (!parcelas) continue;
+    const gramas = parcelas.gramasPao + parcelas.gramasStarter;
+    if (gramas <= 0) continue;
+    itensDeCusto.push({
+      id: f.id,
+      nome: f.nome,
+      tipo: 'farinha',
+      gramas: fin(gramas),
+      gramasPao: fin(parcelas.gramasPao),
+      gramasStarter: fin(parcelas.gramasStarter),
+      preco: fin(f.preco),
+      custo: fin((f.preco * gramas) / 1000),
+    });
+  }
+  if (sal > 0) {
+    itensDeCusto.push({
+      id: 'sal',
+      nome: 'Sal',
+      tipo: 'sal',
+      gramas: fin(sal),
+      preco: fin(e.precoSal),
+      custo: fin((e.precoSal * sal) / 1000),
+    });
+  }
+  for (const l of pesosLiquido) {
+    if (l.gramas <= 0) continue;
+    itensDeCusto.push({
+      id: l.id,
+      nome: l.nome,
+      tipo: 'liquido',
+      gramas: fin(l.gramas),
+      preco: fin(l.preco),
+      custo: fin((l.preco * l.gramas) / 1000),
+    });
+  }
+  for (const s of pesosSolido) {
+    if (s.gramas <= 0) continue;
+    itensDeCusto.push({
+      id: s.id,
+      nome: s.nome,
+      tipo: 'solido',
+      gramas: fin(s.gramas),
+      gramasPorPao: fin(s.gramasPorPao),
+      preco: fin(s.preco),
+      custo: fin((s.preco * s.gramas) / 1000),
+    });
+  }
+
+  const custoIngredientes = itensDeCusto.reduce((soma, i) => soma + i.custo, 0);
+  const semPreco = itensDeCusto.filter((i) => !(i.preco > 0)).map((i) => i.nome);
 
   const embalagemTotal = embalagem * Math.max(0, e.numeroPaes);
   const producao = embalagemTotal + custoIngredientes + energia;
@@ -321,7 +409,7 @@ export function calcular(entradas) {
       farinhas: limpar(farinhasDoStarter, ['pct', 'gramas']),
     },
     pao: {
-      farinhas: limpar(pesosFarinha, ['pct', 'pctStarter', 'gramas', 'preco']),
+      farinhas: limpar(pesosFarinha, ['pct', 'gramas', 'preco']),
       liquidos: limpar(pesosLiquido, ['pct', 'fracaoAgua', 'gramas', 'agua', 'preco']),
       solidos: limpar(pesosSolido, ['gramasPorPao', 'gramas', 'preco']),
       agua: fin(agua),
@@ -348,6 +436,8 @@ export function calcular(entradas) {
       embalagem: fin(embalagem),
       embalagemTotal: fin(embalagemTotal),
       ingredientes: fin(custoIngredientes),
+      itens: itensDeCusto,
+      semPreco,
       energia: fin(energia),
       producao: fin(producao),
       porPao: fin(porPao),

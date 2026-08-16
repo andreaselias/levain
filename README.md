@@ -14,10 +14,11 @@ motor de cálculo só:
 
 ## Ingredientes
 
-Farinhas são um **catálogo**: nome, preço e duas porcentagens — uma no pão, outra
-no starter. A primeira da lista é a base e recebe o que sobrar para fechar 100%,
-então você declara só a farinha especial. Uma farinha acrescentada aparece nas
-três abas de uma vez.
+Farinhas ficam num **catálogo** com nome e preço. Quanto entra na massa e quanto
+entra no pote são **duas listas independentes**, cada uma com a sua base — que
+recebe o que sobrar para fechar 100%. Dá para ter centeio no pão sem ter centeio
+no starter, que é o caso comum. Uma farinha que está no catálogo mas fora das
+duas composições não pesa, não custa e não aparece; só guarda o preço.
 
 Extras se dividem em dois, porque se comportam de forma diferente:
 
@@ -28,7 +29,13 @@ Extras se dividem em dois, porque se comportam de forma diferente:
   alterar o equilíbrio farinha-água. O objetivo dimensiona a massa, então 40 g de
   nozes deixam o pão 40 g mais pesado que o alvo — o resumo mostra a decomposição.
 
-Ingrediente zerado não aparece na lista de pesagem.
+Ingrediente zerado não aparece na lista de pesagem. E como ingrediente é
+opcional, a aba Custos mostra o preço **item a item** e denuncia pelo nome quem
+está na receita sem preço — senão o extra sairia de graça e o total mentiria em
+silêncio.
+
+`Pães por fornada` diz quantos cabem no forno de uma vez, e com isso define o
+número de fornadas, o tempo total e o gasto de energia.
 
 ## Instalar no celular
 
@@ -61,7 +68,7 @@ não perdem água, e incluí-los faria a perda parecer menor do que é.
 ## Desenvolvimento
 
 ```sh
-npm test     # 77 testes do motor, da migração e do armazenamento
+npm test     # 103 testes do motor, da migração e do armazenamento
 npm run build
 ```
 

@@ -426,3 +426,57 @@ escutava `input`. A importação nunca funcionou.
 - "Percentuais de padeiro" passa a se chamar **Composição**
 - **Tempo total** entra no resumo, ao lado do número de fornadas
 - A lista de receitas ganha ícones por linha: renomear, duplicar, apagar
+
+---
+
+# Terceira rodada — composições isoladas e capacidade do forno
+
+Data: 2026-08-15
+
+## Custo enxerga ingrediente opcional
+
+Com ingredientes opcionais, o custo total passou a poder mentir em silêncio: um
+extra criado sem preço saía de graça, e como a farinha diminui para abrir espaço
+para ele, acrescentar azeite chegava a *baratear* a fornada.
+
+`custos.itens` passa a trazer uma linha por ingrediente em uso — gramas, preço
+por quilo e valor —, e `custos.semPreco` nomeia os que estão na receita sem
+preço. A aba Custos vira um ticket item a item, e o campo de preço de quem está
+em uso e zerado fica destacado. `custos.ingredientes` é a soma das linhas, não
+mais uma fórmula à parte, o que impede as duas divergirem.
+
+Ingredientes fora da receita continuam editáveis, num grupo à parte.
+
+## Composição do pão e do starter separadas
+
+Ter centeio na massa e não ter no pote é o caso comum, não a exceção. O catálogo
+de farinhas perde a participação e fica só com o que é da farinha:
+
+```
+farinhas:           [{ id, nome, preco }]
+composicaoPao:      [{ farinhaId, pct }]   // [0] é a base
+composicaoStarter:  [{ farinhaId, pct }]   // [0] é a base
+```
+
+Cada composição tem a **sua própria base** e a sua própria lista de
+participantes. Uma farinha no catálogo e fora das duas composições não pesa, não
+custa e não aparece — mas guarda o preço para quando voltar a ser usada.
+
+Uma farinha nas duas composições vira **uma linha só** de custo, somando os
+gramas da massa e os do starter: é uma compra só.
+
+No diário, entrar e sair de uma composição é a notícia principal
+(`Farinha de centeio — → 20%`); mexer só no catálogo não vira registro.
+
+## Capacidade do forno
+
+`paesPorFornada` (padrão 2, que era a constante embutida na planilha) substitui
+o divisor fixo: `fornadas = roundUp(numeroPaes / paesPorFornada)`. Muda o número
+de fornadas, o tempo total e o custo de energia.
+
+## Migração v2 → v3
+
+A participação sai de dentro do item do catálogo e vira as duas listas. A base
+continua sendo o primeiro item, e as demais entram na composição só se o
+percentual era maior que zero — o que reproduz os números de v2 exatamente.
+`paesPorFornada` recebe 2 nas receitas antigas.

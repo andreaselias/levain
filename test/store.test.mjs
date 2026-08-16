@@ -18,8 +18,13 @@ const T0 = '2026-08-01T10:00:00.000Z';
 const T1 = '2026-08-08T10:00:00.000Z';
 const T2 = '2026-08-15T10:00:00.000Z';
 
-const comFarinhas = (farinhas) => ({ ...ENTRADAS_PADRAO, farinhas });
-const PADRAO_FARINHAS = ENTRADAS_PADRAO.farinhas;
+/** Troca o percentual de uma farinha dentro de uma composição. */
+const comPct = (chave, farinhaId, pct) => ({
+  ...ENTRADAS_PADRAO,
+  [chave]: ENTRADAS_PADRAO[chave].some((c) => c.farinhaId === farinhaId)
+    ? ENTRADAS_PADRAO[chave].map((c) => (c.farinhaId === farinhaId ? { ...c, pct } : c))
+    : [...ENTRADAS_PADRAO[chave], { farinhaId, pct }],
+});
 
 // ---------------------------------------------------------------------------
 // Formatação
@@ -75,8 +80,7 @@ test('diff sem retrato anterior devolve vazio, não a receita inteira', () => {
 // ---------------------------------------------------------------------------
 
 test('percentual de farinha alterado aparece com o nome da farinha', () => {
-  const atual = comFarinhas(PADRAO_FARINHAS.map((f) => (f.id === 'f-integral' ? { ...f, pct: 0.2 } : f)));
-  const d = diffEntradas(ENTRADAS_PADRAO, atual);
+  const d = diffEntradas(ENTRADAS_PADRAO, comPct('composicaoPao', 'f-integral', 0.2));
   assert.equal(d.length, 1);
   assert.equal(d[0].rotulo, 'Farinha integral');
   assert.equal(d[0].de, '10%');
@@ -84,29 +88,42 @@ test('percentual de farinha alterado aparece com o nome da farinha', () => {
 });
 
 test('mudança na composição do starter é distinguida da composição do pão', () => {
-  const atual = comFarinhas(PADRAO_FARINHAS.map((f) => (f.id === 'f-integral' ? { ...f, pctStarter: 0.1 } : f)));
-  const d = diffEntradas(ENTRADAS_PADRAO, atual);
+  const d = diffEntradas(ENTRADAS_PADRAO, comPct('composicaoStarter', 'f-integral', 0.1));
   assert.equal(d.length, 1);
   assert.match(d[0].rotulo, /starter/i, 'o rótulo tem que dizer que é do starter');
   assert.equal(d[0].para, '10%');
 });
 
-test('farinha acrescentada aparece como item novo', () => {
-  const atual = comFarinhas([...PADRAO_FARINHAS, { id: 'f-esp', nome: 'Espelta', preco: 15, pct: 0.2, pctStarter: 0 }]);
+test('a mesma farinha nas duas composições gera dois avisos distintos', () => {
+  const atual = {
+    ...comPct('composicaoPao', 'f-centeio', 0.2),
+    composicaoStarter: [...ENTRADAS_PADRAO.composicaoStarter, { farinhaId: 'f-centeio', pct: 0.5 }],
+  };
   const d = diffEntradas(ENTRADAS_PADRAO, atual);
-  const novo = d.find((x) => x.rotulo.includes('Espelta'));
-  assert.ok(novo, 'a espelta tem que aparecer');
-  assert.equal(novo.de, '—');
-  assert.equal(novo.para, '20%');
+  assert.equal(d.filter((x) => x.rotulo === 'Farinha de centeio').length, 1, 'na massa');
+  assert.equal(d.filter((x) => x.rotulo === 'Farinha de centeio no starter').length, 1, 'no pote');
 });
 
-test('farinha removida aparece como item que saiu', () => {
-  const anterior = comFarinhas([...PADRAO_FARINHAS, { id: 'f-esp', nome: 'Espelta', preco: 15, pct: 0.2, pctStarter: 0 }]);
+test('centeio entrando só na massa não mexe no starter', () => {
+  const d = diffEntradas(ENTRADAS_PADRAO, comPct('composicaoPao', 'f-centeio', 0.2));
+  assert.equal(d.length, 1, 'uma mudança só');
+  assert.equal(d[0].rotulo, 'Farinha de centeio');
+  assert.equal(d[0].de, '—', 'não estava na massa');
+  assert.equal(d[0].para, '20%');
+});
+
+test('farinha saindo de uma composição aparece como saída', () => {
+  const anterior = comPct('composicaoPao', 'f-centeio', 0.2);
   const d = diffEntradas(anterior, ENTRADAS_PADRAO);
-  const saiu = d.find((x) => x.rotulo.includes('Espelta'));
+  const saiu = d.find((x) => x.rotulo === 'Farinha de centeio');
   assert.ok(saiu, 'a saída tem que aparecer');
   assert.equal(saiu.de, '20%');
   assert.equal(saiu.para, '—');
+});
+
+test('acrescentar farinha só ao catálogo não vira notícia no diário', () => {
+  const atual = { ...ENTRADAS_PADRAO, farinhas: [...ENTRADAS_PADRAO.farinhas, { id: 'f-esp', nome: 'Espelta', preco: 15 }] };
+  assert.deepEqual(diffEntradas(ENTRADAS_PADRAO, atual), [], 'só entra no diário quando for usada');
 });
 
 test('líquido acrescentado aparece, com a fração de água à parte', () => {
@@ -129,7 +146,7 @@ test('gramas por pão de um sólido aparecem com a unidade certa', () => {
 });
 
 test('mudança de preço entra no diff, porque explica o custo mudar', () => {
-  const atual = comFarinhas(PADRAO_FARINHAS.map((f) => (f.id === 'f-branca' ? { ...f, preco: 5.2 } : f)));
+  const atual = { ...ENTRADAS_PADRAO, farinhas: ENTRADAS_PADRAO.farinhas.map((f) => (f.id === 'f-branca' ? { ...f, preco: 5.2 } : f)) };
   const d = diffEntradas(ENTRADAS_PADRAO, atual);
   assert.equal(d.length, 1);
   assert.match(d[0].rotulo, /pre[çc]o/i);
@@ -137,7 +154,7 @@ test('mudança de preço entra no diff, porque explica o custo mudar', () => {
 });
 
 test('renomear um item não conta como alteração de valor', () => {
-  const atual = comFarinhas(PADRAO_FARINHAS.map((f) => (f.id === 'f-centeio' ? { ...f, nome: 'Centeio escuro' } : f)));
+  const atual = { ...ENTRADAS_PADRAO, farinhas: ENTRADAS_PADRAO.farinhas.map((f) => (f.id === 'f-centeio' ? { ...f, nome: 'Centeio escuro' } : f)) };
   assert.deepEqual(diffEntradas(ENTRADAS_PADRAO, atual), []);
 });
 
@@ -155,8 +172,10 @@ test('receita nova nasce com as entradas padrão', () => {
 test('receita nova não compartilha as listas com a receita de origem', () => {
   const origem = novaReceita('Origem', { id: 'r1', agora: T0 });
   const copia = novaReceita('Cópia', { id: 'r2', agora: T0, entradas: origem.entradas });
-  copia.entradas.farinhas[1].pct = 0.5;
-  assert.equal(origem.entradas.farinhas[1].pct, 0.1, 'mexer na cópia não pode afetar a origem');
+  copia.entradas.composicaoPao[1].pct = 0.5;
+  copia.entradas.farinhas[0].preco = 99;
+  assert.equal(origem.entradas.composicaoPao[1].pct, 0.1, 'mexer na cópia não pode afetar a origem');
+  assert.equal(origem.entradas.farinhas[0].preco, 4.46, 'nem no catálogo');
 });
 
 test('registro congela um retrato das entradas, listas inclusive', () => {
@@ -164,10 +183,10 @@ test('registro congela um retrato das entradas, listas inclusive', () => {
   const reg = criarRegistro(receita, { observacao: 'miolo fechado' }, { id: 'g1', agora: T1 });
 
   receita.entradas.hidratacao = 0.8;
-  receita.entradas.farinhas[1].pct = 0.5;
+  receita.entradas.composicaoPao[1].pct = 0.5;
 
   assert.equal(reg.snapshot.hidratacao, 0.7);
-  assert.equal(reg.snapshot.farinhas[1].pct, 0.1, 'a lista também tem que estar congelada');
+  assert.equal(reg.snapshot.composicaoPao[1].pct, 0.1, 'a lista também tem que estar congelada');
   assert.equal(reg.observacao, 'miolo fechado');
 });
 
@@ -250,15 +269,15 @@ test('importar migra um backup no formato antigo', () => {
   const entradas = r.estado.receitas[0].entradas;
   assert.ok(Array.isArray(entradas.farinhas), 'catálogo criado');
   assert.equal(entradas.hidratacao, 0.8);
-  assert.equal(entradas.farinhas[1].pct, 0.2, 'integral migrada');
+  assert.equal(entradas.composicaoPao[1].pct, 0.2, 'integral migrada');
   assert.equal(entradas.farinhas[0].preco, 5, 'preço migrado');
-  assert.ok(Array.isArray(r.estado.registros[0].snapshot.farinhas), 'retrato migrado');
+  assert.ok(Array.isArray(r.estado.registros[0].snapshot.composicaoPao), 'retrato migrado');
 });
 
 test('importar descarta registros órfãos de receitas que não existem', () => {
   const backup = {
     app: 'aplicativo-pao',
-    versao: 2,
+    versao: 3,
     receitas: [{ id: 'r1', nome: 'A', criadaEm: T0, atualizadaEm: T0, entradas: {} }],
     registros: [
       { id: 'g1', receitaId: 'r1', quando: T1, observacao: '', snapshot: {} },
@@ -273,7 +292,7 @@ test('importar descarta registros órfãos de receitas que não existem', () => 
 test('importar conserta receita ativa apontando para receita inexistente', () => {
   const backup = {
     app: 'aplicativo-pao',
-    versao: 2,
+    versao: 3,
     receitas: [{ id: 'r1', nome: 'A', criadaEm: T0, atualizadaEm: T0, entradas: {} }],
     registros: [],
     receitaAtivaId: 'sumida',

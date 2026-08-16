@@ -108,11 +108,10 @@ export function registrosDaReceita(estado, receitaId) {
 const LISTAS_DIFF = [
   {
     chave: 'farinhas',
-    atributos: [
-      { attr: 'pct', molde: MOLDE.pct, rotulo: (nome) => nome, pulaBase: true },
-      { attr: 'pctStarter', molde: MOLDE.pct, rotulo: (nome) => `${nome} no starter`, pulaBase: true },
-      { attr: 'preco', molde: MOLDE.preco, rotulo: (nome) => `${nome} (preço)` },
-    ],
+    // O catálogo guarda só nome e preço. Entrar e sair do catálogo não é
+    // notícia — o que importa é entrar e sair de uma composição.
+    semEntradaSaida: true,
+    atributos: [{ attr: 'preco', molde: MOLDE.preco, rotulo: (nome) => `${nome} (preço)` }],
   },
   {
     chave: 'liquidos',
@@ -148,6 +147,7 @@ function diffDeLista(anterior, atual, definicao, mudancas) {
   for (const [id, { item, indice }] of porIdDepois) {
     const anteriorItem = porIdAntes.get(id);
     if (!anteriorItem) {
+      if (definicao.semEntradaSaida) continue;
       mudancas.push({
         chave: `${definicao.chave}.${id}`,
         rotulo: item.nome,
@@ -170,12 +170,54 @@ function diffDeLista(anterior, atual, definicao, mudancas) {
     }
   }
 
+  if (definicao.semEntradaSaida) return;
   for (const [id, { item }] of porIdAntes) {
     if (porIdDepois.has(id)) continue;
     mudancas.push({
       chave: `${definicao.chave}.${id}`,
       rotulo: item.nome,
       de: formatarValor(principal.molde, item[principal.attr]),
+      para: '—',
+    });
+  }
+}
+
+/**
+ * As composições apontam para o catálogo por id, então o rótulo do diff vem
+ * de lá. Entrar e sair de uma composição é a notícia principal: é o que
+ * significa "passei a usar centeio na massa".
+ */
+function diffDeComposicao(anterior, atual, chave, sufixo, mudancas) {
+  const nomeDe = (entradas, id) => entradas.farinhas?.find((f) => f.id === id)?.nome ?? 'Farinha';
+  const mapear = (lista) =>
+    new Map((Array.isArray(lista) ? lista : []).map((c, i) => [c.farinhaId, { pct: c.pct, indice: i }]));
+  const antes = mapear(anterior[chave]);
+  const depois = mapear(atual[chave]);
+
+  for (const [id, agora] of depois) {
+    const rotulo = `${nomeDe(atual, id)}${sufixo}`;
+    const antigo = antes.get(id);
+    if (!antigo) {
+      mudancas.push({ chave: `${chave}.${id}`, rotulo, de: '—', para: formatarValor(MOLDE.pct, agora.pct) });
+      continue;
+    }
+    // Base é calculada, não digitada.
+    if (agora.indice === 0 || antigo.indice === 0) continue;
+    if (igual(antigo.pct, agora.pct)) continue;
+    mudancas.push({
+      chave: `${chave}.${id}`,
+      rotulo,
+      de: formatarValor(MOLDE.pct, antigo.pct),
+      para: formatarValor(MOLDE.pct, agora.pct),
+    });
+  }
+
+  for (const [id, antigo] of antes) {
+    if (depois.has(id)) continue;
+    mudancas.push({
+      chave: `${chave}.${id}`,
+      rotulo: `${nomeDe(anterior, id)}${sufixo}`,
+      de: formatarValor(MOLDE.pct, antigo.pct),
       para: '—',
     });
   }
@@ -198,6 +240,8 @@ export function diffEntradas(anterior, atual) {
     });
   }
 
+  diffDeComposicao(anterior, atual, 'composicaoPao', '', mudancas);
+  diffDeComposicao(anterior, atual, 'composicaoStarter', ' no starter', mudancas);
   for (const definicao of LISTAS_DIFF) diffDeLista(anterior, atual, definicao, mudancas);
   return mudancas;
 }

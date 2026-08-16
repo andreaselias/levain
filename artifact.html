@@ -500,6 +500,40 @@ button {
   letter-spacing: 0;
 }
 
+/* Somas parciais: mesma estrutura da linha de item, com um degrau de peso. */
+.ticket-soma {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--linha);
+}
+
+.ticket-soma:first-of-type {
+  border-top: 1px solid var(--linha-forte);
+  margin-top: 4px;
+  padding-top: 12px;
+}
+
+.ticket-soma .ticket-nome {
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+}
+
+.ticket-soma .ticket-valor {
+  font-size: 1.05rem;
+}
+
+.ticket-linha.sem-preco .ticket-valor {
+  color: var(--alerta);
+}
+
+.ticket-linha.sem-preco .ticket-detalhe {
+  color: var(--alerta);
+}
+
 .ticket-rodape {
   display: flex;
   justify-content: space-between;
@@ -729,6 +763,34 @@ button {
   color: var(--tinta-fraca);
   min-width: 26px;
   padding-right: 2px;
+}
+
+/* Ingrediente que existe no catálogo mas está fora desta receita: continua
+   editável, só que recuado do caminho. */
+.grupo-guardado {
+  margin-top: 8px;
+  border-style: dashed;
+}
+
+.campo.nao-usado .campo-rotulo {
+  color: var(--tinta-suave);
+}
+
+.campo.nao-usado .campo-controle {
+  opacity: 0.62;
+}
+
+/* Está na receita e não tem preço: a conta está mentindo até isto ser
+   preenchido, então o campo precisa puxar o olho. */
+.campo.precisa-preco .campo-controle {
+  border-color: var(--alerta);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--alerta) 16%, transparent);
+}
+
+.campo.precisa-preco .campo-rotulo::after {
+  content: " · sem preço";
+  color: var(--alerta);
+  font-size: 0.74rem;
 }
 
 /* --- Listas editáveis de ingredientes ------------------------------------ */
@@ -1427,15 +1489,28 @@ const ENTRADAS_PADRAO = {
   pctSal: 0.02,
 
   /**
-   * Catálogo de farinhas. A PRIMEIRA da lista é a base: `pct` e `pctStarter`
-   * dela são ignorados e valem o resto para fechar 100%. É como a planilha se
-   * comporta e como o padeiro pensa — declara-se só a farinha especial.
+   * Catálogo de farinhas: só o que é da farinha em si, nome e preço. Quanto
+   * entra na massa e quanto entra no pote são duas coisas independentes, e por
+   * isso vivem em duas listas separadas — dá para ter centeio na massa sem ter
+   * centeio no starter, que é o caso comum.
    */
   farinhas: [
-    { id: 'f-branca', nome: 'Farinha branca', preco: 4.46, pct: 0, pctStarter: 0 },
-    { id: 'f-integral', nome: 'Farinha integral', preco: 11, pct: 0.1, pctStarter: 0 },
-    { id: 'f-centeio', nome: 'Farinha de centeio', preco: 9, pct: 0, pctStarter: 0 },
+    { id: 'f-branca', nome: 'Farinha branca', preco: 4.46 },
+    { id: 'f-integral', nome: 'Farinha integral', preco: 11 },
+    { id: 'f-centeio', nome: 'Farinha de centeio', preco: 9 },
   ],
+
+  /**
+   * Participação de cada farinha, em percentual sobre a farinha total. A
+   * PRIMEIRA de cada lista é a base daquela composição: o percentual dela é
+   * ignorado e vale o resto para fechar 100%. É como a planilha se comporta e
+   * como o padeiro pensa — declara-se só a farinha especial.
+   */
+  composicaoPao: [
+    { farinhaId: 'f-branca', pct: 0 },
+    { farinhaId: 'f-integral', pct: 0.1 },
+  ],
+  composicaoStarter: [{ farinhaId: 'f-branca', pct: 0 }],
 
   // Entram na massa. `fracaoAgua` é quanto do líquido é água de fato:
   // azeite 0, melado 0,25, mel 0,18, leite 0,87.
@@ -1447,6 +1522,7 @@ const ENTRADAS_PADRAO = {
   // Ajustes
   fatorArredondamento: 10,
   perdaForno: 0.11,
+  paesPorFornada: 2,
   tempoPreAquecimento: 45,
   tempoCozimento: 40,
 
@@ -1466,7 +1542,7 @@ const ENTRADAS_PADRAO = {
 };
 
 /** Campos que são listas — tratados à parte da cópia de escalares. */
-const LISTAS = ['farinhas', 'liquidos', 'solidos'];
+const LISTAS = ['farinhas', 'composicaoPao', 'composicaoStarter', 'liquidos', 'solidos'];
 
 /**
  * O Excel normaliza para 15 dígitos significativos antes de arredondar. Sem
@@ -1515,9 +1591,8 @@ function calcular(entradas) {
     id: f.id ?? `f${i}`,
     nome: String(f.nome ?? 'Farinha'),
     preco: num(f.preco, 0),
-    pct: num(f.pct, 0),
-    pctStarter: num(f.pctStarter, 0),
   }));
+  const catalogo = new Map(farinhas.map((f) => [f.id, f]));
   const liquidos = comoLista(bruto.liquidos).map((l, i) => ({
     id: l.id ?? `l${i}`,
     nome: String(l.nome ?? 'Líquido'),
@@ -1536,21 +1611,39 @@ function calcular(entradas) {
   // Fator de arredondamento zero ou negativo significa "não arredondar".
   const snap = (x) => (R > 0 ? excelRound(x / R) * R : x);
 
-  // --- 1. Percentuais das farinhas ----------------------------------------
-  // A base fecha os 100%; as demais valem o que foi declarado.
-  if (farinhas.length === 0) {
-    avisos.push('A receita precisa de pelo menos uma farinha.');
+  // --- 1. Composições ------------------------------------------------------
+  // Cada composição é uma lista própria com a sua própria base, que fecha os
+  // 100%. Entrada apontando para farinha que não existe mais é descartada.
+  function resolverComposicao(bruta, ondeErro) {
+    const itens = comoLista(bruta)
+      .filter((c) => catalogo.has(c.farinhaId))
+      .map((c) => ({ farinha: catalogo.get(c.farinhaId), pct: Math.max(0, num(c.pct, 0)) }));
+    if (itens.length === 0) return [];
+
+    const somaOutras = itens.slice(1).reduce((s, c) => s + c.pct, 0);
+    if (somaOutras > 1) {
+      avisos.push(`As farinhas ${ondeErro} somam mais de 100%. Reduza alguma para sobrar espaço para a base.`);
+    }
+    return itens.map((c, i) => ({
+      id: c.farinha.id,
+      nome: c.farinha.nome,
+      preco: c.farinha.preco,
+      base: i === 0,
+      pct: i === 0 ? Math.max(0, 1 - somaOutras) : c.pct,
+    }));
   }
-  const somaOutras = farinhas.slice(1).reduce((s, f) => s + Math.max(0, f.pct), 0);
-  const somaOutrasSt = farinhas.slice(1).reduce((s, f) => s + Math.max(0, f.pctStarter), 0);
-  if (somaOutras > 1) {
-    avisos.push('As farinhas do pão somam mais de 100%. Reduza alguma para sobrar espaço para a base.');
+
+  const composicaoPao = resolverComposicao(
+    bruto.composicaoPao ?? ENTRADAS_PADRAO.composicaoPao,
+    'da massa'
+  );
+  const composicaoStarter = resolverComposicao(
+    bruto.composicaoStarter ?? ENTRADAS_PADRAO.composicaoStarter,
+    'do starter'
+  );
+  if (composicaoPao.length === 0) {
+    avisos.push('A massa precisa de pelo menos uma farinha.');
   }
-  if (somaOutrasSt > 1) {
-    avisos.push('As farinhas do starter somam mais de 100%.');
-  }
-  const pctDe = (f, i) => (i === 0 ? Math.max(0, 1 - somaOutras) : Math.max(0, f.pct));
-  const pctStarterDe = (f, i) => (i === 0 ? Math.max(0, 1 - somaOutrasSt) : Math.max(0, f.pctStarter));
 
   // --- 2. Starter ativado --------------------------------------------------
   // Precisa vir antes da farinha: a hidratação do starter entra no denominador.
@@ -1602,7 +1695,7 @@ function calcular(entradas) {
         somaLiquidosAgua;
 
   let farinhaTotal = 0;
-  if (farinhas.length === 0) {
+  if (composicaoPao.length === 0) {
     farinhaTotal = 0;
   } else if (denom <= 0) {
     avisos.push('Os percentuais informados não fecham numa receita possível.');
@@ -1612,15 +1705,7 @@ function calcular(entradas) {
 
   // --- 4. Ingredientes -----------------------------------------------------
   // Cada linha arredonda por conta própria, como na planilha.
-  const pesosFarinha = farinhas.map((f, i) => ({
-    id: f.id,
-    nome: f.nome,
-    preco: f.preco,
-    pct: pctDe(f, i),
-    pctStarter: pctStarterDe(f, i),
-    base: i === 0,
-    gramas: snap(farinhaTotal * pctDe(f, i)),
-  }));
+  const pesosFarinha = composicaoPao.map((f) => ({ ...f, gramas: snap(farinhaTotal * f.pct) }));
 
   const starter = snap(farinhaTotal * e.pctStarter);
   const farinhaNoStarter = divisorAtivado === 0 ? 0 : starter / divisorAtivado;
@@ -1665,7 +1750,10 @@ function calcular(entradas) {
   const largura = pesoAssado > 0 ? Math.cbrt((pesoAssado * 2.7) / 0.75) : 0;
   const comprimento = largura * 2.2;
   const altura = largura * 0.85;
-  const fornadas = e.numeroPaes > 0 ? roundUp(e.numeroPaes / 2) : 0;
+  if (!(e.paesPorFornada > 0)) {
+    avisos.push('Quantos pães cabem por fornada precisa ser maior que zero.');
+  }
+  const fornadas = e.numeroPaes > 0 && e.paesPorFornada > 0 ? roundUp(e.numeroPaes / e.paesPorFornada) : 0;
   const tempoTotal = e.tempoPreAquecimento + e.tempoCozimento * fornadas;
 
   // --- 6. Ativação do starter ---------------------------------------------
@@ -1680,13 +1768,14 @@ function calcular(entradas) {
   const totalAtivado = maeParaAtivar + farinhaAtivar + aguaAtivar;
   const sobra = Math.max(totalAtivado - starter, 0);
 
-  // A farinha embutida no starter, repartida pela composição dele — é o que
-  // permite cobrar o preço certo de um starter de centeio.
-  const farinhasDoStarter = pesosFarinha.map((f) => ({
+  // A farinha embutida no starter, repartida pela composição DELE — que é
+  // independente da massa. É o que permite cobrar o preço certo de um starter
+  // de centeio dentro de um pão branco.
+  const farinhasDoStarter = composicaoStarter.map((f) => ({
     id: f.id,
     nome: f.nome,
-    pct: f.pctStarter,
-    gramas: farinhaNoStarter * f.pctStarter,
+    pct: f.pct,
+    gramas: farinhaNoStarter * f.pct,
   }));
 
   // --- 7. Custos -----------------------------------------------------------
@@ -1694,14 +1783,75 @@ function calcular(entradas) {
   const embalagem = e.embalagemExterna + e.embalagemInterna + e.etiqueta;
   const energia = (tempoTotal / 60) * e.potenciaForno * e.precoKwh;
 
-  const custoFarinhas = pesosFarinha.reduce((soma, f, i) => {
-    const noStarter = farinhasDoStarter[i]?.gramas ?? 0;
-    return soma + f.preco * (f.gramas + noStarter);
-  }, 0);
-  const custoLiquidos = pesosLiquido.reduce((s, l) => s + l.preco * l.gramas, 0);
-  const custoSolidos = pesosSolido.reduce((s, x) => s + x.preco * x.gramas, 0);
-  const custoIngredientes =
-    (custoFarinhas + custoLiquidos + custoSolidos + e.precoSal * sal) / 1000;
+  /**
+   * Uma linha por ingrediente que está de fato na receita. Existe porque
+   * ingrediente é opcional: sem enxergar item a item, um extra sem preço sai
+   * de graça e o custo total mente sem dar sinal.
+   */
+  const itensDeCusto = [];
+
+  // Uma farinha pode estar nas duas composições, e aí é uma compra só: os
+  // gramas se somam numa linha, não em duas.
+  const gramasPorFarinha = new Map();
+  const somarGramas = (id, chave, valor) => {
+    if (!gramasPorFarinha.has(id)) gramasPorFarinha.set(id, { gramasPao: 0, gramasStarter: 0 });
+    gramasPorFarinha.get(id)[chave] += valor;
+  };
+  for (const f of pesosFarinha) somarGramas(f.id, 'gramasPao', f.gramas);
+  for (const f of farinhasDoStarter) somarGramas(f.id, 'gramasStarter', f.gramas);
+
+  for (const f of farinhas) {
+    const parcelas = gramasPorFarinha.get(f.id);
+    if (!parcelas) continue;
+    const gramas = parcelas.gramasPao + parcelas.gramasStarter;
+    if (gramas <= 0) continue;
+    itensDeCusto.push({
+      id: f.id,
+      nome: f.nome,
+      tipo: 'farinha',
+      gramas: fin(gramas),
+      gramasPao: fin(parcelas.gramasPao),
+      gramasStarter: fin(parcelas.gramasStarter),
+      preco: fin(f.preco),
+      custo: fin((f.preco * gramas) / 1000),
+    });
+  }
+  if (sal > 0) {
+    itensDeCusto.push({
+      id: 'sal',
+      nome: 'Sal',
+      tipo: 'sal',
+      gramas: fin(sal),
+      preco: fin(e.precoSal),
+      custo: fin((e.precoSal * sal) / 1000),
+    });
+  }
+  for (const l of pesosLiquido) {
+    if (l.gramas <= 0) continue;
+    itensDeCusto.push({
+      id: l.id,
+      nome: l.nome,
+      tipo: 'liquido',
+      gramas: fin(l.gramas),
+      preco: fin(l.preco),
+      custo: fin((l.preco * l.gramas) / 1000),
+    });
+  }
+  for (const s of pesosSolido) {
+    if (s.gramas <= 0) continue;
+    itensDeCusto.push({
+      id: s.id,
+      nome: s.nome,
+      tipo: 'solido',
+      gramas: fin(s.gramas),
+      gramasPorPao: fin(s.gramasPorPao),
+      preco: fin(s.preco),
+      custo: fin((s.preco * s.gramas) / 1000),
+    });
+  }
+
+  const custoIngredientes = itensDeCusto.reduce((soma, i) => soma + i.custo, 0);
+  const semPreco = itensDeCusto.filter((i) => !(i.preco > 0)).map((i) => i.nome);
 
   const embalagemTotal = embalagem * Math.max(0, e.numeroPaes);
   const producao = embalagemTotal + custoIngredientes + energia;
@@ -1728,7 +1878,7 @@ function calcular(entradas) {
       farinhas: limpar(farinhasDoStarter, ['pct', 'gramas']),
     },
     pao: {
-      farinhas: limpar(pesosFarinha, ['pct', 'pctStarter', 'gramas', 'preco']),
+      farinhas: limpar(pesosFarinha, ['pct', 'gramas', 'preco']),
       liquidos: limpar(pesosLiquido, ['pct', 'fracaoAgua', 'gramas', 'agua', 'preco']),
       solidos: limpar(pesosSolido, ['gramasPorPao', 'gramas', 'preco']),
       agua: fin(agua),
@@ -1755,6 +1905,8 @@ function calcular(entradas) {
       embalagem: fin(embalagem),
       embalagemTotal: fin(embalagemTotal),
       ingredientes: fin(custoIngredientes),
+      itens: itensDeCusto,
+      semPreco,
       energia: fin(energia),
       producao: fin(producao),
       porPao: fin(porPao),
@@ -1804,6 +1956,7 @@ const CAMPOS = [
 
   { chave: 'fatorArredondamento', rotulo: 'Fator de arredondamento', aba: 'pao', grupo: 'Ajustes', unidade: 'g', passo: 1, dica: 'Arredonda cada ingrediente para múltiplos deste valor. Zero desliga o arredondamento.' },
   { chave: 'perdaForno', rotulo: 'Perda estimada no forno', aba: 'pao', grupo: 'Ajustes', unidade: '%', fator: 100, passo: 0.5, casas: 1, dica: 'Percentual de peso que a massa perde no forno. O diário calibra este valor a partir de pães pesados de verdade.' },
+  { chave: 'paesPorFornada', rotulo: 'Pães por fornada', aba: 'pao', grupo: 'Ajustes', unidade: '', passo: 1, casas: 0, dica: 'Quantos pães cabem no forno de uma vez. Define o número de fornadas, e com ele o tempo e o gasto de energia.' },
   { chave: 'tempoPreAquecimento', rotulo: 'Pré-aquecimento', aba: 'pao', grupo: 'Ajustes', unidade: 'min', passo: 5, casas: 0 },
   { chave: 'tempoCozimento', rotulo: 'Cozimento', aba: 'pao', grupo: 'Ajustes', unidade: 'min', passo: 5, casas: 0 },
 
@@ -1873,23 +2026,27 @@ function formatarValor(campo, valor) {
 
 // ===== migrar.js =====
 /**
- * Conversão do formato v1 (campos fixos de ingrediente) para v2 (catálogo).
+ * Conversão dos formatos antigos de receita para o atual.
  *
- * Roda ao carregar o estado do aparelho. O critério é simples e conservador:
- * quem já usava o app não pode ver número mudar. A única exceção é combinada —
- * em v1 os extras não entravam no peso, e agora entram.
+ *   v1  campos fixos de ingrediente (pctIntegral, pctCenteio, pctMelado, extras)
+ *   v2  catálogo de farinhas com pct e pctStarter embutidos no próprio item
+ *   v3  catálogo só de nome e preço, com duas listas de composição separadas
+ *
+ * Roda ao carregar o estado do aparelho. O critério é conservador: quem já
+ * usava o app não pode ver número mudar. A única exceção é combinada — em v1
+ * os extras não entravam no peso, e agora entram.
  */
 
 
 
-const VERSAO_ESTADO = 2;
+const VERSAO_ESTADO = 3;
 
 function num(valor, padrao) {
   const n = typeof valor === 'number' ? valor : Number(valor);
   return Number.isFinite(n) ? n : padrao;
 }
 
-/** v1 guardava tudo isto em campos fixos; v2 guarda dentro das listas. */
+/** v1 guardava isto em campos fixos; hoje mora dentro das listas. */
 const CAMPOS_MORTOS = [
   'pctIntegral',
   'pctCenteio',
@@ -1902,52 +2059,89 @@ const CAMPOS_MORTOS = [
   'precoExtras',
 ];
 
-function migrarEntradas(entradas) {
-  const v = entradas && typeof entradas === 'object' ? entradas : {};
-  if (Array.isArray(v.farinhas)) return v; // já é v2
-
+function escalares(v) {
   const saida = {};
   for (const [chave, padrao] of Object.entries(ENTRADAS_PADRAO)) {
     if (LISTAS.includes(chave)) continue;
     saida[chave] = num(v[chave], padrao);
   }
+  return saida;
+}
 
-  // As três farinhas fixas viram o catálogo. A branca é a base: em v1 ela era
-  // literalmente "o resto", então o percentual dela nem é guardado.
+/** v1 → v3: os três campos fixos de farinha viram catálogo e composição. */
+function deV1(v) {
+  const saida = escalares(v);
+
   saida.farinhas = [
-    { id: 'f-branca', nome: 'Farinha branca', preco: num(v.precoFarinha, 4.46), pct: 0, pctStarter: 0 },
-    { id: 'f-integral', nome: 'Farinha integral', preco: num(v.precoIntegral, 11), pct: num(v.pctIntegral, 0), pctStarter: 0 },
-    { id: 'f-centeio', nome: 'Farinha de centeio', preco: num(v.precoCenteio, 9), pct: num(v.pctCenteio, 0), pctStarter: 0 },
+    { id: 'f-branca', nome: 'Farinha branca', preco: num(v.precoFarinha, 4.46) },
+    { id: 'f-integral', nome: 'Farinha integral', preco: num(v.precoIntegral, 11) },
+    { id: 'f-centeio', nome: 'Farinha de centeio', preco: num(v.precoCenteio, 9) },
   ];
 
-  // fracaoAgua 0 reproduz v1 exatamente: lá o melado nunca contou como água.
+  // A branca era literalmente "o resto" em v1, então continua sendo a base.
+  // As outras só entram na composição se estavam de fato em uso.
+  saida.composicaoPao = [{ farinhaId: 'f-branca', pct: 0 }];
+  const integral = num(v.pctIntegral, 0);
+  const centeio = num(v.pctCenteio, 0);
+  if (integral > 0) saida.composicaoPao.push({ farinhaId: 'f-integral', pct: integral });
+  if (centeio > 0) saida.composicaoPao.push({ farinhaId: 'f-centeio', pct: centeio });
+
+  // Em v1 toda a farinha do starter era cobrada como branca — é o equivalente
+  // a um starter 100% da farinha base.
+  saida.composicaoStarter = [{ farinhaId: 'f-branca', pct: 0 }];
+
   saida.liquidos = [];
   const pctMelado = num(v.pctMelado, 0);
   if (pctMelado > 0) {
-    saida.liquidos.push({
-      id: 'l-melado',
-      nome: 'Melado',
-      pct: pctMelado,
-      fracaoAgua: 0,
-      preco: num(v.precoMelado, 41),
-    });
+    // fracaoAgua 0 reproduz v1: lá o melado nunca contou como água.
+    saida.liquidos.push({ id: 'l-melado', nome: 'Melado', pct: pctMelado, fracaoAgua: 0, preco: num(v.precoMelado, 41) });
   }
 
-  // Em v1 os extras eram o total do lote; em v2 são por pão.
   saida.solidos = [];
   const extras = num(v.extras, 0);
   if (extras > 0) {
+    // Em v1 os extras eram o total do lote; hoje são por pão.
     const paes = Math.max(1, num(v.numeroPaes, 1));
-    saida.solidos.push({
-      id: 's-extras',
-      nome: 'Extras',
-      gramasPorPao: extras / paes,
-      preco: num(v.precoExtras, 10),
-    });
+    saida.solidos.push({ id: 's-extras', nome: 'Extras', gramasPorPao: extras / paes, preco: num(v.precoExtras, 10) });
   }
 
   for (const morto of CAMPOS_MORTOS) delete saida[morto];
   return saida;
+}
+
+/** v2 → v3: separa a participação, que vinha grudada no item do catálogo. */
+function deV2(v) {
+  const saida = escalares(v);
+  const farinhas = v.farinhas.map((f, i) => ({
+    id: f.id ?? `f${i}`,
+    nome: String(f.nome ?? 'Farinha'),
+    preco: num(f.preco, 0),
+  }));
+  saida.farinhas = farinhas;
+
+  // Em v2 a base das duas composições era sempre o primeiro item, e as demais
+  // participavam só quando o percentual era maior que zero.
+  const participacao = (attr) =>
+    v.farinhas
+      .map((f, i) => ({ farinhaId: farinhas[i].id, pct: num(f[attr], 0), base: i === 0 }))
+      .filter((c) => c.base || c.pct > 0)
+      .map(({ farinhaId, pct }) => ({ farinhaId, pct }));
+
+  saida.composicaoPao = participacao('pct');
+  saida.composicaoStarter = participacao('pctStarter');
+
+  saida.liquidos = (Array.isArray(v.liquidos) ? v.liquidos : []).map((l) => ({ ...l }));
+  saida.solidos = (Array.isArray(v.solidos) ? v.solidos : []).map((s) => ({ ...s }));
+
+  for (const morto of CAMPOS_MORTOS) delete saida[morto];
+  return saida;
+}
+
+function migrarEntradas(entradas) {
+  const v = entradas && typeof entradas === 'object' ? entradas : {};
+  if (Array.isArray(v.composicaoPao)) return v; // já é v3
+  if (Array.isArray(v.farinhas)) return deV2(v);
+  return deV1(v);
 }
 
 function migrarEstado(estado) {
@@ -2071,11 +2265,10 @@ function registrosDaReceita(estado, receitaId) {
 const LISTAS_DIFF = [
   {
     chave: 'farinhas',
-    atributos: [
-      { attr: 'pct', molde: MOLDE.pct, rotulo: (nome) => nome, pulaBase: true },
-      { attr: 'pctStarter', molde: MOLDE.pct, rotulo: (nome) => `${nome} no starter`, pulaBase: true },
-      { attr: 'preco', molde: MOLDE.preco, rotulo: (nome) => `${nome} (preço)` },
-    ],
+    // O catálogo guarda só nome e preço. Entrar e sair do catálogo não é
+    // notícia — o que importa é entrar e sair de uma composição.
+    semEntradaSaida: true,
+    atributos: [{ attr: 'preco', molde: MOLDE.preco, rotulo: (nome) => `${nome} (preço)` }],
   },
   {
     chave: 'liquidos',
@@ -2111,6 +2304,7 @@ function diffDeLista(anterior, atual, definicao, mudancas) {
   for (const [id, { item, indice }] of porIdDepois) {
     const anteriorItem = porIdAntes.get(id);
     if (!anteriorItem) {
+      if (definicao.semEntradaSaida) continue;
       mudancas.push({
         chave: `${definicao.chave}.${id}`,
         rotulo: item.nome,
@@ -2133,12 +2327,54 @@ function diffDeLista(anterior, atual, definicao, mudancas) {
     }
   }
 
+  if (definicao.semEntradaSaida) return;
   for (const [id, { item }] of porIdAntes) {
     if (porIdDepois.has(id)) continue;
     mudancas.push({
       chave: `${definicao.chave}.${id}`,
       rotulo: item.nome,
       de: formatarValor(principal.molde, item[principal.attr]),
+      para: '—',
+    });
+  }
+}
+
+/**
+ * As composições apontam para o catálogo por id, então o rótulo do diff vem
+ * de lá. Entrar e sair de uma composição é a notícia principal: é o que
+ * significa "passei a usar centeio na massa".
+ */
+function diffDeComposicao(anterior, atual, chave, sufixo, mudancas) {
+  const nomeDe = (entradas, id) => entradas.farinhas?.find((f) => f.id === id)?.nome ?? 'Farinha';
+  const mapear = (lista) =>
+    new Map((Array.isArray(lista) ? lista : []).map((c, i) => [c.farinhaId, { pct: c.pct, indice: i }]));
+  const antes = mapear(anterior[chave]);
+  const depois = mapear(atual[chave]);
+
+  for (const [id, agora] of depois) {
+    const rotulo = `${nomeDe(atual, id)}${sufixo}`;
+    const antigo = antes.get(id);
+    if (!antigo) {
+      mudancas.push({ chave: `${chave}.${id}`, rotulo, de: '—', para: formatarValor(MOLDE.pct, agora.pct) });
+      continue;
+    }
+    // Base é calculada, não digitada.
+    if (agora.indice === 0 || antigo.indice === 0) continue;
+    if (igual(antigo.pct, agora.pct)) continue;
+    mudancas.push({
+      chave: `${chave}.${id}`,
+      rotulo,
+      de: formatarValor(MOLDE.pct, antigo.pct),
+      para: formatarValor(MOLDE.pct, agora.pct),
+    });
+  }
+
+  for (const [id, antigo] of antes) {
+    if (depois.has(id)) continue;
+    mudancas.push({
+      chave: `${chave}.${id}`,
+      rotulo: `${nomeDe(anterior, id)}${sufixo}`,
+      de: formatarValor(MOLDE.pct, antigo.pct),
       para: '—',
     });
   }
@@ -2161,6 +2397,8 @@ function diffEntradas(anterior, atual) {
     });
   }
 
+  diffDeComposicao(anterior, atual, 'composicaoPao', '', mudancas);
+  diffDeComposicao(anterior, atual, 'composicaoStarter', ' no starter', mudancas);
   for (const definicao of LISTAS_DIFF) diffDeLista(anterior, atual, definicao, mudancas);
   return mudancas;
 }
@@ -2461,18 +2699,12 @@ function grupoDeCampos(aba, grupo, entradas, extra = '') {
  * Linha editável de um item de lista: nome, o valor principal e, quando houver,
  * um valor secundário na linha de baixo.
  */
-function itemDeLista(lista, item, indice, principal, secundarios = [], podeApagar = true) {
+function itemDeLista(lista, item, principal, secundarios = [], podeApagar = true) {
   const alvo = (attr) => `data-lista="${lista}" data-id="${item.id}" data-attr="${attr}"`;
-  const ehBase = lista === 'farinhas' && indice === 0;
-
-  const controlePrincipal = ehBase
-    ? `<span class="valor-resto" data-resto="${principal.attr}">—</span>`
-    : controleNumerico(principal.molde, item[principal.attr], alvo(principal.attr), `${item.nome}, ${principal.rotulo}`);
-
-  return `<div class="item-lista${ehBase ? ' base' : ''}">
+  return `<div class="item-lista">
     <div class="item-linha">
       <input type="text" class="item-nome" ${alvo('nome')} value="${escapar(item.nome)}" aria-label="Nome do ingrediente" placeholder="Nome">
-      ${controlePrincipal}
+      ${controleNumerico(principal.molde, item[principal.attr], alvo(principal.attr), `${item.nome}, ${principal.rotulo}`)}
       ${podeApagar
         ? `<button class="item-remover" data-acao="remover-item" data-lista="${lista}" data-id="${item.id}" aria-label="Remover ${escapar(item.nome)}">✕</button>`
         : '<span class="item-remover vazio"></span>'}
@@ -2485,19 +2717,64 @@ function itemDeLista(lista, item, indice, principal, secundarios = [], podeApaga
         </div>`
       )
       .join('')}
-    ${ehBase ? '<p class="item-nota">Base da receita: recebe o que sobrar para fechar 100%.</p>' : ''}
   </div>`;
 }
 
 function listaEditavel(titulo, lista, itens, principal, secundarios, acaoAdicionar, rotuloAdicionar, nota) {
-  const podeApagar = itens.length > 1 || lista !== 'farinhas';
   return `<section class="secao">
     <h2 class="secao-titulo">${titulo}</h2>
     <div class="lista-itens">
-      ${itens.map((item, i) => itemDeLista(lista, item, i, principal, secundarios, podeApagar)).join('')}
+      ${itens.map((item) => itemDeLista(lista, item, principal, secundarios)).join('')}
       ${itens.length === 0 ? `<p class="lista-vazia">Nenhum item.</p>` : ''}
     </div>
     <button class="botao-adicionar" data-acao="${acaoAdicionar}">+ ${rotuloAdicionar}</button>
+    ${nota ? `<p class="nota-rodape">${nota}</p>` : ''}
+  </section>`;
+}
+
+/**
+ * Lista de composição: aponta para o catálogo por id. A massa e o starter têm
+ * cada um a sua, e são de fato independentes — dá para ter centeio na massa e
+ * não ter no pote.
+ */
+function listaDeComposicao(titulo, chave, entradas, marcaResto, nota) {
+  const catalogo = new Map(entradas.farinhas.map((f) => [f.id, f]));
+  const itens = entradas[chave].filter((c) => catalogo.has(c.farinhaId));
+  const podeApagar = itens.length > 1;
+
+  const linhas = itens
+    .map((c, i) => {
+      const farinha = catalogo.get(c.farinhaId);
+      const ehBase = i === 0;
+      const controle = ehBase
+        ? `<span class="valor-resto" data-resto="${marcaResto}">—</span>`
+        : controleNumerico(
+            MOLDE.pct,
+            c.pct,
+            `data-lista="${chave}" data-id="${c.farinhaId}" data-attr="pct"`,
+            `${farinha.nome}, percentual`
+          );
+
+      return `<div class="item-lista${ehBase ? ' base' : ''}">
+        <div class="item-linha">
+          <input type="text" class="item-nome" data-lista="farinhas" data-id="${farinha.id}" data-attr="nome"
+                 value="${escapar(farinha.nome)}" aria-label="Nome da farinha" placeholder="Nome">
+          ${controle}
+          ${podeApagar
+            ? `<button class="item-remover" data-acao="remover-item" data-lista="${chave}" data-id="${farinha.id}" aria-label="Tirar ${escapar(farinha.nome)}">✕</button>`
+            : '<span class="item-remover vazio"></span>'}
+        </div>
+        ${ehBase ? '<p class="item-nota">Base: recebe o que sobrar para fechar 100%.</p>' : ''}
+      </div>`;
+    })
+    .join('');
+
+  return `<section class="secao">
+    <h2 class="secao-titulo">${titulo}</h2>
+    <div class="lista-itens">
+      ${linhas || '<p class="lista-vazia">Nenhuma farinha.</p>'}
+    </div>
+    <button class="botao-adicionar" data-acao="escolher-farinha" data-alvo="${chave}">+ farinha</button>
     ${nota ? `<p class="nota-rodape">${nota}</p>` : ''}
   </section>`;
 }
@@ -2563,15 +2840,12 @@ function saidasPao(r, entradas) {
 
 function entradasPao(entradas) {
   return `
-    ${listaEditavel(
-      'Farinhas',
-      'farinhas',
-      entradas.farinhas,
-      { attr: 'pct', molde: MOLDE.pct, rotulo: 'percentual' },
-      [],
-      'add-farinha',
-      'farinha',
-      'Percentuais sobre a farinha total. A primeira da lista é a base e recebe o resto.'
+    ${listaDeComposicao(
+      'Farinhas da massa',
+      'composicaoPao',
+      entradas,
+      'pao',
+      'Percentuais sobre a farinha total. Só do pão — o starter tem a composição dele, na aba ao lado.'
     )}
     ${grupoDeCampos('pao', 'Proporções', entradas)}
     ${listaEditavel(
@@ -2638,15 +2912,12 @@ function saidasStarter(r) {
 
 function entradasStarter(entradas) {
   return `
-    ${listaEditavel(
-      'Composição do starter',
-      'farinhas',
-      entradas.farinhas,
-      { attr: 'pctStarter', molde: MOLDE.pct, rotulo: 'percentual no starter' },
-      [],
-      'add-farinha',
-      'farinha',
-      'De que farinha o seu pote é alimentado. É independente da composição do pão — dá para ter um starter de centeio num pão branco.'
+    ${listaDeComposicao(
+      'Farinhas do pote',
+      'composicaoStarter',
+      entradas,
+      'starter',
+      'De que farinha o seu starter é alimentado. É uma lista à parte da massa: dá para ter centeio no pão sem ter centeio no pote, e vice-versa.'
     )}
     ${grupoDeCampos('starter', 'Starter-mãe', entradas)}
     ${grupoDeCampos('starter', 'Ativação', entradas)}`;
@@ -2656,7 +2927,38 @@ function entradasStarter(entradas) {
 // Aba Custos
 // ---------------------------------------------------------------------------
 
-function saidasCustos(r) {
+/** "Azeite", "Azeite e Nozes", "Azeite, Nozes e Mel". */
+function juntarNomes(nomes) {
+  if (nomes.length <= 1) return escapar(nomes[0] ?? '');
+  return `${nomes.slice(0, -1).map(escapar).join(', ')} e ${escapar(nomes[nomes.length - 1])}`;
+}
+
+function linhaSoma(rotulo, detalhe, valorHtml) {
+  return `<div class="ticket-soma">
+    <span class="ticket-nome">${rotulo}${detalhe ? `<span class="ticket-detalhe">${detalhe}</span>` : ''}</span>
+    <span class="ticket-pontilhado"></span>
+    <span class="ticket-valor">${valorHtml}</span>
+  </div>`;
+}
+
+function linhaDeCusto(item) {
+  const semPreco = !(item.preco > 0);
+  const detalhes = [`${fmtNum(item.gramas, 0)} g`];
+  if (item.gramasStarter > 0.05) {
+    detalhes.push(`${fmtNum(item.gramasPao, 0)} na massa + ${fmtNum(item.gramasStarter, 0)} no starter`);
+  }
+  if (item.gramasPorPao > 0) detalhes.push(`${fmtNum(item.gramasPorPao, 0)} g por pão`);
+  detalhes.push(semPreco ? 'sem preço' : `R$ ${fmtNum(item.preco, 2)}/kg`);
+
+  return `<div class="ticket-linha${semPreco ? ' sem-preco' : ''}">
+    <span class="ticket-nome">${escapar(item.nome)}<span class="ticket-detalhe">${detalhes.join(' · ')}</span></span>
+    <span class="ticket-pontilhado"></span>
+    <span class="ticket-valor">${semPreco ? `${uni('R$')}—` : brl(item.custo)}</span>
+  </div>`;
+}
+
+function saidasCustos(r, entradas) {
+  const paes = Math.max(0, Math.round(entradas.numeroPaes));
   return `
     ${blocoAvisos(r)}
     <section class="secao">
@@ -2672,35 +2974,90 @@ function saidasCustos(r) {
       </div>
     </section>
 
+    ${r.custos.semPreco.length
+      ? `<div class="aviso"><span>⚠</span><span>${juntarNomes(r.custos.semPreco)} ${
+          r.custos.semPreco.length === 1 ? 'está' : 'estão'
+        } na receita sem preço, então ${r.custos.semPreco.length === 1 ? 'sai' : 'saem'} de graça nesta conta.</span></div>`
+      : ''}
+
     <section class="secao">
       <h2 class="secao-titulo">De onde vem o custo</h2>
-      <div class="metricas tres">
-        ${metrica('Ingredientes', brl(r.custos.ingredientes))}
-        ${metrica('Embalagem', brl(r.custos.embalagemTotal))}
-        ${metrica('Energia', brl(r.custos.energia))}
+      <div class="ticket">
+        <div class="ticket-borda"></div>
+        ${r.custos.itens.length
+          ? r.custos.itens.map(linhaDeCusto).join('')
+          : '<p class="lista-vazia">Nenhum ingrediente na receita.</p>'}
+        ${linhaSoma('Ingredientes', '', brl(r.custos.ingredientes))}
+        ${linhaSoma('Embalagem', paes ? `${fmtNum(paes, 0)} × ${brl(r.custos.embalagem)}` : '', brl(r.custos.embalagemTotal))}
+        ${linhaSoma('Energia', formatarMinutos(r.pao.tempoTotal), brl(r.custos.energia))}
+        <div class="ticket-rodape">
+          <span class="rotulo">Total da fornada</span>
+          <span class="valor">${brl(r.custos.producao)}</span>
+        </div>
       </div>
       <p class="nota-rodape">A farinha que vem dentro do starter é cobrada pelo preço da farinha dele. A água não entra no custo.</p>
     </section>`;
 }
 
-function precosDaLista(lista, itens) {
-  return itens
-    .map(
-      (item) => `<div class="campo">
-        <span class="campo-texto"><span class="campo-rotulo">${escapar(item.nome)}</span></span>
-        ${controleNumerico(MOLDE.preco, item.preco, `data-lista="${lista}" data-id="${item.id}" data-attr="preco"`, `Preço de ${item.nome}`)}
-      </div>`
-    )
-    .join('');
+/**
+ * `data-preco-de` marca a linha para que atualizar() consiga acender e apagar
+ * o alerta de "sem preço" enquanto se digita, sem reconstruir o formulário —
+ * o que apagaria o campo debaixo do dedo.
+ */
+function linhaDePreco(id, nome, controle, emUso, semPreco) {
+  return `<div class="campo${emUso ? '' : ' nao-usado'}${emUso && semPreco ? ' precisa-preco' : ''}" data-preco-de="${id}">
+    <span class="campo-texto">
+      <span class="campo-rotulo">${escapar(nome)}</span>
+      ${emUso ? '' : '<span class="campo-dica">fora desta receita</span>'}
+    </span>
+    ${controle}
+  </div>`;
 }
 
-function entradasCustos(entradas) {
-  const precos =
-    precosDaLista('farinhas', entradas.farinhas) +
-    precosDaLista('liquidos', entradas.liquidos) +
-    precosDaLista('solidos', entradas.solidos);
+function precoDeItem(lista, item, emUso, semPreco) {
+  const controle = controleNumerico(
+    MOLDE.preco,
+    item.preco,
+    `data-lista="${lista}" data-id="${item.id}" data-attr="preco"`,
+    `Preço de ${item.nome}`
+  );
+  return linhaDePreco(item.id, item.nome, controle, emUso, semPreco);
+}
+
+function entradasCustos(entradas, r) {
+  const emUso = new Set(r.custos.itens.map((i) => i.id));
+  const semPreco = new Set(r.custos.itens.filter((i) => !(i.preco > 0)).map((i) => i.id));
+
+  const campoSal = CAMPO_POR_CHAVE.precoSal;
+  const linhas = [
+    {
+      id: 'sal',
+      html: linhaDePreco(
+        'sal',
+        campoSal.rotulo,
+        controleNumerico(campoSal, entradas.precoSal, 'data-campo="precoSal"', campoSal.rotulo),
+        emUso.has('sal'),
+        semPreco.has('sal')
+      ),
+    },
+    ...entradas.farinhas.map((f) => ({ id: f.id, html: precoDeItem('farinhas', f, emUso.has(f.id), semPreco.has(f.id)) })),
+    ...entradas.liquidos.map((l) => ({ id: l.id, html: precoDeItem('liquidos', l, emUso.has(l.id), semPreco.has(l.id)) })),
+    ...entradas.solidos.map((s) => ({ id: s.id, html: precoDeItem('solidos', s, emUso.has(s.id), semPreco.has(s.id)) })),
+  ];
+
+  // Em uso primeiro: são os que mexem na conta agora. O resto continua
+  // editável, só que fora do caminho.
+  const usados = linhas.filter((l) => emUso.has(l.id));
+  const guardados = linhas.filter((l) => !emUso.has(l.id));
+
   return `
-    ${grupoDeCampos('custos', 'Preço por quilo', entradas, precos)}
+    <section class="secao">
+      <h2 class="secao-titulo">Preço por quilo</h2>
+      <div class="grupo">${usados.map((l) => l.html).join('')}</div>
+      ${guardados.length
+        ? `<div class="grupo grupo-guardado">${guardados.map((l) => l.html).join('')}</div>`
+        : ''}
+    </section>
     ${grupoDeCampos('custos', 'Energia', entradas)}
     ${grupoDeCampos('custos', 'Embalagem (por pão)', entradas)}`;
 }
@@ -2729,11 +3086,14 @@ function blocoPesagem(registro) {
 
 function blocoRetrato(registro) {
   const e = registro.snapshot;
+  const nomeFarinha = (id) => e.farinhas?.find((f) => f.id === id)?.nome ?? 'Farinha';
   const linhas = [];
   for (const c of CAMPOS) linhas.push([c.rotulo, formatarValor(c, e[c.chave])]);
-  for (const f of e.farinhas ?? []) {
-    linhas.push([`${f.nome} — no pão`, formatarValor(MOLDE.pct, f.pct)]);
-    linhas.push([`${f.nome} — no starter`, formatarValor(MOLDE.pct, f.pctStarter)]);
+  for (const c of e.composicaoPao ?? []) {
+    linhas.push([`${nomeFarinha(c.farinhaId)} — na massa`, formatarValor(MOLDE.pct, c.pct)]);
+  }
+  for (const c of e.composicaoStarter ?? []) {
+    linhas.push([`${nomeFarinha(c.farinhaId)} — no starter`, formatarValor(MOLDE.pct, c.pct)]);
   }
   for (const l of e.liquidos ?? []) linhas.push([l.nome, formatarValor(MOLDE.pct, l.pct)]);
   for (const s of e.solidos ?? []) linhas.push([s.nome, formatarValor(MOLDE.gramasPorPao, s.gramasPorPao)]);
@@ -2850,7 +3210,7 @@ function render() {
       : abaAtiva === 'pao'
         ? entradasPao(ativa.entradas)
         : abaAtiva === 'custos'
-          ? entradasCustos(ativa.entradas)
+          ? entradasCustos(ativa.entradas, calcular(ativa.entradas))
           : '';
 
   document.getElementById('painel').innerHTML = `<div id="saidas"></div><div id="entradas">${entradasHtml}</div>`;
@@ -2872,7 +3232,7 @@ function atualizar() {
       : abaAtiva === 'pao'
         ? saidasPao(r, ativa.entradas)
         : abaAtiva === 'custos'
-          ? saidasCustos(r)
+          ? saidasCustos(r, ativa.entradas)
           : saidasDiario();
 
   const resumo = document.getElementById('resumo-objetivo');
@@ -2881,11 +3241,17 @@ function atualizar() {
     resumo.textContent = `${fmtNum(ativa.entradas.pesoAssadoDesejado, 0)} g × ${fmtNum(paes, 0)} ${paes === 1 ? 'pão' : 'pães'}`;
   }
 
-  // O percentual da farinha base é calculado, não digitado.
+  // O percentual da farinha base é calculado, não digitado. Cada composição
+  // tem a sua.
   document.querySelectorAll('[data-resto]').forEach((el) => {
-    const attr = el.dataset.resto;
-    const base = r.pao.farinhas[0];
-    el.textContent = base ? formatarValor(MOLDE.pct, attr === 'pctStarter' ? base.pctStarter : base.pct) : '—';
+    const base = el.dataset.resto === 'starter' ? r.starter.farinhas[0] : r.pao.farinhas[0];
+    el.textContent = base ? formatarValor(MOLDE.pct, base.pct) : '—';
+  });
+
+  // O alerta de preço faltando acende e apaga junto com a digitação.
+  const semPreco = new Set(r.custos.itens.filter((i) => !(i.preco > 0)).map((i) => i.id));
+  document.querySelectorAll('[data-preco-de]').forEach((el) => {
+    el.classList.toggle('precisa-preco', semPreco.has(el.dataset.precoDe));
   });
 }
 
@@ -2984,6 +3350,43 @@ function folhaBackup() {
     </label>
     <button class="botao-principal" data-acao="importar-texto">Restaurar do texto</button>
     <input type="file" id="arquivo-importar" accept="application/json,.json" hidden>
+  `);
+}
+
+function folhaEscolherFarinha(alvo) {
+  const ativa = receitaAtiva(estado);
+  const jaTem = new Set(ativa.entradas[alvo].map((c) => c.farinhaId));
+  const disponiveis = ativa.entradas.farinhas.filter((f) => !jaTem.has(f.id));
+  const onde = alvo === 'composicaoPao' ? 'à massa' : 'ao starter';
+
+  abrirFolha(`
+    <h2 class="folha-titulo">Acrescentar farinha ${onde}</h2>
+    ${disponiveis.length
+      ? `<div class="lista-receitas">
+           ${disponiveis
+             .map(
+               (f) => `<div class="item-receita">
+                 <button class="linha-receita" data-acao="usar-farinha" data-alvo="${alvo}" data-id="${f.id}">
+                   <span class="marca">+</span>
+                   <span class="nome">${escapar(f.nome)}</span>
+                   <span class="contagem">${f.preco > 0 ? `R$ ${fmtNum(f.preco, 2)}/kg` : 'sem preço'}</span>
+                 </button>
+               </div>`
+             )
+             .join('')}
+         </div>
+         <p class="nota-rodape">Já no seu catálogo. Escolher aqui não mexe na outra composição.</p>`
+      : '<p class="nota-rodape">Todas as farinhas do catálogo já estão nesta composição.</p>'}
+
+    <h2 class="folha-titulo" style="margin-top:26px">Ou crie uma nova</h2>
+    <label class="campo-livre">
+      <span>Nome da farinha</span>
+      <input type="text" id="nome-farinha" placeholder="Espelta, trigo sarraceno…">
+    </label>
+    <div class="folha-acoes">
+      <button class="botao-principal" data-acao="nova-farinha" data-alvo="${alvo}">Criar e acrescentar</button>
+      <button class="botao-secundario" data-acao="fechar-folha">Cancelar</button>
+    </div>
   `);
 }
 
@@ -3122,7 +3525,6 @@ async function copiarBackup(botao) {
 function novoItem(lista) {
   const ativa = receitaAtiva(estado);
   const modelos = {
-    farinhas: { nome: 'Nova farinha', preco: 0, pct: 0, pctStarter: 0 },
     liquidos: { nome: 'Novo líquido', pct: 0, fracaoAgua: 0, preco: 0 },
     solidos: { nome: 'Novo sólido', gramasPorPao: 0, preco: 0 },
   };
@@ -3132,8 +3534,11 @@ function novoItem(lista) {
   render();
 }
 
+/** Composições referenciam o catálogo por farinhaId; as demais listas têm id próprio. */
 function itemPorId(lista, id) {
-  return receitaAtiva(estado).entradas[lista]?.find((x) => x.id === id) ?? null;
+  const itens = receitaAtiva(estado).entradas[lista];
+  if (!Array.isArray(itens)) return null;
+  return itens.find((x) => x.id === id || x.farinhaId === id) ?? null;
 }
 
 function moldeDe(lista, attr) {
@@ -3193,17 +3598,59 @@ const ACOES = {
     render();
   },
 
-  'add-farinha': () => novoItem('farinhas'),
   'add-liquido': () => novoItem('liquidos'),
   'add-solido': () => novoItem('solidos'),
 
+  'escolher-farinha'(el) {
+    folhaEscolherFarinha(el.dataset.alvo);
+  },
+
+  'usar-farinha'(el) {
+    const { alvo, id } = el.dataset;
+    const ativa = receitaAtiva(estado);
+    if (ativa.entradas[alvo].some((c) => c.farinhaId === id)) return;
+    ativa.entradas[alvo] = [...ativa.entradas[alvo], { farinhaId: id, pct: 0 }];
+    marcarAlterada();
+    salvar();
+    fecharFolha();
+    render();
+  },
+
+  'nova-farinha'(el) {
+    const { alvo } = el.dataset;
+    const nome = document.getElementById('nome-farinha')?.value.trim();
+    if (!nome) return;
+    const ativa = receitaAtiva(estado);
+    const farinha = { id: gerarId('f'), nome, preco: 0 };
+    ativa.entradas.farinhas = [...ativa.entradas.farinhas, farinha];
+    ativa.entradas[alvo] = [...ativa.entradas[alvo], { farinhaId: farinha.id, pct: 0 }];
+    marcarAlterada();
+    salvar();
+    fecharFolha();
+    render();
+  },
+
   'remover-item'(el) {
     const { lista, id } = el.dataset;
-    const item = itemPorId(lista, id);
-    if (!item) return;
-    if (!confirm(`Remover "${item.nome}" da receita?`)) return;
     const ativa = receitaAtiva(estado);
-    ativa.entradas[lista] = ativa.entradas[lista].filter((x) => x.id !== id);
+    const ehComposicao = lista === 'composicaoPao' || lista === 'composicaoStarter';
+
+    if (ehComposicao) {
+      if (ativa.entradas[lista].length <= 1) {
+        alert('Precisa sobrar pelo menos uma farinha. Escolha outra antes de tirar esta.');
+        return;
+      }
+      const nome = ativa.entradas.farinhas.find((f) => f.id === id)?.nome ?? 'esta farinha';
+      const onde = lista === 'composicaoPao' ? 'da massa' : 'do starter';
+      if (!confirm(`Tirar "${nome}" ${onde}? Ela continua no catálogo, com o preço.`)) return;
+      ativa.entradas[lista] = ativa.entradas[lista].filter((c) => c.farinhaId !== id);
+    } else {
+      const item = itemPorId(lista, id);
+      if (!item) return;
+      if (!confirm(`Remover "${item.nome}" da receita?`)) return;
+      ativa.entradas[lista] = ativa.entradas[lista].filter((x) => x.id !== id);
+    }
+
     marcarAlterada();
     salvar();
     render();
@@ -3362,14 +3809,16 @@ function montar() {
   document.addEventListener('input', (evento) => {
     const alvo = evento.target;
 
-    if (alvo.matches?.('[data-campo]')) {
+    // Só `input` de verdade: os botões de passo carregam os mesmos data-attrs
+    // e não devem ser lidos como fonte de valor.
+    if (alvo.matches?.('input[data-campo]')) {
       const valor = paraNumero(alvo.value);
       // Estados intermediários como "70," não devem zerar a receita.
       if (Number.isFinite(valor)) aplicarEntrada(alvo.dataset.campo, valor);
       return;
     }
 
-    if (alvo.matches?.('[data-lista][data-attr]')) {
+    if (alvo.matches?.('input[data-lista][data-attr]')) {
       const { lista, id, attr } = alvo.dataset;
       if (attr === 'nome') {
         const item = itemPorId(lista, id);

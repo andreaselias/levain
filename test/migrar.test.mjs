@@ -48,7 +48,7 @@ test('receita v1 migrada produz exatamente os mesmos pesos de antes', () => {
   const { pao } = calcular(migrarEntradas(V1));
   assert.equal(gramas(pao.farinhas, 'Farinha branca'), 530);
   assert.equal(gramas(pao.farinhas, 'Farinha integral'), 60);
-  assert.equal(gramas(pao.farinhas, 'Farinha de centeio'), 0);
+  assert.equal(gramas(pao.farinhas, 'Farinha de centeio'), undefined, 'estava em 0%, saiu da composição');
   assert.equal(pao.agua, 400);
   assert.equal(pao.starter, 120);
   assert.equal(pao.sal, 10);
@@ -66,30 +66,51 @@ test('receita v1 migrada produz exatamente os mesmos custos de antes', () => {
 });
 
 test('o starter migra como 100% da farinha base, que era o comportamento de v1', () => {
-  const { farinhas } = migrarEntradas(V1);
-  assert.equal(farinhas[0].pctStarter, 0, 'a base absorve o resto');
-  assert.equal(farinhas[1].pctStarter, 0, 'integral fora do starter');
-  assert.equal(farinhas[2].pctStarter, 0, 'centeio fora do starter');
+  const { composicaoStarter } = migrarEntradas(V1);
+  assert.deepEqual(composicaoStarter, [{ farinhaId: 'f-branca', pct: 0 }], 'só a base');
 
   const r = calcular(migrarEntradas(V1));
   perto(gramas(r.starter.farinhas, 'Farinha branca'), 60, 'toda a farinha do starter é branca');
-  perto(gramas(r.starter.farinhas, 'Farinha integral'), 0, 'nada de integral');
+  assert.equal(gramas(r.starter.farinhas, 'Farinha integral'), undefined, 'nada de integral');
 });
 
 // ---------------------------------------------------------------------------
 // Conversões
 // ---------------------------------------------------------------------------
 
-test('as três farinhas viram catálogo com nome, percentual e preço preservados', () => {
+test('as três farinhas viram catálogo com nome e preço preservados', () => {
   const { farinhas } = migrarEntradas({ ...V1, pctIntegral: 0.15, pctCenteio: 0.05 });
   assert.deepEqual(
-    farinhas.map((f) => [f.nome, f.pct, f.preco]),
+    farinhas.map((f) => [f.nome, f.preco]),
     [
-      ['Farinha branca', 0, 4.46],
-      ['Farinha integral', 0.15, 11],
-      ['Farinha de centeio', 0.05, 9],
+      ['Farinha branca', 4.46],
+      ['Farinha integral', 11],
+      ['Farinha de centeio', 9],
     ]
   );
+});
+
+test('a composição da massa recebe só as farinhas que estavam em uso', () => {
+  const { composicaoPao } = migrarEntradas({ ...V1, pctIntegral: 0.15, pctCenteio: 0.05 });
+  assert.deepEqual(composicaoPao, [
+    { farinhaId: 'f-branca', pct: 0 },
+    { farinhaId: 'f-integral', pct: 0.15 },
+    { farinhaId: 'f-centeio', pct: 0.05 },
+  ]);
+});
+
+test('farinha zerada em v1 fica só no catálogo, fora da composição', () => {
+  const migrada = migrarEntradas(V1); // centeio em 0%
+  assert.equal(migrada.farinhas.length, 3, 'continua no catálogo');
+  assert.deepEqual(
+    migrada.composicaoPao.map((c) => c.farinhaId),
+    ['f-branca', 'f-integral'],
+    'centeio fora da composição'
+  );
+});
+
+test('pães por fornada ganha o padrão de dois em receita antiga', () => {
+  assert.equal(migrarEntradas(V1).paesPorFornada, 2);
 });
 
 test('melado vira líquido sem água, preservando os números de v1', () => {
@@ -142,9 +163,9 @@ test('os campos antigos de preço e percentual somem depois da migração', () =
 // Robustez
 // ---------------------------------------------------------------------------
 
-test('entradas que já estão em v2 passam intactas', () => {
-  const v2 = migrarEntradas(V1);
-  assert.deepEqual(migrarEntradas(v2), v2);
+test('entradas já no formato atual passam intactas', () => {
+  const atual = migrarEntradas(V1);
+  assert.deepEqual(migrarEntradas(atual), atual);
 });
 
 test('migrar duas vezes dá o mesmo que migrar uma', () => {
@@ -156,6 +177,54 @@ test('receita v1 incompleta ganha os padrões que faltam', () => {
   assert.equal(migrada.hidratacao, 0.8, 'o que veio é respeitado');
   assert.equal(migrada.pctSal, 0.02, 'o que faltou vira padrão');
   assert.equal(migrada.farinhas.length, 3, 'catálogo criado');
+});
+
+// ---------------------------------------------------------------------------
+// v2 → v3: participação sai de dentro do item do catálogo
+// ---------------------------------------------------------------------------
+
+const V2 = {
+  ...Object.fromEntries(Object.entries(V1).filter(([k]) => !k.startsWith('pct') || k === 'pctStarter' || k === 'pctSal')),
+  hidratacao: 0.7,
+  farinhas: [
+    { id: 'f-branca', nome: 'Farinha branca', preco: 4.46, pct: 0, pctStarter: 0 },
+    { id: 'f-integral', nome: 'Farinha integral', preco: 11, pct: 0.1, pctStarter: 0.1 },
+    { id: 'f-centeio', nome: 'Farinha de centeio', preco: 9, pct: 0, pctStarter: 0 },
+  ],
+  liquidos: [{ id: 'l1', nome: 'Azeite', pct: 0.04, fracaoAgua: 0, preco: 40 }],
+  solidos: [{ id: 's1', nome: 'Nozes', gramasPorPao: 40, preco: 60 }],
+};
+
+test('v2 vira v3 produzindo os números que v2 produzia', () => {
+  // Conferidos à mão a partir da semântica de v2: farinha total 580, integral a
+  // 10% na massa E no starter, azeite 4%, nozes 40 g por pão.
+  const r = calcular(migrarEntradas(V2));
+  assert.equal(r.pao.farinhaTotal, 580);
+  assert.equal(gramas(r.pao.farinhas, 'Farinha branca'), 520);
+  assert.equal(gramas(r.pao.farinhas, 'Farinha integral'), 60);
+  assert.equal(r.pao.agua, 390);
+  assert.equal(r.pao.massaTotal, 1120);
+  perto(gramas(r.starter.farinhas, 'Farinha integral'), 6, '10% dos 60 g do starter');
+  perto(r.custos.producao, 13.866545, 'custo da produção');
+});
+
+test('v2 separa a participação nas duas composições', () => {
+  const m = migrarEntradas(V2);
+  assert.deepEqual(m.composicaoPao, [
+    { farinhaId: 'f-branca', pct: 0 },
+    { farinhaId: 'f-integral', pct: 0.1 },
+  ]);
+  assert.deepEqual(m.composicaoStarter, [
+    { farinhaId: 'f-branca', pct: 0 },
+    { farinhaId: 'f-integral', pct: 0.1 },
+  ]);
+  assert.equal(m.farinhas[0].pct, undefined, 'o catálogo perde a participação');
+});
+
+test('v2 mantém líquidos e sólidos como estavam', () => {
+  const m = migrarEntradas(V2);
+  assert.equal(m.liquidos[0].nome, 'Azeite');
+  assert.equal(m.solidos[0].gramasPorPao, 40);
 });
 
 test('número de pães zero não faz a conversão de extras dividir por zero', () => {
@@ -180,7 +249,7 @@ test('migrarEstado converte receitas e os retratos guardados no diário', () => 
   assert.ok(Array.isArray(novo.receitas[0].entradas.farinhas), 'receita migrada');
   assert.ok(Array.isArray(novo.registros[0].snapshot.farinhas), 'retrato do diário migrado');
   assert.equal(novo.registros[0].observacao, 'oi', 'o resto do registro fica intacto');
-  assert.equal(novo.versao, 2);
+  assert.equal(novo.versao, 3);
 });
 
 test('migrarEstado não estraga um estado que já está em v2', () => {

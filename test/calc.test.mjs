@@ -17,18 +17,20 @@ function gramas(lista, nome) {
   return item ? item.gramas : undefined;
 }
 
+/**
+ * Monta uma receita a partir de uma lista de farinhas, distribuindo cada uma
+ * nas duas composições. `pct` e `pctStarter` ausentes significam "fora daquela
+ * composição" — que é justamente o caso de ter centeio na massa e não no pote.
+ */
 function comFarinhas(pares, extra = {}) {
-  return {
-    ...ENTRADAS_PADRAO,
-    farinhas: pares.map((p, i) => ({
-      id: `f${i}`,
-      nome: p.nome,
-      preco: p.preco ?? 0,
-      pct: p.pct ?? 0,
-      pctStarter: p.pctStarter ?? 0,
-    })),
-    ...extra,
-  };
+  const farinhas = pares.map((p, i) => ({ id: `f${i}`, nome: p.nome, preco: p.preco ?? 0 }));
+  const composicaoPao = [];
+  const composicaoStarter = [];
+  pares.forEach((p, i) => {
+    if (i === 0 || p.pct !== undefined) composicaoPao.push({ farinhaId: `f${i}`, pct: p.pct ?? 0 });
+    if (i === 0 || p.pctStarter !== undefined) composicaoStarter.push({ farinhaId: `f${i}`, pct: p.pctStarter ?? 0 });
+  });
+  return { ...ENTRADAS_PADRAO, farinhas, composicaoPao, composicaoStarter, ...extra };
 }
 
 // ---------------------------------------------------------------------------
@@ -40,7 +42,11 @@ test('pesagem dos ingredientes reproduz a planilha', () => {
   const { pao } = calcular(ENTRADAS_PADRAO);
   assert.equal(gramas(pao.farinhas, 'Farinha branca'), 530, 'farinha branca');
   assert.equal(gramas(pao.farinhas, 'Farinha integral'), 60, 'farinha integral');
-  assert.equal(gramas(pao.farinhas, 'Farinha de centeio'), 0, 'farinha de centeio');
+  assert.equal(
+    gramas(pao.farinhas, 'Farinha de centeio'),
+    undefined,
+    'centeio está no catálogo mas fora da composição, então nem aparece'
+  );
   assert.equal(pao.agua, 400, 'água');
   assert.equal(pao.starter, 120, 'starter');
   assert.equal(pao.sal, 10, 'sal');
@@ -86,16 +92,43 @@ test('ativação do starter reproduz a planilha', () => {
   perto(starter.aguaNoStarter, 60, 'água embutida');
 });
 
-test('número de fornadas assume dois pães por vez', () => {
+// ---------------------------------------------------------------------------
+// Fornadas: quantos pães cabem no forno de uma vez
+// ---------------------------------------------------------------------------
+
+test('o padrão continua sendo dois pães por fornada, como a planilha', () => {
   assert.equal(calcular({ ...ENTRADAS_PADRAO, numeroPaes: 3 }).pao.fornadas, 2, '3 pães');
   assert.equal(calcular({ ...ENTRADAS_PADRAO, numeroPaes: 5 }).pao.fornadas, 3, '5 pães');
 });
 
+test('a capacidade do forno é configurável', () => {
+  const fornadas = (paes, porFornada) =>
+    calcular({ ...ENTRADAS_PADRAO, numeroPaes: paes, paesPorFornada: porFornada }).pao.fornadas;
+  assert.equal(fornadas(6, 3), 2, '6 pães em fornadas de 3');
+  assert.equal(fornadas(7, 3), 3, 'sobra um, mais uma fornada');
+  assert.equal(fornadas(4, 1), 4, 'um por vez');
+  assert.equal(fornadas(2, 8), 1, 'cabe tudo de uma vez');
+});
+
+test('a capacidade do forno muda o tempo e o custo de energia', () => {
+  const umPorVez = calcular({ ...ENTRADAS_PADRAO, numeroPaes: 4, paesPorFornada: 1 });
+  const todosJuntos = calcular({ ...ENTRADAS_PADRAO, numeroPaes: 4, paesPorFornada: 4 });
+  assert.equal(umPorVez.pao.tempoTotal, 45 + 40 * 4, 'quatro fornadas');
+  assert.equal(todosJuntos.pao.tempoTotal, 45 + 40 * 1, 'uma fornada');
+  assert.ok(umPorVez.custos.energia > todosJuntos.custos.energia, 'mais forno, mais energia');
+});
+
+test('capacidade de forno zero é rejeitada com aviso, sem dividir por zero', () => {
+  const r = calcular({ ...ENTRADAS_PADRAO, paesPorFornada: 0 });
+  assert.ok(Number.isFinite(r.pao.fornadas), 'sem Infinity');
+  assert.ok(r.avisos.length > 0, 'deveria avisar');
+});
+
 // ---------------------------------------------------------------------------
-// Catálogo de farinhas
+// Catálogo de farinhas e composições isoladas
 // ---------------------------------------------------------------------------
 
-test('a primeira farinha da lista é a base e absorve o resto do percentual', () => {
+test('a primeira farinha da composição é a base e absorve o resto do percentual', () => {
   const r = calcular(
     comFarinhas([
       { nome: 'Branca', pct: 0.99 }, // ignorado: base é calculada
@@ -118,14 +151,100 @@ test('farinhas somando mais de 100% geram aviso em vez de base negativa', () => 
   );
 });
 
-test('acrescentar uma farinha zerada não altera peso nenhum', () => {
+test('farinha que está no catálogo mas fora das composições não pesa nem custa', () => {
   const base = calcular(ENTRADAS_PADRAO);
   const comEspelta = calcular({
     ...ENTRADAS_PADRAO,
-    farinhas: [...ENTRADAS_PADRAO.farinhas, { id: 'f-esp', nome: 'Espelta', preco: 15, pct: 0, pctStarter: 0 }],
+    farinhas: [...ENTRADAS_PADRAO.farinhas, { id: 'f-esp', nome: 'Espelta', preco: 15 }],
   });
   assert.equal(comEspelta.pao.massaTotal, base.pao.massaTotal);
   perto(comEspelta.custos.producao, base.custos.producao, 'custo não muda');
+  assert.equal(gramas(comEspelta.pao.farinhas, 'Espelta'), undefined, 'nem aparece na pesagem');
+});
+
+// --- O caso que motivou a separação --------------------------------------
+
+test('centeio pode estar na massa do pão sem estar no starter', () => {
+  const r = calcular(
+    comFarinhas([
+      { nome: 'Branca', preco: 4.46, pctStarter: 0 },
+      { nome: 'Centeio', preco: 9, pct: 0.2 }, // só na massa: sem pctStarter
+    ])
+  );
+  assert.ok(gramas(r.pao.farinhas, 'Centeio') > 0, 'centeio pesa na massa');
+  assert.equal(
+    r.starter.farinhas.find((f) => f.nome === 'Centeio'),
+    undefined,
+    'e não aparece no starter'
+  );
+  perto(
+    r.starter.farinhas.find((f) => f.nome === 'Branca').gramas,
+    r.starter.farinhaNoStarter,
+    'o starter é todo de branca'
+  );
+});
+
+test('o starter pode ter uma farinha que não está na massa do pão', () => {
+  const r = calcular(
+    comFarinhas([
+      { nome: 'Branca', preco: 4.46, pct: 0 },
+      { nome: 'Centeio', preco: 9, pctStarter: 1 }, // só no pote
+    ])
+  );
+  assert.equal(gramas(r.pao.farinhas, 'Centeio'), undefined, 'centeio fora da massa');
+  perto(
+    r.starter.farinhas.find((f) => f.nome === 'Centeio').gramas,
+    r.starter.farinhaNoStarter,
+    'o starter é todo de centeio'
+  );
+});
+
+test('cada composição tem a sua própria base', () => {
+  // Branca é base da massa; centeio é base do starter.
+  const r = calcular({
+    ...ENTRADAS_PADRAO,
+    farinhas: [
+      { id: 'b', nome: 'Branca', preco: 4.46 },
+      { id: 'c', nome: 'Centeio', preco: 9 },
+    ],
+    composicaoPao: [{ farinhaId: 'b', pct: 0 }, { farinhaId: 'c', pct: 0.2 }],
+    composicaoStarter: [{ farinhaId: 'c', pct: 0 }],
+  });
+  const total = r.pao.farinhaTotal;
+  assert.equal(gramas(r.pao.farinhas, 'Branca'), Math.round((total * 0.8) / 10) * 10, 'base da massa');
+  perto(
+    r.starter.farinhas.find((f) => f.nome === 'Centeio').gramas,
+    r.starter.farinhaNoStarter,
+    'base do starter'
+  );
+});
+
+test('uma farinha nas duas composições vira uma linha de custo só', () => {
+  const r = calcular(
+    comFarinhas([
+      { nome: 'Branca', preco: 4.46 },
+      { nome: 'Integral', preco: 11, pct: 0.1, pctStarter: 0.1 },
+    ])
+  );
+  const linhas = r.custos.itens.filter((i) => i.nome === 'Integral');
+  assert.equal(linhas.length, 1, 'não pode duplicar');
+  perto(linhas[0].gramasStarter, 6, '10% dos 60 g do starter');
+  perto(linhas[0].custo, ((linhas[0].gramasPao + 6) * 11) / 1000, 'custo soma massa e starter');
+});
+
+test('composição do pão vazia gera aviso', () => {
+  const r = calcular({ ...ENTRADAS_PADRAO, composicaoPao: [] });
+  assert.ok(r.avisos.length > 0, 'deveria avisar');
+  assert.ok(Number.isFinite(r.pao.massaTotal), 'sem NaN');
+});
+
+test('composição que aponta para farinha inexistente é ignorada sem quebrar', () => {
+  const r = calcular({
+    ...ENTRADAS_PADRAO,
+    composicaoPao: [...ENTRADAS_PADRAO.composicaoPao, { farinhaId: 'fantasma', pct: 0.5 }],
+  });
+  assert.ok(Number.isFinite(r.pao.massaTotal), 'sem NaN');
+  assert.equal(gramas(r.pao.farinhas, undefined), undefined);
 });
 
 // ---------------------------------------------------------------------------
@@ -267,6 +386,88 @@ test('sólidos entram no custo pelo total do lote', () => {
     solidos: [{ id: 's1', nome: 'Nozes', gramasPorPao: 50, preco: 60 }],
   });
   perto(r.custos.ingredientes - base.custos.ingredientes, (100 * 60) / 1000, '100 g a R$ 60/kg');
+});
+
+// ---------------------------------------------------------------------------
+// Custo item a item — ingrediente opcional não pode sair de graça sem avisar
+// ---------------------------------------------------------------------------
+
+const item = (custos, nome) => custos.itens.find((i) => i.nome === nome);
+
+test('cada ingrediente em uso vira uma linha de custo com gramas e valor', () => {
+  const { custos } = calcular(ENTRADAS_PADRAO);
+  const branca = item(custos, 'Farinha branca');
+  assert.ok(branca, 'a farinha branca tem que estar na lista');
+  assert.equal(branca.gramas, 590, '530 no pão + 60 no starter');
+  perto(branca.custo, (590 * 4.46) / 1000, 'custo da farinha branca');
+  perto(item(custos, 'Sal').custo, (10 * 2.5) / 1000, 'custo do sal');
+});
+
+test('a linha de farinha separa o que vai na massa do que vai no starter', () => {
+  const { custos } = calcular(ENTRADAS_PADRAO);
+  const branca = item(custos, 'Farinha branca');
+  assert.equal(branca.gramasPao, 530);
+  perto(branca.gramasStarter, 60, 'a farinha embutida no starter');
+});
+
+test('ingrediente zerado não vira linha de custo', () => {
+  const { custos } = calcular(ENTRADAS_PADRAO);
+  assert.equal(item(custos, 'Farinha de centeio'), undefined, 'centeio está em 0%');
+});
+
+test('as linhas de custo somam exatamente o custo de ingredientes', () => {
+  const r = calcular({
+    ...ENTRADAS_PADRAO,
+    liquidos: [{ id: 'l1', nome: 'Azeite', pct: 0.04, fracaoAgua: 0, preco: 40 }],
+    solidos: [{ id: 's1', nome: 'Nozes', gramasPorPao: 40, preco: 60 }],
+  });
+  const soma = r.custos.itens.reduce((s, i) => s + i.custo, 0);
+  perto(soma, r.custos.ingredientes, 'soma das linhas');
+});
+
+test('líquidos e sólidos entram nas linhas de custo como qualquer outro', () => {
+  const { custos } = calcular({
+    ...ENTRADAS_PADRAO,
+    liquidos: [{ id: 'l1', nome: 'Azeite', pct: 0.04, fracaoAgua: 0, preco: 40 }],
+    solidos: [{ id: 's1', nome: 'Nozes', gramasPorPao: 40, preco: 60 }],
+  });
+  assert.equal(item(custos, 'Azeite').tipo, 'liquido');
+  assert.equal(item(custos, 'Nozes').tipo, 'solido');
+  assert.equal(item(custos, 'Nozes').gramas, 80, '40 g por pão × 2 pães');
+  perto(item(custos, 'Nozes').custo, (80 * 60) / 1000, 'custo das nozes');
+});
+
+test('ingrediente em uso e sem preço é denunciado pelo nome', () => {
+  const { custos } = calcular({
+    ...ENTRADAS_PADRAO,
+    liquidos: [{ id: 'l1', nome: 'Azeite', pct: 0.04, fracaoAgua: 0, preco: 0 }],
+    solidos: [{ id: 's1', nome: 'Nozes', gramasPorPao: 40, preco: 60 }],
+  });
+  assert.deepEqual(custos.semPreco, ['Azeite']);
+});
+
+test('ingrediente sem preço mas fora da receita não é denunciado', () => {
+  const { custos } = calcular({
+    ...ENTRADAS_PADRAO,
+    liquidos: [{ id: 'l1', nome: 'Azeite', pct: 0, fracaoAgua: 0, preco: 0 }],
+  });
+  assert.deepEqual(custos.semPreco, [], 'azeite não está em uso');
+});
+
+test('receita com tudo precificado não denuncia nada', () => {
+  assert.deepEqual(calcular(ENTRADAS_PADRAO).custos.semPreco, []);
+});
+
+test('acrescentar um ingrediente precificado não pode baratear a fornada', () => {
+  const base = calcular(ENTRADAS_PADRAO);
+  const comAzeite = calcular({
+    ...ENTRADAS_PADRAO,
+    liquidos: [{ id: 'l1', nome: 'Azeite', pct: 0.04, fracaoAgua: 0, preco: 40 }],
+  });
+  assert.ok(
+    comAzeite.custos.ingredientes > base.custos.ingredientes,
+    `azeite a R$ 40/kg tem que encarecer: ${base.custos.ingredientes} → ${comAzeite.custos.ingredientes}`
+  );
 });
 
 // ---------------------------------------------------------------------------

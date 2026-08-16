@@ -167,18 +167,12 @@ function grupoDeCampos(aba, grupo, entradas, extra = '') {
  * Linha editável de um item de lista: nome, o valor principal e, quando houver,
  * um valor secundário na linha de baixo.
  */
-function itemDeLista(lista, item, indice, principal, secundarios = [], podeApagar = true) {
+function itemDeLista(lista, item, principal, secundarios = [], podeApagar = true) {
   const alvo = (attr) => `data-lista="${lista}" data-id="${item.id}" data-attr="${attr}"`;
-  const ehBase = lista === 'farinhas' && indice === 0;
-
-  const controlePrincipal = ehBase
-    ? `<span class="valor-resto" data-resto="${principal.attr}">—</span>`
-    : controleNumerico(principal.molde, item[principal.attr], alvo(principal.attr), `${item.nome}, ${principal.rotulo}`);
-
-  return `<div class="item-lista${ehBase ? ' base' : ''}">
+  return `<div class="item-lista">
     <div class="item-linha">
       <input type="text" class="item-nome" ${alvo('nome')} value="${escapar(item.nome)}" aria-label="Nome do ingrediente" placeholder="Nome">
-      ${controlePrincipal}
+      ${controleNumerico(principal.molde, item[principal.attr], alvo(principal.attr), `${item.nome}, ${principal.rotulo}`)}
       ${podeApagar
         ? `<button class="item-remover" data-acao="remover-item" data-lista="${lista}" data-id="${item.id}" aria-label="Remover ${escapar(item.nome)}">✕</button>`
         : '<span class="item-remover vazio"></span>'}
@@ -191,19 +185,64 @@ function itemDeLista(lista, item, indice, principal, secundarios = [], podeApaga
         </div>`
       )
       .join('')}
-    ${ehBase ? '<p class="item-nota">Base da receita: recebe o que sobrar para fechar 100%.</p>' : ''}
   </div>`;
 }
 
 function listaEditavel(titulo, lista, itens, principal, secundarios, acaoAdicionar, rotuloAdicionar, nota) {
-  const podeApagar = itens.length > 1 || lista !== 'farinhas';
   return `<section class="secao">
     <h2 class="secao-titulo">${titulo}</h2>
     <div class="lista-itens">
-      ${itens.map((item, i) => itemDeLista(lista, item, i, principal, secundarios, podeApagar)).join('')}
+      ${itens.map((item) => itemDeLista(lista, item, principal, secundarios)).join('')}
       ${itens.length === 0 ? `<p class="lista-vazia">Nenhum item.</p>` : ''}
     </div>
     <button class="botao-adicionar" data-acao="${acaoAdicionar}">+ ${rotuloAdicionar}</button>
+    ${nota ? `<p class="nota-rodape">${nota}</p>` : ''}
+  </section>`;
+}
+
+/**
+ * Lista de composição: aponta para o catálogo por id. A massa e o starter têm
+ * cada um a sua, e são de fato independentes — dá para ter centeio na massa e
+ * não ter no pote.
+ */
+function listaDeComposicao(titulo, chave, entradas, marcaResto, nota) {
+  const catalogo = new Map(entradas.farinhas.map((f) => [f.id, f]));
+  const itens = entradas[chave].filter((c) => catalogo.has(c.farinhaId));
+  const podeApagar = itens.length > 1;
+
+  const linhas = itens
+    .map((c, i) => {
+      const farinha = catalogo.get(c.farinhaId);
+      const ehBase = i === 0;
+      const controle = ehBase
+        ? `<span class="valor-resto" data-resto="${marcaResto}">—</span>`
+        : controleNumerico(
+            MOLDE.pct,
+            c.pct,
+            `data-lista="${chave}" data-id="${c.farinhaId}" data-attr="pct"`,
+            `${farinha.nome}, percentual`
+          );
+
+      return `<div class="item-lista${ehBase ? ' base' : ''}">
+        <div class="item-linha">
+          <input type="text" class="item-nome" data-lista="farinhas" data-id="${farinha.id}" data-attr="nome"
+                 value="${escapar(farinha.nome)}" aria-label="Nome da farinha" placeholder="Nome">
+          ${controle}
+          ${podeApagar
+            ? `<button class="item-remover" data-acao="remover-item" data-lista="${chave}" data-id="${farinha.id}" aria-label="Tirar ${escapar(farinha.nome)}">✕</button>`
+            : '<span class="item-remover vazio"></span>'}
+        </div>
+        ${ehBase ? '<p class="item-nota">Base: recebe o que sobrar para fechar 100%.</p>' : ''}
+      </div>`;
+    })
+    .join('');
+
+  return `<section class="secao">
+    <h2 class="secao-titulo">${titulo}</h2>
+    <div class="lista-itens">
+      ${linhas || '<p class="lista-vazia">Nenhuma farinha.</p>'}
+    </div>
+    <button class="botao-adicionar" data-acao="escolher-farinha" data-alvo="${chave}">+ farinha</button>
     ${nota ? `<p class="nota-rodape">${nota}</p>` : ''}
   </section>`;
 }
@@ -269,15 +308,12 @@ function saidasPao(r, entradas) {
 
 function entradasPao(entradas) {
   return `
-    ${listaEditavel(
-      'Farinhas',
-      'farinhas',
-      entradas.farinhas,
-      { attr: 'pct', molde: MOLDE.pct, rotulo: 'percentual' },
-      [],
-      'add-farinha',
-      'farinha',
-      'Percentuais sobre a farinha total. A primeira da lista é a base e recebe o resto.'
+    ${listaDeComposicao(
+      'Farinhas da massa',
+      'composicaoPao',
+      entradas,
+      'pao',
+      'Percentuais sobre a farinha total. Só do pão — o starter tem a composição dele, na aba ao lado.'
     )}
     ${grupoDeCampos('pao', 'Proporções', entradas)}
     ${listaEditavel(
@@ -344,15 +380,12 @@ function saidasStarter(r) {
 
 function entradasStarter(entradas) {
   return `
-    ${listaEditavel(
-      'Composição do starter',
-      'farinhas',
-      entradas.farinhas,
-      { attr: 'pctStarter', molde: MOLDE.pct, rotulo: 'percentual no starter' },
-      [],
-      'add-farinha',
-      'farinha',
-      'De que farinha o seu pote é alimentado. É independente da composição do pão — dá para ter um starter de centeio num pão branco.'
+    ${listaDeComposicao(
+      'Farinhas do pote',
+      'composicaoStarter',
+      entradas,
+      'starter',
+      'De que farinha o seu starter é alimentado. É uma lista à parte da massa: dá para ter centeio no pão sem ter centeio no pote, e vice-versa.'
     )}
     ${grupoDeCampos('starter', 'Starter-mãe', entradas)}
     ${grupoDeCampos('starter', 'Ativação', entradas)}`;
@@ -362,7 +395,38 @@ function entradasStarter(entradas) {
 // Aba Custos
 // ---------------------------------------------------------------------------
 
-function saidasCustos(r) {
+/** "Azeite", "Azeite e Nozes", "Azeite, Nozes e Mel". */
+function juntarNomes(nomes) {
+  if (nomes.length <= 1) return escapar(nomes[0] ?? '');
+  return `${nomes.slice(0, -1).map(escapar).join(', ')} e ${escapar(nomes[nomes.length - 1])}`;
+}
+
+function linhaSoma(rotulo, detalhe, valorHtml) {
+  return `<div class="ticket-soma">
+    <span class="ticket-nome">${rotulo}${detalhe ? `<span class="ticket-detalhe">${detalhe}</span>` : ''}</span>
+    <span class="ticket-pontilhado"></span>
+    <span class="ticket-valor">${valorHtml}</span>
+  </div>`;
+}
+
+function linhaDeCusto(item) {
+  const semPreco = !(item.preco > 0);
+  const detalhes = [`${fmtNum(item.gramas, 0)} g`];
+  if (item.gramasStarter > 0.05) {
+    detalhes.push(`${fmtNum(item.gramasPao, 0)} na massa + ${fmtNum(item.gramasStarter, 0)} no starter`);
+  }
+  if (item.gramasPorPao > 0) detalhes.push(`${fmtNum(item.gramasPorPao, 0)} g por pão`);
+  detalhes.push(semPreco ? 'sem preço' : `R$ ${fmtNum(item.preco, 2)}/kg`);
+
+  return `<div class="ticket-linha${semPreco ? ' sem-preco' : ''}">
+    <span class="ticket-nome">${escapar(item.nome)}<span class="ticket-detalhe">${detalhes.join(' · ')}</span></span>
+    <span class="ticket-pontilhado"></span>
+    <span class="ticket-valor">${semPreco ? `${uni('R$')}—` : brl(item.custo)}</span>
+  </div>`;
+}
+
+function saidasCustos(r, entradas) {
+  const paes = Math.max(0, Math.round(entradas.numeroPaes));
   return `
     ${blocoAvisos(r)}
     <section class="secao">
@@ -378,35 +442,90 @@ function saidasCustos(r) {
       </div>
     </section>
 
+    ${r.custos.semPreco.length
+      ? `<div class="aviso"><span>⚠</span><span>${juntarNomes(r.custos.semPreco)} ${
+          r.custos.semPreco.length === 1 ? 'está' : 'estão'
+        } na receita sem preço, então ${r.custos.semPreco.length === 1 ? 'sai' : 'saem'} de graça nesta conta.</span></div>`
+      : ''}
+
     <section class="secao">
       <h2 class="secao-titulo">De onde vem o custo</h2>
-      <div class="metricas tres">
-        ${metrica('Ingredientes', brl(r.custos.ingredientes))}
-        ${metrica('Embalagem', brl(r.custos.embalagemTotal))}
-        ${metrica('Energia', brl(r.custos.energia))}
+      <div class="ticket">
+        <div class="ticket-borda"></div>
+        ${r.custos.itens.length
+          ? r.custos.itens.map(linhaDeCusto).join('')
+          : '<p class="lista-vazia">Nenhum ingrediente na receita.</p>'}
+        ${linhaSoma('Ingredientes', '', brl(r.custos.ingredientes))}
+        ${linhaSoma('Embalagem', paes ? `${fmtNum(paes, 0)} × ${brl(r.custos.embalagem)}` : '', brl(r.custos.embalagemTotal))}
+        ${linhaSoma('Energia', formatarMinutos(r.pao.tempoTotal), brl(r.custos.energia))}
+        <div class="ticket-rodape">
+          <span class="rotulo">Total da fornada</span>
+          <span class="valor">${brl(r.custos.producao)}</span>
+        </div>
       </div>
       <p class="nota-rodape">A farinha que vem dentro do starter é cobrada pelo preço da farinha dele. A água não entra no custo.</p>
     </section>`;
 }
 
-function precosDaLista(lista, itens) {
-  return itens
-    .map(
-      (item) => `<div class="campo">
-        <span class="campo-texto"><span class="campo-rotulo">${escapar(item.nome)}</span></span>
-        ${controleNumerico(MOLDE.preco, item.preco, `data-lista="${lista}" data-id="${item.id}" data-attr="preco"`, `Preço de ${item.nome}`)}
-      </div>`
-    )
-    .join('');
+/**
+ * `data-preco-de` marca a linha para que atualizar() consiga acender e apagar
+ * o alerta de "sem preço" enquanto se digita, sem reconstruir o formulário —
+ * o que apagaria o campo debaixo do dedo.
+ */
+function linhaDePreco(id, nome, controle, emUso, semPreco) {
+  return `<div class="campo${emUso ? '' : ' nao-usado'}${emUso && semPreco ? ' precisa-preco' : ''}" data-preco-de="${id}">
+    <span class="campo-texto">
+      <span class="campo-rotulo">${escapar(nome)}</span>
+      ${emUso ? '' : '<span class="campo-dica">fora desta receita</span>'}
+    </span>
+    ${controle}
+  </div>`;
 }
 
-function entradasCustos(entradas) {
-  const precos =
-    precosDaLista('farinhas', entradas.farinhas) +
-    precosDaLista('liquidos', entradas.liquidos) +
-    precosDaLista('solidos', entradas.solidos);
+function precoDeItem(lista, item, emUso, semPreco) {
+  const controle = controleNumerico(
+    MOLDE.preco,
+    item.preco,
+    `data-lista="${lista}" data-id="${item.id}" data-attr="preco"`,
+    `Preço de ${item.nome}`
+  );
+  return linhaDePreco(item.id, item.nome, controle, emUso, semPreco);
+}
+
+function entradasCustos(entradas, r) {
+  const emUso = new Set(r.custos.itens.map((i) => i.id));
+  const semPreco = new Set(r.custos.itens.filter((i) => !(i.preco > 0)).map((i) => i.id));
+
+  const campoSal = CAMPO_POR_CHAVE.precoSal;
+  const linhas = [
+    {
+      id: 'sal',
+      html: linhaDePreco(
+        'sal',
+        campoSal.rotulo,
+        controleNumerico(campoSal, entradas.precoSal, 'data-campo="precoSal"', campoSal.rotulo),
+        emUso.has('sal'),
+        semPreco.has('sal')
+      ),
+    },
+    ...entradas.farinhas.map((f) => ({ id: f.id, html: precoDeItem('farinhas', f, emUso.has(f.id), semPreco.has(f.id)) })),
+    ...entradas.liquidos.map((l) => ({ id: l.id, html: precoDeItem('liquidos', l, emUso.has(l.id), semPreco.has(l.id)) })),
+    ...entradas.solidos.map((s) => ({ id: s.id, html: precoDeItem('solidos', s, emUso.has(s.id), semPreco.has(s.id)) })),
+  ];
+
+  // Em uso primeiro: são os que mexem na conta agora. O resto continua
+  // editável, só que fora do caminho.
+  const usados = linhas.filter((l) => emUso.has(l.id));
+  const guardados = linhas.filter((l) => !emUso.has(l.id));
+
   return `
-    ${grupoDeCampos('custos', 'Preço por quilo', entradas, precos)}
+    <section class="secao">
+      <h2 class="secao-titulo">Preço por quilo</h2>
+      <div class="grupo">${usados.map((l) => l.html).join('')}</div>
+      ${guardados.length
+        ? `<div class="grupo grupo-guardado">${guardados.map((l) => l.html).join('')}</div>`
+        : ''}
+    </section>
     ${grupoDeCampos('custos', 'Energia', entradas)}
     ${grupoDeCampos('custos', 'Embalagem (por pão)', entradas)}`;
 }
@@ -435,11 +554,14 @@ function blocoPesagem(registro) {
 
 function blocoRetrato(registro) {
   const e = registro.snapshot;
+  const nomeFarinha = (id) => e.farinhas?.find((f) => f.id === id)?.nome ?? 'Farinha';
   const linhas = [];
   for (const c of CAMPOS) linhas.push([c.rotulo, formatarValor(c, e[c.chave])]);
-  for (const f of e.farinhas ?? []) {
-    linhas.push([`${f.nome} — no pão`, formatarValor(MOLDE.pct, f.pct)]);
-    linhas.push([`${f.nome} — no starter`, formatarValor(MOLDE.pct, f.pctStarter)]);
+  for (const c of e.composicaoPao ?? []) {
+    linhas.push([`${nomeFarinha(c.farinhaId)} — na massa`, formatarValor(MOLDE.pct, c.pct)]);
+  }
+  for (const c of e.composicaoStarter ?? []) {
+    linhas.push([`${nomeFarinha(c.farinhaId)} — no starter`, formatarValor(MOLDE.pct, c.pct)]);
   }
   for (const l of e.liquidos ?? []) linhas.push([l.nome, formatarValor(MOLDE.pct, l.pct)]);
   for (const s of e.solidos ?? []) linhas.push([s.nome, formatarValor(MOLDE.gramasPorPao, s.gramasPorPao)]);
@@ -556,7 +678,7 @@ function render() {
       : abaAtiva === 'pao'
         ? entradasPao(ativa.entradas)
         : abaAtiva === 'custos'
-          ? entradasCustos(ativa.entradas)
+          ? entradasCustos(ativa.entradas, calcular(ativa.entradas))
           : '';
 
   document.getElementById('painel').innerHTML = `<div id="saidas"></div><div id="entradas">${entradasHtml}</div>`;
@@ -578,7 +700,7 @@ function atualizar() {
       : abaAtiva === 'pao'
         ? saidasPao(r, ativa.entradas)
         : abaAtiva === 'custos'
-          ? saidasCustos(r)
+          ? saidasCustos(r, ativa.entradas)
           : saidasDiario();
 
   const resumo = document.getElementById('resumo-objetivo');
@@ -587,11 +709,17 @@ function atualizar() {
     resumo.textContent = `${fmtNum(ativa.entradas.pesoAssadoDesejado, 0)} g × ${fmtNum(paes, 0)} ${paes === 1 ? 'pão' : 'pães'}`;
   }
 
-  // O percentual da farinha base é calculado, não digitado.
+  // O percentual da farinha base é calculado, não digitado. Cada composição
+  // tem a sua.
   document.querySelectorAll('[data-resto]').forEach((el) => {
-    const attr = el.dataset.resto;
-    const base = r.pao.farinhas[0];
-    el.textContent = base ? formatarValor(MOLDE.pct, attr === 'pctStarter' ? base.pctStarter : base.pct) : '—';
+    const base = el.dataset.resto === 'starter' ? r.starter.farinhas[0] : r.pao.farinhas[0];
+    el.textContent = base ? formatarValor(MOLDE.pct, base.pct) : '—';
+  });
+
+  // O alerta de preço faltando acende e apaga junto com a digitação.
+  const semPreco = new Set(r.custos.itens.filter((i) => !(i.preco > 0)).map((i) => i.id));
+  document.querySelectorAll('[data-preco-de]').forEach((el) => {
+    el.classList.toggle('precisa-preco', semPreco.has(el.dataset.precoDe));
   });
 }
 
@@ -690,6 +818,43 @@ function folhaBackup() {
     </label>
     <button class="botao-principal" data-acao="importar-texto">Restaurar do texto</button>
     <input type="file" id="arquivo-importar" accept="application/json,.json" hidden>
+  `);
+}
+
+function folhaEscolherFarinha(alvo) {
+  const ativa = receitaAtiva(estado);
+  const jaTem = new Set(ativa.entradas[alvo].map((c) => c.farinhaId));
+  const disponiveis = ativa.entradas.farinhas.filter((f) => !jaTem.has(f.id));
+  const onde = alvo === 'composicaoPao' ? 'à massa' : 'ao starter';
+
+  abrirFolha(`
+    <h2 class="folha-titulo">Acrescentar farinha ${onde}</h2>
+    ${disponiveis.length
+      ? `<div class="lista-receitas">
+           ${disponiveis
+             .map(
+               (f) => `<div class="item-receita">
+                 <button class="linha-receita" data-acao="usar-farinha" data-alvo="${alvo}" data-id="${f.id}">
+                   <span class="marca">+</span>
+                   <span class="nome">${escapar(f.nome)}</span>
+                   <span class="contagem">${f.preco > 0 ? `R$ ${fmtNum(f.preco, 2)}/kg` : 'sem preço'}</span>
+                 </button>
+               </div>`
+             )
+             .join('')}
+         </div>
+         <p class="nota-rodape">Já no seu catálogo. Escolher aqui não mexe na outra composição.</p>`
+      : '<p class="nota-rodape">Todas as farinhas do catálogo já estão nesta composição.</p>'}
+
+    <h2 class="folha-titulo" style="margin-top:26px">Ou crie uma nova</h2>
+    <label class="campo-livre">
+      <span>Nome da farinha</span>
+      <input type="text" id="nome-farinha" placeholder="Espelta, trigo sarraceno…">
+    </label>
+    <div class="folha-acoes">
+      <button class="botao-principal" data-acao="nova-farinha" data-alvo="${alvo}">Criar e acrescentar</button>
+      <button class="botao-secundario" data-acao="fechar-folha">Cancelar</button>
+    </div>
   `);
 }
 
@@ -828,7 +993,6 @@ async function copiarBackup(botao) {
 function novoItem(lista) {
   const ativa = receitaAtiva(estado);
   const modelos = {
-    farinhas: { nome: 'Nova farinha', preco: 0, pct: 0, pctStarter: 0 },
     liquidos: { nome: 'Novo líquido', pct: 0, fracaoAgua: 0, preco: 0 },
     solidos: { nome: 'Novo sólido', gramasPorPao: 0, preco: 0 },
   };
@@ -838,8 +1002,11 @@ function novoItem(lista) {
   render();
 }
 
+/** Composições referenciam o catálogo por farinhaId; as demais listas têm id próprio. */
 function itemPorId(lista, id) {
-  return receitaAtiva(estado).entradas[lista]?.find((x) => x.id === id) ?? null;
+  const itens = receitaAtiva(estado).entradas[lista];
+  if (!Array.isArray(itens)) return null;
+  return itens.find((x) => x.id === id || x.farinhaId === id) ?? null;
 }
 
 function moldeDe(lista, attr) {
@@ -899,17 +1066,59 @@ const ACOES = {
     render();
   },
 
-  'add-farinha': () => novoItem('farinhas'),
   'add-liquido': () => novoItem('liquidos'),
   'add-solido': () => novoItem('solidos'),
 
+  'escolher-farinha'(el) {
+    folhaEscolherFarinha(el.dataset.alvo);
+  },
+
+  'usar-farinha'(el) {
+    const { alvo, id } = el.dataset;
+    const ativa = receitaAtiva(estado);
+    if (ativa.entradas[alvo].some((c) => c.farinhaId === id)) return;
+    ativa.entradas[alvo] = [...ativa.entradas[alvo], { farinhaId: id, pct: 0 }];
+    marcarAlterada();
+    salvar();
+    fecharFolha();
+    render();
+  },
+
+  'nova-farinha'(el) {
+    const { alvo } = el.dataset;
+    const nome = document.getElementById('nome-farinha')?.value.trim();
+    if (!nome) return;
+    const ativa = receitaAtiva(estado);
+    const farinha = { id: gerarId('f'), nome, preco: 0 };
+    ativa.entradas.farinhas = [...ativa.entradas.farinhas, farinha];
+    ativa.entradas[alvo] = [...ativa.entradas[alvo], { farinhaId: farinha.id, pct: 0 }];
+    marcarAlterada();
+    salvar();
+    fecharFolha();
+    render();
+  },
+
   'remover-item'(el) {
     const { lista, id } = el.dataset;
-    const item = itemPorId(lista, id);
-    if (!item) return;
-    if (!confirm(`Remover "${item.nome}" da receita?`)) return;
     const ativa = receitaAtiva(estado);
-    ativa.entradas[lista] = ativa.entradas[lista].filter((x) => x.id !== id);
+    const ehComposicao = lista === 'composicaoPao' || lista === 'composicaoStarter';
+
+    if (ehComposicao) {
+      if (ativa.entradas[lista].length <= 1) {
+        alert('Precisa sobrar pelo menos uma farinha. Escolha outra antes de tirar esta.');
+        return;
+      }
+      const nome = ativa.entradas.farinhas.find((f) => f.id === id)?.nome ?? 'esta farinha';
+      const onde = lista === 'composicaoPao' ? 'da massa' : 'do starter';
+      if (!confirm(`Tirar "${nome}" ${onde}? Ela continua no catálogo, com o preço.`)) return;
+      ativa.entradas[lista] = ativa.entradas[lista].filter((c) => c.farinhaId !== id);
+    } else {
+      const item = itemPorId(lista, id);
+      if (!item) return;
+      if (!confirm(`Remover "${item.nome}" da receita?`)) return;
+      ativa.entradas[lista] = ativa.entradas[lista].filter((x) => x.id !== id);
+    }
+
     marcarAlterada();
     salvar();
     render();
@@ -1068,14 +1277,16 @@ function montar() {
   document.addEventListener('input', (evento) => {
     const alvo = evento.target;
 
-    if (alvo.matches?.('[data-campo]')) {
+    // Só `input` de verdade: os botões de passo carregam os mesmos data-attrs
+    // e não devem ser lidos como fonte de valor.
+    if (alvo.matches?.('input[data-campo]')) {
       const valor = paraNumero(alvo.value);
       // Estados intermediários como "70," não devem zerar a receita.
       if (Number.isFinite(valor)) aplicarEntrada(alvo.dataset.campo, valor);
       return;
     }
 
-    if (alvo.matches?.('[data-lista][data-attr]')) {
+    if (alvo.matches?.('input[data-lista][data-attr]')) {
       const { lista, id, attr } = alvo.dataset;
       if (attr === 'nome') {
         const item = itemPorId(lista, id);

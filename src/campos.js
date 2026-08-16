@@ -24,6 +24,7 @@ export const CAMPOS = [
 
   { chave: 'fatorArredondamento', rotulo: 'Fator de arredondamento', aba: 'pao', grupo: 'Ajustes', unidade: 'g', passo: 1, dica: 'Arredonda cada ingrediente para múltiplos deste valor. Zero desliga o arredondamento.' },
   { chave: 'perdaForno', rotulo: 'Perda estimada no forno', aba: 'pao', grupo: 'Ajustes', unidade: '%', fator: 100, passo: 0.5, casas: 1, dica: 'Percentual de peso que a massa perde no forno. O diário calibra este valor a partir de pães pesados de verdade.' },
+  { chave: 'paesPorFornada', rotulo: 'Pães por fornada', aba: 'pao', grupo: 'Ajustes', unidade: '', passo: 1, casas: 0, dica: 'Quantos pães cabem no forno de uma vez. Define o número de fornadas, e com ele o tempo e o gasto de energia.' },
   { chave: 'tempoPreAquecimento', rotulo: 'Pré-aquecimento', aba: 'pao', grupo: 'Ajustes', unidade: 'min', passo: 5, casas: 0 },
   { chave: 'tempoCozimento', rotulo: 'Cozimento', aba: 'pao', grupo: 'Ajustes', unidade: 'min', passo: 5, casas: 0 },
 

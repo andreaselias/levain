@@ -489,6 +489,40 @@ button {
   letter-spacing: 0;
 }
 
+/* Somas parciais: mesma estrutura da linha de item, com um degrau de peso. */
+.ticket-soma {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--linha);
+}
+
+.ticket-soma:first-of-type {
+  border-top: 1px solid var(--linha-forte);
+  margin-top: 4px;
+  padding-top: 12px;
+}
+
+.ticket-soma .ticket-nome {
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+}
+
+.ticket-soma .ticket-valor {
+  font-size: 1.05rem;
+}
+
+.ticket-linha.sem-preco .ticket-valor {
+  color: var(--alerta);
+}
+
+.ticket-linha.sem-preco .ticket-detalhe {
+  color: var(--alerta);
+}
+
 .ticket-rodape {
   display: flex;
   justify-content: space-between;
@@ -718,6 +752,34 @@ button {
   color: var(--tinta-fraca);
   min-width: 26px;
   padding-right: 2px;
+}
+
+/* Ingrediente que existe no catálogo mas está fora desta receita: continua
+   editável, só que recuado do caminho. */
+.grupo-guardado {
+  margin-top: 8px;
+  border-style: dashed;
+}
+
+.campo.nao-usado .campo-rotulo {
+  color: var(--tinta-suave);
+}
+
+.campo.nao-usado .campo-controle {
+  opacity: 0.62;
+}
+
+/* Está na receita e não tem preço: a conta está mentindo até isto ser
+   preenchido, então o campo precisa puxar o olho. */
+.campo.precisa-preco .campo-controle {
+  border-color: var(--alerta);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--alerta) 16%, transparent);
+}
+
+.campo.precisa-preco .campo-rotulo::after {
+  content: " · sem preço";
+  color: var(--alerta);
+  font-size: 0.74rem;
 }
 
 /* --- Listas editáveis de ingredientes ------------------------------------ */
