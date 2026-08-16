@@ -665,6 +665,7 @@ function cartaoRegistro(registro, mostrarReceita) {
 
   const proc = registro.processo ?? {};
   const partesProcesso = [
+    Number(proc.ativacaoH) > 0 ? `${horas(Number(proc.ativacaoH))} h de ativação` : '',
     Number(proc.fermentacaoH) > 0 ? `${horas(Number(proc.fermentacaoH))} h de fermentação` : '',
     Number(proc.geladeiraH) > 0 ? `${horas(Number(proc.geladeiraH))} h de geladeira` : '',
     Number(proc.temperaturaC) > 0 ? `${fmtNum(Number(proc.temperaturaC), 0)} °C na cozinha` : '',
@@ -1035,12 +1036,14 @@ function folhaFornada() {
       </div>`
     ).join('')}
 
-    <div class="trio">
+    <div class="processo">
+      <label class="campo-livre"><span>Ativação (h)</span><input type="text" inputmode="decimal" id="f-ativacao"></label>
       <label class="campo-livre"><span>Fermentação (h)</span><input type="text" inputmode="decimal" id="f-fermentacao"></label>
       <label class="campo-livre"><span>Geladeira (h)</span><input type="text" inputmode="decimal" id="f-geladeira"></label>
       <label class="campo-livre"><span>Ambiente (°C)</span><input type="text" inputmode="decimal" id="f-temp"></label>
     </div>
     <p class="nota-rodape" style="margin-top:-4px">
+      <strong>Ativação</strong> é o tempo do starter, da alimentação até o pico.
       <strong>Fermentação</strong> é o tempo em massa, da mistura até dividir e modelar.
       <strong>Geladeira</strong> é o retardo a frio depois de modelado.
       <strong>Ambiente</strong> é a temperatura da cozinha — é ela que faz a mesma
@@ -1100,6 +1103,7 @@ function salvarFornada() {
       alturaReal: numeroOuNulo('f-altura'),
       notas,
       processo: {
+        ativacaoH: numeroOuNulo('f-ativacao'),
         fermentacaoH: numeroOuNulo('f-fermentacao'),
         geladeiraH: numeroOuNulo('f-geladeira'),
         temperaturaC: numeroOuNulo('f-temp'),

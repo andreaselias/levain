@@ -1544,9 +1544,16 @@ details.retrato[open] summary::before {
   color: #fff;
 }
 
-.trio {
+/* Os tempos e a temperatura da fornada, dois a dois.
+   Em três colunas "FERMENTAÇÃO (H)" não cabia: o rótulo em maiúsculas com
+   letter-spacing pede 116 px e a coluna dava 112 px, então quebrava em duas
+   linhas e desalinhava a fileira. Em duas colunas sobra folga até 320 px.
+   O minmax(0, ...) é o que autoriza a coluna a encolher abaixo da largura
+   mínima do <input> — sem ele o navegador pode alargar a grade e empurrar
+   uma barra de rolagem horizontal para dentro da folha. */
+.processo {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 9px;
 }
 

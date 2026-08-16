@@ -527,3 +527,28 @@ test('fornada sem receita correspondente não aponta para lugar nenhum', () => {
   assert.equal(receitaDoRegistro(estado, null), null);
   assert.equal(receitaDoRegistro(estado, undefined), null);
 });
+
+test('o registro guarda o tempo de ativação do fermento', () => {
+  const receita = novaReceita('Teste');
+  assert.equal(criarRegistro(receita, {}, { agora: T0 }).processo.ativacaoH, null, 'em branco vira nulo');
+  assert.equal(criarRegistro(receita, { processo: { ativacaoH: 6.5 } }, { agora: T0 }).processo.ativacaoH, 6.5);
+});
+
+test('o tempo de ativação sobrevive ao export/import, e fornada antiga não inventa um', () => {
+  const estado = estadoInicial();
+  const receita = estado.receitas[0];
+  estado.registros.push(criarRegistro(receita, { processo: { ativacaoH: 6.5, fermentacaoH: 5 } }, { id: 'g1', agora: T0 }));
+
+  // Fornada gravada antes do campo existir: o processo dela não tem a chave.
+  const antiga = criarRegistro(receita, { processo: { fermentacaoH: 4 } }, { id: 'g2', agora: T1 });
+  delete antiga.processo.ativacaoH;
+  estado.registros.push(antiga);
+
+  const { ok, estado: voltou } = importar(exportar(estado));
+  assert.ok(ok, 'importou');
+  const porId = Object.fromEntries(voltou.registros.map((r) => [r.id, r]));
+  assert.equal(porId.g1.processo.ativacaoH, 6.5);
+  assert.equal(porId.g1.processo.fermentacaoH, 5, 'os outros tempos continuam inteiros');
+  assert.equal(porId.g2.processo.ativacaoH, null, 'ausente vira nulo, não undefined');
+  assert.equal(porId.g2.processo.fermentacaoH, 4);
+});
