@@ -1,6 +1,8 @@
 # Levain
 
-Calculadora de pão de fermentação natural, derivada da planilha `Tabela_de_pao.xlsx`.
+**→ [andreaselias.github.io/levain](https://andreaselias.github.io/levain/)**
+
+Calculadora de pão de fermentação natural, derivada de uma planilha de cálculo.
 Roda no celular, offline, sem instalar nada de loja.
 
 O objetivo — peso assado e número de pães — fica numa faixa fixa no topo, porque
@@ -39,12 +41,13 @@ número de fornadas, o tempo total e o gasto de energia.
 
 ## Instalar no celular
 
-Abra `index.html` no navegador do celular e use **Adicionar à Tela de Início**
-(Safari: botão de compartilhar; Chrome: menu ⋮). Vira um ícone que abre em tela
-cheia e funciona sem internet.
+Abra **[andreaselias.github.io/levain](https://andreaselias.github.io/levain/)**
+no navegador do celular e use **Adicionar à Tela de Início** (Safari: botão de
+compartilhar; Chrome: menu ⋮). Vira um ícone que abre em tela cheia e, depois da
+primeira visita, funciona sem internet.
 
-Para levar o arquivo até o celular: AirDrop, e-mail para você mesmo, ou hospedar
-em qualquer lugar que sirva arquivos estáticos.
+Também dá para usar sem servidor nenhum: baixe o `index.html` e abra direto no
+aparelho. O arquivo é autocontido.
 
 ## Como funciona
 
@@ -99,6 +102,11 @@ não perdem água, e incluí-los faria a perda parecer menor do que é.
 npm test     # 103 testes do motor, da migração e do armazenamento
 npm run build
 ```
+
+O build é **determinístico** — nenhuma data ou valor aleatório entra nele —, e é
+por isso que o workflow de publicação consegue conferir se o `index.html`
+commitado bate com o `src/`. Se alguém mexer no código e esquecer de rodar o
+build, a publicação falha em vez de subir um site defasado.
 
 O build gera dois arquivos autocontidos, com CSS, JS e ícones embutidos:
 

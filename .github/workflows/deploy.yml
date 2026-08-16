@@ -1,0 +1,65 @@
+name: Publicar no GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Uma publicação por vez; se chegar commit novo no meio, a anterior é abandonada.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: Testar e montar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Testes
+        run: npm test
+
+      - name: O build commitado bate com o código-fonte?
+        # O build é determinístico: nada de data nem de aleatório entra nele.
+        # Então uma diferença aqui significa que alguém mexeu em src/ e esqueceu
+        # de rodar `npm run build` — e o site iria ao ar defasado.
+        run: |
+          npm run build
+          if ! git diff --quiet -- index.html artifact.html; then
+            echo "::error::index.html está defasado em relação a src/. Rode 'npm run build' e faça commit do resultado."
+            git diff --stat -- index.html artifact.html
+            exit 1
+          fi
+
+      - name: Montar o site
+        # Só o que o navegador precisa. O código-fonte fica no repositório, não
+        # servido como página.
+        run: |
+          mkdir -p _site
+          cp index.html sandbox.html _site/
+          touch _site/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  publicar:
+    name: Publicar
+    needs: verificar
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
