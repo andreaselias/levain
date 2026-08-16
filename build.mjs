@@ -72,18 +72,47 @@ function montarPng(largura, altura, rgba) {
 
 const FUNDO = [0xed, 0xeb, 0xe1];
 const CROSTA = [0xb0, 0x4d, 0x1c];
-const CORTE = [0xf0, 0xee, 0xe5];
-const BASE = [0x6d, 0x30, 0x10];
+
+// Superelipse do pão, em coordenadas normalizadas. O expoente vertical é
+// diferente em cima e embaixo: topo abaulado, como um pão que cresceu, e base
+// reta, como um pão apoiado na pedra. Com o mesmo expoente nos dois lados o
+// desenho vira retângulo arredondado assim que fica só o contorno — era o
+// preenchimento que disfarçava isso.
+const CX = 0.5;
+const CY = 0.56;
+const RAIO_X = 0.36;
+const RAIO_Y = 0.235;
+const EXP_X = 2.2;
+const EXP_TOPO = 2;
+const EXP_BASE = 7;
+
+const TRACO = 0.032;
+const TRACO_PESTANA = 0.026;
 
 const PESTANAS = [
-  [0.31, 0.63, 0.43, 0.44],
-  [0.44, 0.66, 0.56, 0.47],
-  [0.57, 0.63, 0.69, 0.44],
+  [0.32, 0.6, 0.42, 0.44],
+  [0.45, 0.62, 0.55, 0.46],
+  [0.58, 0.6, 0.68, 0.44],
 ];
 
-function dentroDoPao(x, y) {
-  // Superelipse: mais reta nas laterais que uma elipse, como um pão de fôrma.
-  return Math.abs((x - 0.5) / 0.35) ** 2.1 + Math.abs((y - 0.53) / 0.255) ** 3 <= 1;
+const expoenteVertical = (y) => (y < CY ? EXP_TOPO : EXP_BASE);
+
+/** Vale 1 exatamente sobre a curva, menos que 1 dentro do pão. */
+function campo(x, y) {
+  return Math.abs((x - CX) / RAIO_X) ** EXP_X + Math.abs((y - CY) / RAIO_Y) ** expoenteVertical(y);
+}
+
+/**
+ * Distância aproximada até a curva, para o traço sair com espessura pareja.
+ * Só comparar `campo` com 1 daria um contorno fino nas laterais e gordo em
+ * cima; dividir pelo gradiente corrige isso.
+ */
+function distanciaAoContorno(x, y) {
+  const q = expoenteVertical(y);
+  const gx = (EXP_X * Math.abs((x - CX) / RAIO_X) ** (EXP_X - 1) * Math.sign(x - CX)) / RAIO_X;
+  const gy = (q * Math.abs((y - CY) / RAIO_Y) ** (q - 1) * Math.sign(y - CY)) / RAIO_Y;
+  const g = Math.hypot(gx, gy);
+  return g < 1e-9 ? Infinity : (campo(x, y) - 1) / g;
 }
 
 function distanciaAoSegmento(x, y, x1, y1, x2, y2) {
@@ -94,13 +123,14 @@ function distanciaAoSegmento(x, y, x1, y1, x2, y2) {
 }
 
 function corDoPonto(x, y) {
-  if (!dentroDoPao(x, y)) return null;
-  // Faixa escura na barriga: pontos cuja vizinhança logo abaixo já saiu do pão.
-  if (y > 0.60 && !dentroDoPao(x, y + 0.05)) return BASE;
-  for (const [x1, y1, x2, y2] of PESTANAS) {
-    if (distanciaAoSegmento(x, y, x1, y1, x2, y2) < 0.028) return CORTE;
+  if (Math.abs(distanciaAoContorno(x, y)) < TRACO / 2) return CROSTA;
+  // Pestana só dentro do pão: fora, o risco ficaria solto no fundo.
+  if (campo(x, y) < 1) {
+    for (const [x1, y1, x2, y2] of PESTANAS) {
+      if (distanciaAoSegmento(x, y, x1, y1, x2, y2) < TRACO_PESTANA / 2) return CROSTA;
+    }
   }
-  return CROSTA;
+  return null;
 }
 
 function desenharIcone(lado) {

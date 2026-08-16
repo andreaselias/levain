@@ -1604,6 +1604,8 @@ details.retrato[open] summary::before {
   flex: none;
 }
 
+/* A lista de receitas não usa mais isto — quem usa é o seletor "+ farinha",
+   que reaproveita a mesma linha para mostrar o preço por quilo. */
 .linha-receita .contagem {
   flex: none;
   font-size: 0.68rem;
@@ -1624,7 +1626,10 @@ details.retrato[open] summary::before {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  font-size: 0.85rem;
+  /* O ⋮ é um glifo estreito e alto: no mesmo corpo dos outros ícones ele
+     sumia. Aqui a caixa continua de 34 px — o alvo de toque não muda. */
+  font-size: 1.2rem;
+  line-height: 1;
   color: var(--tinta-fraca);
   transition: background 0.14s, color 0.14s;
 }
@@ -1632,4 +1637,34 @@ details.retrato[open] summary::before {
 .acoes-receita button:active {
   background: var(--papel-3);
   color: var(--crosta);
+}
+
+/* Ações de uma receita, uma por linha e escritas por extenso. Largura cheia
+   porque o dedo mira a linha, não a palavra. */
+.lista-acoes {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lista-acoes button {
+  width: 100%;
+  padding: 15px 12px;
+  text-align: left;
+  border-radius: var(--raio);
+  font-family: var(--fonte-titulo);
+  font-size: 1.02rem;
+  color: var(--tinta);
+  transition: background 0.14s;
+}
+
+.lista-acoes button:active {
+  background: var(--papel-3);
+}
+
+/* Perigo aqui é só a cor do texto, e não o fundo cheio de .botao-principal:
+   numa lista de ações uma faixa vermelha inteira gritaria mais que o próprio
+   apagar, que ainda passa por confirmação antes de acontecer. */
+.lista-acoes button.perigo {
+  color: var(--alerta);
 }
