@@ -6,11 +6,12 @@
  * mudar o formato de exibição do diff melhora o histórico inteiro sem migração.
  */
 
-import { ENTRADAS_PADRAO } from './calc.js';
-import { CAMPOS, formatarValor } from './campos.js';
+import { ENTRADAS_PADRAO, LISTAS } from './calc.js';
+import { CAMPOS, MOLDE, formatarValor } from './campos.js';
+import { migrarEntradas, migrarEstado, VERSAO_ESTADO } from './migrar.js';
 
 export const CHAVE_STORAGE = 'aplicativo-pao';
-export const VERSAO = 1;
+export const VERSAO = VERSAO_ESTADO;
 
 /** Abaixo disto é ruído de ponto flutuante, não uma alteração do usuário. */
 const TOLERANCIA_DIFF = 1e-9;
@@ -19,8 +20,26 @@ function agoraISO() {
   return new Date().toISOString();
 }
 
-function gerarId() {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+function gerarId(prefixo = 'i') {
+  return `${prefixo}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/**
+ * Migra o que vier em formato antigo e devolve uma cópia funda. A cópia funda
+ * é obrigatória: sem ela, duas receitas acabariam apontando para a mesma lista
+ * de farinhas e editar uma mudaria a outra.
+ */
+export function clonarEntradas(entradas) {
+  // Sem entradas é receita nova, e vale o padrão do app. Com entradas é dado
+  // existente, e aí sim passa pela migração — que trata ausência de campo como
+  // "zero", não como "padrão".
+  const base = entradas && typeof entradas === 'object' ? migrarEntradas(entradas) : ENTRADAS_PADRAO;
+  const saida = { ...ENTRADAS_PADRAO, ...base };
+  for (const lista of LISTAS) {
+    const origem = Array.isArray(base[lista]) ? base[lista] : ENTRADAS_PADRAO[lista];
+    saida[lista] = origem.map((item) => ({ ...item }));
+  }
+  return saida;
 }
 
 // ---------------------------------------------------------------------------
@@ -30,11 +49,11 @@ function gerarId() {
 export function novaReceita(nome, opcoes = {}) {
   const agora = opcoes.agora ?? agoraISO();
   return {
-    id: opcoes.id ?? gerarId(),
+    id: opcoes.id ?? gerarId('r'),
     nome,
     criadaEm: agora,
     atualizadaEm: agora,
-    entradas: { ...ENTRADAS_PADRAO, ...(opcoes.entradas ?? {}) },
+    entradas: clonarEntradas(opcoes.entradas),
   };
 }
 
@@ -59,12 +78,11 @@ export function receitaAtiva(estado) {
 export function criarRegistro(receita, dados = {}, opcoes = {}) {
   const agora = opcoes.agora ?? agoraISO();
   return {
-    id: opcoes.id ?? gerarId(),
+    id: opcoes.id ?? gerarId('g'),
     receitaId: receita.id,
     quando: dados.quando ?? agora,
     observacao: dados.observacao ?? '',
-    // Cópia rasa basta: entradas é um objeto plano de números.
-    snapshot: { ...receita.entradas },
+    snapshot: clonarEntradas(receita.entradas),
     pesoRealAssado: dados.pesoRealAssado ?? null,
     notas: { crescimento: null, miolo: null, casca: null, acidez: null, ...(dados.notas ?? {}) },
     processo: {
@@ -83,14 +101,95 @@ export function registrosDaReceita(estado, receitaId) {
     .sort((a, b) => (a.quando < b.quando ? 1 : a.quando > b.quando ? -1 : 0));
 }
 
+/**
+ * Como cada lista é comparada. O primeiro atributo é o principal: é ele que
+ * aparece sozinho quando um item é acrescentado ou removido.
+ */
+const LISTAS_DIFF = [
+  {
+    chave: 'farinhas',
+    atributos: [
+      { attr: 'pct', molde: MOLDE.pct, rotulo: (nome) => nome, pulaBase: true },
+      { attr: 'pctStarter', molde: MOLDE.pct, rotulo: (nome) => `${nome} no starter`, pulaBase: true },
+      { attr: 'preco', molde: MOLDE.preco, rotulo: (nome) => `${nome} (preço)` },
+    ],
+  },
+  {
+    chave: 'liquidos',
+    atributos: [
+      { attr: 'pct', molde: MOLDE.pct, rotulo: (nome) => nome },
+      { attr: 'fracaoAgua', molde: MOLDE.fracaoAgua, rotulo: (nome) => `${nome} (água)` },
+      { attr: 'preco', molde: MOLDE.preco, rotulo: (nome) => `${nome} (preço)` },
+    ],
+  },
+  {
+    chave: 'solidos',
+    atributos: [
+      { attr: 'gramasPorPao', molde: MOLDE.gramasPorPao, rotulo: (nome) => nome },
+      { attr: 'preco', molde: MOLDE.preco, rotulo: (nome) => `${nome} (preço)` },
+    ],
+  },
+];
+
+function igual(a, b) {
+  const x = Number(a);
+  const y = Number(b);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return x === y || (!Number.isFinite(x) && !Number.isFinite(y));
+  return Math.abs(x - y) <= TOLERANCIA_DIFF;
+}
+
+function diffDeLista(anterior, atual, definicao, mudancas) {
+  const antes = Array.isArray(anterior[definicao.chave]) ? anterior[definicao.chave] : [];
+  const depois = Array.isArray(atual[definicao.chave]) ? atual[definicao.chave] : [];
+  const porIdAntes = new Map(antes.map((x, i) => [x.id, { item: x, indice: i }]));
+  const porIdDepois = new Map(depois.map((x, i) => [x.id, { item: x, indice: i }]));
+  const principal = definicao.atributos[0];
+
+  for (const [id, { item, indice }] of porIdDepois) {
+    const anteriorItem = porIdAntes.get(id);
+    if (!anteriorItem) {
+      mudancas.push({
+        chave: `${definicao.chave}.${id}`,
+        rotulo: item.nome,
+        de: '—',
+        para: formatarValor(principal.molde, item[principal.attr]),
+      });
+      continue;
+    }
+    for (const a of definicao.atributos) {
+      // O percentual da farinha base é calculado, não digitado: comparar o que
+      // está guardado nele só produziria ruído.
+      if (a.pulaBase && (indice === 0 || anteriorItem.indice === 0)) continue;
+      if (igual(anteriorItem.item[a.attr], item[a.attr])) continue;
+      mudancas.push({
+        chave: `${definicao.chave}.${id}.${a.attr}`,
+        rotulo: a.rotulo(item.nome),
+        de: formatarValor(a.molde, anteriorItem.item[a.attr]),
+        para: formatarValor(a.molde, item[a.attr]),
+      });
+    }
+  }
+
+  for (const [id, { item }] of porIdAntes) {
+    if (porIdDepois.has(id)) continue;
+    mudancas.push({
+      chave: `${definicao.chave}.${id}`,
+      rotulo: item.nome,
+      de: formatarValor(principal.molde, item[principal.attr]),
+      para: '—',
+    });
+  }
+}
+
 export function diffEntradas(anterior, atual) {
   if (!anterior || !atual) return [];
   const mudancas = [];
+
   for (const campo of CAMPOS) {
     const de = Number(anterior[campo.chave]);
     const para = Number(atual[campo.chave]);
     if (!Number.isFinite(de) || !Number.isFinite(para)) continue;
-    if (Math.abs(de - para) <= TOLERANCIA_DIFF) continue;
+    if (igual(de, para)) continue;
     mudancas.push({
       chave: campo.chave,
       rotulo: campo.rotulo,
@@ -98,6 +197,8 @@ export function diffEntradas(anterior, atual) {
       para: formatarValor(campo, para),
     });
   }
+
+  for (const definicao of LISTAS_DIFF) diffDeLista(anterior, atual, definicao, mudancas);
   return mudancas;
 }
 
@@ -134,17 +235,17 @@ function normalizarReceita(bruta) {
     nome: String(bruta.nome ?? 'Sem nome'),
     criadaEm: bruta.criadaEm ?? agoraISO(),
     atualizadaEm: bruta.atualizadaEm ?? bruta.criadaEm ?? agoraISO(),
-    entradas: { ...ENTRADAS_PADRAO, ...(bruta.entradas ?? {}) },
+    entradas: clonarEntradas(bruta.entradas),
   };
 }
 
 function normalizarRegistro(bruto) {
   return {
-    id: String(bruto.id ?? gerarId()),
+    id: String(bruto.id ?? gerarId('g')),
     receitaId: String(bruto.receitaId),
     quando: bruto.quando ?? agoraISO(),
     observacao: String(bruto.observacao ?? ''),
-    snapshot: { ...ENTRADAS_PADRAO, ...(bruto.snapshot ?? {}) },
+    snapshot: clonarEntradas(bruto.snapshot),
     pesoRealAssado: bruto.pesoRealAssado ?? null,
     notas: { crescimento: null, miolo: null, casca: null, acidez: null, ...(bruto.notas ?? {}) },
     processo: {
@@ -164,24 +265,26 @@ export function importar(texto) {
     return { ok: false, erro: 'O arquivo não é um JSON válido.' };
   }
 
-  if (!dados || typeof dados !== 'object' || Array.isArray(dados)) {
-    return { ok: false, erro: 'O arquivo não parece um backup deste aplicativo.' };
-  }
-  if (!Array.isArray(dados.receitas)) {
+  if (!dados || typeof dados !== 'object' || Array.isArray(dados) || !Array.isArray(dados.receitas)) {
     return { ok: false, erro: 'O arquivo não parece um backup deste aplicativo.' };
   }
 
-  const receitas = dados.receitas.filter((r) => r && r.id !== undefined && r.id !== null).map(normalizarReceita);
+  // Converte formatos antigos antes de qualquer outra coisa.
+  const convertido = migrarEstado(dados);
+
+  const receitas = convertido.receitas
+    .filter((r) => r && r.id !== undefined && r.id !== null)
+    .map(normalizarReceita);
   if (receitas.length === 0) {
     return { ok: false, erro: 'O backup não contém nenhuma receita.' };
   }
 
   const idsValidos = new Set(receitas.map((r) => r.id));
-  const registros = (Array.isArray(dados.registros) ? dados.registros : [])
+  const registros = (Array.isArray(convertido.registros) ? convertido.registros : [])
     .filter((r) => r && idsValidos.has(String(r.receitaId)))
     .map(normalizarRegistro);
 
-  const ativa = String(dados.receitaAtivaId ?? '');
+  const ativa = String(convertido.receitaAtivaId ?? '');
   return {
     ok: true,
     estado: {
@@ -224,3 +327,5 @@ export function criarPersistencia(storage, chave = CHAVE_STORAGE) {
     },
   };
 }
+
+export { gerarId };

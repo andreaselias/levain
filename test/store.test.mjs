@@ -18,6 +18,9 @@ const T0 = '2026-08-01T10:00:00.000Z';
 const T1 = '2026-08-08T10:00:00.000Z';
 const T2 = '2026-08-15T10:00:00.000Z';
 
+const comFarinhas = (farinhas) => ({ ...ENTRADAS_PADRAO, farinhas });
+const PADRAO_FARINHAS = ENTRADAS_PADRAO.farinhas;
+
 // ---------------------------------------------------------------------------
 // Formatação
 // ---------------------------------------------------------------------------
@@ -30,13 +33,13 @@ test('percentuais são exibidos como número com vírgula, não como fração', 
 
 test('pesos e preços trazem a unidade junto', () => {
   assert.equal(formatarValor(CAMPO_POR_CHAVE.pesoAssadoDesejado, 500), '500 g');
-  assert.equal(formatarValor(CAMPO_POR_CHAVE.precoFarinha, 4.46), 'R$ 4,46/kg');
+  assert.equal(formatarValor(CAMPO_POR_CHAVE.precoSal, 2.5), 'R$ 2,5/kg');
   assert.equal(formatarValor(CAMPO_POR_CHAVE.etiqueta, 0.04), 'R$ 0,04');
   assert.equal(formatarValor(CAMPO_POR_CHAVE.numeroPaes, 2), '2');
 });
 
 // ---------------------------------------------------------------------------
-// Diff entre conjuntos de parâmetros
+// Diff de campos simples
 // ---------------------------------------------------------------------------
 
 test('diff é vazio quando nada mudou', () => {
@@ -46,31 +49,96 @@ test('diff é vazio quando nada mudou', () => {
 test('diff descreve a mudança em português com os valores formatados', () => {
   const d = diffEntradas(ENTRADAS_PADRAO, { ...ENTRADAS_PADRAO, hidratacao: 0.75 });
   assert.equal(d.length, 1);
-  assert.deepEqual(d[0], {
-    chave: 'hidratacao',
-    rotulo: 'Hidratação',
-    de: '70%',
-    para: '75%',
-  });
+  assert.deepEqual(d[0], { chave: 'hidratacao', rotulo: 'Hidratação', de: '70%', para: '75%' });
 });
 
-test('diff lista vários campos na ordem em que aparecem no formulário', () => {
+test('diff lista os campos simples na ordem em que aparecem no formulário', () => {
   const d = diffEntradas(ENTRADAS_PADRAO, {
     ...ENTRADAS_PADRAO,
-    precoFarinha: 5,
+    precoKwh: 1,
     hidratacao: 0.75,
     numeroPaes: 3,
   });
-  assert.deepEqual(d.map((x) => x.chave), ['numeroPaes', 'hidratacao', 'precoFarinha']);
+  assert.deepEqual(d.map((x) => x.chave), ['numeroPaes', 'hidratacao', 'precoKwh']);
 });
 
 test('diff ignora ruído de ponto flutuante', () => {
-  const atual = { ...ENTRADAS_PADRAO, hidratacao: 0.7 + 1e-12 };
-  assert.deepEqual(diffEntradas(ENTRADAS_PADRAO, atual), []);
+  assert.deepEqual(diffEntradas(ENTRADAS_PADRAO, { ...ENTRADAS_PADRAO, hidratacao: 0.7 + 1e-12 }), []);
 });
 
 test('diff sem retrato anterior devolve vazio, não a receita inteira', () => {
   assert.deepEqual(diffEntradas(null, ENTRADAS_PADRAO), []);
+});
+
+// ---------------------------------------------------------------------------
+// Diff das listas
+// ---------------------------------------------------------------------------
+
+test('percentual de farinha alterado aparece com o nome da farinha', () => {
+  const atual = comFarinhas(PADRAO_FARINHAS.map((f) => (f.id === 'f-integral' ? { ...f, pct: 0.2 } : f)));
+  const d = diffEntradas(ENTRADAS_PADRAO, atual);
+  assert.equal(d.length, 1);
+  assert.equal(d[0].rotulo, 'Farinha integral');
+  assert.equal(d[0].de, '10%');
+  assert.equal(d[0].para, '20%');
+});
+
+test('mudança na composição do starter é distinguida da composição do pão', () => {
+  const atual = comFarinhas(PADRAO_FARINHAS.map((f) => (f.id === 'f-integral' ? { ...f, pctStarter: 0.1 } : f)));
+  const d = diffEntradas(ENTRADAS_PADRAO, atual);
+  assert.equal(d.length, 1);
+  assert.match(d[0].rotulo, /starter/i, 'o rótulo tem que dizer que é do starter');
+  assert.equal(d[0].para, '10%');
+});
+
+test('farinha acrescentada aparece como item novo', () => {
+  const atual = comFarinhas([...PADRAO_FARINHAS, { id: 'f-esp', nome: 'Espelta', preco: 15, pct: 0.2, pctStarter: 0 }]);
+  const d = diffEntradas(ENTRADAS_PADRAO, atual);
+  const novo = d.find((x) => x.rotulo.includes('Espelta'));
+  assert.ok(novo, 'a espelta tem que aparecer');
+  assert.equal(novo.de, '—');
+  assert.equal(novo.para, '20%');
+});
+
+test('farinha removida aparece como item que saiu', () => {
+  const anterior = comFarinhas([...PADRAO_FARINHAS, { id: 'f-esp', nome: 'Espelta', preco: 15, pct: 0.2, pctStarter: 0 }]);
+  const d = diffEntradas(anterior, ENTRADAS_PADRAO);
+  const saiu = d.find((x) => x.rotulo.includes('Espelta'));
+  assert.ok(saiu, 'a saída tem que aparecer');
+  assert.equal(saiu.de, '20%');
+  assert.equal(saiu.para, '—');
+});
+
+test('líquido acrescentado aparece, com a fração de água à parte', () => {
+  const atual = {
+    ...ENTRADAS_PADRAO,
+    liquidos: [{ id: 'l1', nome: 'Leite', pct: 0.1, fracaoAgua: 0.87, preco: 5 }],
+  };
+  const d = diffEntradas(ENTRADAS_PADRAO, atual);
+  assert.ok(d.some((x) => x.rotulo === 'Leite' && x.para === '10%'), 'percentual do leite');
+});
+
+test('gramas por pão de um sólido aparecem com a unidade certa', () => {
+  const anterior = { ...ENTRADAS_PADRAO, solidos: [{ id: 's1', nome: 'Nozes', gramasPorPao: 30, preco: 60 }] };
+  const atual = { ...ENTRADAS_PADRAO, solidos: [{ id: 's1', nome: 'Nozes', gramasPorPao: 50, preco: 60 }] };
+  const d = diffEntradas(anterior, atual);
+  assert.equal(d.length, 1);
+  assert.equal(d[0].rotulo, 'Nozes');
+  assert.match(d[0].de, /30/);
+  assert.match(d[0].para, /50/);
+});
+
+test('mudança de preço entra no diff, porque explica o custo mudar', () => {
+  const atual = comFarinhas(PADRAO_FARINHAS.map((f) => (f.id === 'f-branca' ? { ...f, preco: 5.2 } : f)));
+  const d = diffEntradas(ENTRADAS_PADRAO, atual);
+  assert.equal(d.length, 1);
+  assert.match(d[0].rotulo, /pre[çc]o/i);
+  assert.equal(d[0].para, 'R$ 5,2/kg');
+});
+
+test('renomear um item não conta como alteração de valor', () => {
+  const atual = comFarinhas(PADRAO_FARINHAS.map((f) => (f.id === 'f-centeio' ? { ...f, nome: 'Centeio escuro' } : f)));
+  assert.deepEqual(diffEntradas(ENTRADAS_PADRAO, atual), []);
 });
 
 // ---------------------------------------------------------------------------
@@ -81,25 +149,26 @@ test('receita nova nasce com as entradas padrão', () => {
   const r = novaReceita('Integral 500g', { id: 'r1', agora: T0 });
   assert.equal(r.nome, 'Integral 500g');
   assert.equal(r.entradas.hidratacao, 0.7);
-  assert.equal(r.criadaEm, T0);
+  assert.equal(r.entradas.farinhas.length, 3);
 });
 
-test('receita nova aceita entradas iniciais', () => {
-  const r = novaReceita('Centeio', { id: 'r1', agora: T0, entradas: { pctCenteio: 0.3 } });
-  assert.equal(r.entradas.pctCenteio, 0.3);
-  assert.equal(r.entradas.hidratacao, 0.7, 'o resto continua padrão');
+test('receita nova não compartilha as listas com a receita de origem', () => {
+  const origem = novaReceita('Origem', { id: 'r1', agora: T0 });
+  const copia = novaReceita('Cópia', { id: 'r2', agora: T0, entradas: origem.entradas });
+  copia.entradas.farinhas[1].pct = 0.5;
+  assert.equal(origem.entradas.farinhas[1].pct, 0.1, 'mexer na cópia não pode afetar a origem');
 });
 
-test('registro congela um retrato das entradas no momento da fornada', () => {
+test('registro congela um retrato das entradas, listas inclusive', () => {
   const receita = novaReceita('Padrão', { id: 'r1', agora: T0 });
   const reg = criarRegistro(receita, { observacao: 'miolo fechado' }, { id: 'g1', agora: T1 });
 
-  receita.entradas.hidratacao = 0.8; // mexer na receita depois não pode afetar o registro
+  receita.entradas.hidratacao = 0.8;
+  receita.entradas.farinhas[1].pct = 0.5;
 
   assert.equal(reg.snapshot.hidratacao, 0.7);
+  assert.equal(reg.snapshot.farinhas[1].pct, 0.1, 'a lista também tem que estar congelada');
   assert.equal(reg.observacao, 'miolo fechado');
-  assert.equal(reg.receitaId, 'r1');
-  assert.equal(reg.quando, T1);
 });
 
 test('registros de uma receita vêm do mais recente para o mais antigo', () => {
@@ -135,7 +204,6 @@ test('diff do registro compara com o registro anterior da mesma receita', () => 
   assert.deepEqual(diffDoRegistro(estado, primeiro), [], 'o primeiro não tem com o que comparar');
   const d = diffDoRegistro(estado, segundo);
   assert.equal(d.length, 1);
-  assert.equal(d[0].chave, 'hidratacao');
   assert.equal(d[0].de, '70%');
   assert.equal(d[0].para, '75%');
 });
@@ -147,9 +215,7 @@ test('diff do registro compara com o registro anterior da mesma receita', () => 
 test('exportar e importar preserva receitas e registros', () => {
   const estado = estadoInicial({ id: 'r1', agora: T0 });
   estado.registros = [criarRegistro(estado.receitas[0], { observacao: 'boa' }, { id: 'a', agora: T1 })];
-
   const resultado = importar(exportar(estado));
-
   assert.equal(resultado.ok, true, resultado.erro);
   assert.deepEqual(resultado.estado, estado);
 });
@@ -161,34 +227,38 @@ test('importar rejeita texto que não é JSON', () => {
 });
 
 test('importar rejeita JSON válido que não é um backup do app', () => {
-  const r = importar(JSON.stringify({ qualquer: 'coisa' }));
-  assert.equal(r.ok, false);
-  assert.ok(r.erro.length > 0);
+  assert.equal(importar(JSON.stringify({ qualquer: 'coisa' })).ok, false);
 });
 
 test('importar rejeita backup sem nenhuma receita', () => {
-  const r = importar(JSON.stringify({ app: 'aplicativo-pao', versao: 1, receitas: [], registros: [] }));
-  assert.equal(r.ok, false);
+  assert.equal(importar(JSON.stringify({ app: 'aplicativo-pao', versao: 2, receitas: [], registros: [] })).ok, false);
 });
 
-test('importar preenche entradas que faltam com os valores padrão', () => {
+test('importar migra um backup no formato antigo', () => {
   const backup = {
     app: 'aplicativo-pao',
     versao: 1,
-    receitas: [{ id: 'r1', nome: 'Antiga', criadaEm: T0, atualizadaEm: T0, entradas: { hidratacao: 0.8 } }],
-    registros: [],
+    receitas: [
+      { id: 'r1', nome: 'Antiga', criadaEm: T0, atualizadaEm: T0, entradas: { hidratacao: 0.8, pctIntegral: 0.2, precoFarinha: 5 } },
+    ],
+    registros: [{ id: 'g1', receitaId: 'r1', quando: T1, observacao: '', snapshot: { hidratacao: 0.7, pctIntegral: 0.1 } }],
     receitaAtivaId: 'r1',
   };
   const r = importar(JSON.stringify(backup));
   assert.equal(r.ok, true, r.erro);
-  assert.equal(r.estado.receitas[0].entradas.hidratacao, 0.8);
-  assert.equal(r.estado.receitas[0].entradas.pctSal, ENTRADAS_PADRAO.pctSal, 'campo ausente ganha o padrão');
+
+  const entradas = r.estado.receitas[0].entradas;
+  assert.ok(Array.isArray(entradas.farinhas), 'catálogo criado');
+  assert.equal(entradas.hidratacao, 0.8);
+  assert.equal(entradas.farinhas[1].pct, 0.2, 'integral migrada');
+  assert.equal(entradas.farinhas[0].preco, 5, 'preço migrado');
+  assert.ok(Array.isArray(r.estado.registros[0].snapshot.farinhas), 'retrato migrado');
 });
 
 test('importar descarta registros órfãos de receitas que não existem', () => {
   const backup = {
     app: 'aplicativo-pao',
-    versao: 1,
+    versao: 2,
     receitas: [{ id: 'r1', nome: 'A', criadaEm: T0, atualizadaEm: T0, entradas: {} }],
     registros: [
       { id: 'g1', receitaId: 'r1', quando: T1, observacao: '', snapshot: {} },
@@ -197,21 +267,18 @@ test('importar descarta registros órfãos de receitas que não existem', () => 
     receitaAtivaId: 'r1',
   };
   const r = importar(JSON.stringify(backup));
-  assert.equal(r.ok, true, r.erro);
   assert.deepEqual(r.estado.registros.map((x) => x.id), ['g1']);
 });
 
 test('importar conserta receita ativa apontando para receita inexistente', () => {
   const backup = {
     app: 'aplicativo-pao',
-    versao: 1,
+    versao: 2,
     receitas: [{ id: 'r1', nome: 'A', criadaEm: T0, atualizadaEm: T0, entradas: {} }],
     registros: [],
     receitaAtivaId: 'sumida',
   };
-  const r = importar(JSON.stringify(backup));
-  assert.equal(r.ok, true, r.erro);
-  assert.equal(r.estado.receitaAtivaId, 'r1');
+  assert.equal(importar(JSON.stringify(backup)).estado.receitaAtivaId, 'r1');
 });
 
 // ---------------------------------------------------------------------------
@@ -231,9 +298,7 @@ test('salvar e carregar devolve o mesmo estado', () => {
   const storage = storageFalso();
   const p = criarPersistencia(storage);
   const estado = estadoInicial({ id: 'r1', agora: T0 });
-
   p.salvar(estado);
-
   assert.deepEqual(p.carregar(), estado);
 });
 

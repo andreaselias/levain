@@ -308,3 +308,121 @@ uma fornada, recarregar a página e confirmar que tudo persistiu.
   uma segunda rodada, se fizer falta.
 - Sincronização entre aparelhos, contas, servidor.
 - Notificações de horário de dobra.
+
+---
+
+# Segunda rodada — ingredientes como catálogo
+
+Data: 2026-08-15
+
+Retorno de uso apontou que campos fixos de ingrediente não dão conta: o starter
+tem composição própria (90% branca / 10% integral no caso do usuário), "melado"
+é na verdade uma família de líquidos, e farinhas precisam poder ser
+acrescentadas. Esta rodada troca campos fixos por listas.
+
+## Catálogo de farinhas
+
+Uma lista só, com duas porcentagens por farinha — uma no pão e outra no starter:
+
+```
+farinhas: [{ id, nome, preco, pct, pctStarter }, ...]
+```
+
+A **primeira da lista é a base**: `pct` e `pctStarter` dela são ignorados e
+calculados como `1 − soma das demais`. É como a planilha já se comportava, e
+combina com o jeito de pensar do padeiro — declara-se só a farinha especial.
+
+Uma farinha acrescentada aparece nas três abas de uma vez: composição no Pão,
+composição no Starter, preço nos Custos.
+
+Isso resolve dois problemas de uma vez: um starter de centeio num pão branco
+deixa de ser incoerente, e o custo para de cobrar a farinha do starter como se
+fosse branca.
+
+## Líquidos e sólidos
+
+```
+liquidos: [{ id, nome, pct, fracaoAgua, preco }]   // pct sobre a farinha total
+solidos:  [{ id, nome, gramasPorPao, preco }]
+```
+
+**Líquidos** entram na massa e na conta que resolve a farinha, como o melado já
+fazia. A novidade é `fracaoAgua`: azeite 0, melado 0,25, mel 0,18, leite 0,87. A
+água que vem junto é descontada da água pura — mesmo tratamento que a água do
+starter — e a hidratação real passa a refletir a verdade. Padrão 0.
+
+**Sólidos** são por pão e não alteram o equilíbrio farinha-água. Somam no peso
+depois que a massa está resolvida; o objetivo dimensiona a massa, não o total.
+A perda no forno se aplica só à massa: nozes não perdem água.
+
+Consequência a mostrar na interface, não a esconder: com 50 g de sólidos por
+pão, o pão sai com ~548 g, não 500 g. O resumo exibe o total e a decomposição
+`498 g de massa + 50 g de extras`.
+
+**Item zerado não aparece na lista de pesagem** — vale para farinha, líquido e
+sólido.
+
+## Fórmulas alteradas
+
+Com `L_i` = percentual do líquido *i* e `f_i` = sua fração de água:
+
+```
+denom = 1 + pSt + pSal + Σ L_i + pHyd(1 + pSt/(1+hAct)) − pSt·hAct/(1+hAct) − Σ (L_i·f_i)
+
+agua  = snap((farinhaTotal + farinhaNoStarter)·pHyd − aguaNoStarter − Σ (gramas_i · f_i))
+
+massaTotal    = Σ farinhas + agua + starter + sal + Σ liquidos
+solidosPorPao = Σ gramasPorPao
+pesoPorPao    = massaPorPao + solidosPorPao
+pesoAssado    = massaPorPao·(1 − perda) + solidosPorPao
+tempoTotal    = tPre + tBake·fornadas
+```
+
+Com lista de líquidos vazia e `fracaoAgua` zero, tudo se reduz às fórmulas da
+primeira rodada — é o que os testes provam.
+
+A farinha dentro do starter é repartida por `pctStarter` para efeito de custo:
+`farinhaStarter_i = farinhaNoStarter · pctStarter_i`.
+
+## Objetivo no cabeçalho
+
+`pesoAssadoDesejado` e `numeroPaes` saem da aba Pão e viram uma faixa fixa
+abaixo do nome da receita, visível em todas as abas, que expande em campos ao
+toque. O objetivo muda a cada produção e afeta tudo; esconder atrás de uma aba
+obrigaria a navegar de ida e volta para ler o efeito.
+
+## Migração v1 → v2
+
+Disparada ao carregar, detectada pela ausência de `farinhas`:
+
+- branca, integral e centeio viram as três primeiras farinhas do catálogo
+- melado vira um líquido com `fracaoAgua` 0, apenas se estiver em uso
+- extras viram um sólido com `gramasPorPao = extras / numeroPaes`
+- o starter migra como 100% da farinha base, que é o comportamento de v1
+- retratos de fornada no diário migram junto, para o histórico não quebrar
+
+Um teste prova que uma receita v1 migrada produz números idênticos aos de antes.
+A exceção documentada são os extras, que em v1 não entravam no peso e agora
+entram — é a mudança pedida.
+
+## Diff de listas
+
+`diffEntradas` passa a comparar também as listas, casando itens por `id`:
+percentual alterado, item acrescentado (`—  →  15%`), item removido.
+
+## Backup
+
+Download sozinho não basta: dentro do Artifact a página roda em iframe com
+sandbox, que bloqueia download — foi por isso que o botão não fez nada. A folha
+de backup passa a oferecer três caminhos: baixar arquivo, copiar para a área de
+transferência, e uma caixa com o JSON à mostra para seleção manual. Na
+importação, arquivo ou texto colado.
+
+Corrige junto um defeito real: o input de arquivo dispara `change`, e o código
+escutava `input`. A importação nunca funcionou.
+
+## Outras alterações
+
+- "Percentuais de padeiro" passa a se chamar **Composição**
+- **Tempo total** entra no resumo, ao lado do número de fornadas
+- A lista de receitas ganha ícones por linha: renomear, duplicar, apagar
