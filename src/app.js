@@ -151,14 +151,34 @@ function controleNumerico(molde, valor, atributos, rotuloAria) {
   </span>`;
 }
 
+/** O seletor mora na mesma moldura dos numéricos, só que sem os botões de passo. */
+function controleOpcoes(campo, valor) {
+  const conhecido = campo.opcoes.some((o) => o.valor === valor);
+  const opcoes = campo.opcoes
+    .map((o) => `<option value="${o.valor}"${o.valor === valor ? ' selected' : ''}>${escapar(o.rotulo)}</option>`)
+    .join('');
+  // Sem esta opção, um formato fora da tabela — só chega assim por importação
+  // corrompida — deixaria nenhuma `selected`, e o navegador mostraria a
+  // primeira como se fosse a escolhida. O travessão é o mesmo que o diário usa
+  // para valor que ele não reconhece.
+  const foraDaTabela = conhecido ? '' : '<option value="" selected>—</option>';
+  return `<span class="campo-controle">
+    <select data-campo="${campo.chave}" aria-label="${escapar(campo.rotulo)}">${foraDaTabela}${opcoes}</select>
+  </span>`;
+}
+
 function campoEntrada(chave, entradas) {
   const campo = CAMPO_POR_CHAVE[chave];
+  const controle =
+    campo.tipo === 'opcoes'
+      ? controleOpcoes(campo, entradas[chave])
+      : controleNumerico(campo, entradas[chave], `data-campo="${chave}"`, campo.rotulo);
   return `<div class="campo">
     <span class="campo-texto">
       <span class="campo-rotulo">${campo.rotulo}</span>
       ${campo.dica ? `<span class="campo-dica">${campo.dica}</span>` : ''}
     </span>
-    ${controleNumerico(campo, entradas[chave], `data-campo="${chave}"`, campo.rotulo)}
+    ${controle}
   </div>`;
 }
 
@@ -1116,7 +1136,10 @@ function moldeDe(lista, attr) {
 function aplicarEntrada(chave, valorExibido) {
   const campo = CAMPO_POR_CHAVE[chave];
   const ativa = receitaAtiva(estado);
-  ativa.entradas = { ...ativa.entradas, [chave]: paraArmazenamento(campo, valorExibido) };
+  // Opção é guardada como veio: `paraArmazenamento` divide pelo fator e
+  // transformaria 'boule' em NaN.
+  const valor = campo.tipo === 'opcoes' ? valorExibido : paraArmazenamento(campo, valorExibido);
+  ativa.entradas = { ...ativa.entradas, [chave]: valor };
   marcarAlterada();
   atualizar();
   salvar();
@@ -1426,6 +1449,11 @@ function montar() {
       const valor = paraNumero(alvo.value);
       // Estados intermediários como "70," não devem zerar a receita.
       if (Number.isFinite(valor)) aplicarEntrada(alvo.dataset.campo, valor);
+      return;
+    }
+
+    if (alvo.matches?.('select[data-campo]')) {
+      aplicarEntrada(alvo.dataset.campo, alvo.value);
       return;
     }
 

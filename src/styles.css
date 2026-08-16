@@ -785,6 +785,24 @@ button {
   color: var(--crosta);
 }
 
+/* Sem botões de passo ao lado, o seletor precisa da própria folga interna
+   para não encostar na moldura. */
+.campo-controle select {
+  border: none;
+  background: none;
+  font-family: inherit;
+  /* Ver .item-nome: menos de 16px faz o iPhone dar zoom ao focar, e um
+     <select> é um campo focável como qualquer outro. */
+  font-size: 1rem;
+  height: 30px;
+  padding: 0 4px 0 8px;
+}
+
+.campo-controle select:focus {
+  outline: none;
+  color: var(--crosta);
+}
+
 .campo-unidade {
   font-size: 0.7rem;
   color: var(--tinta-fraca);
