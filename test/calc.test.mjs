@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calcular, ENTRADAS_PADRAO } from '../src/calc.js';
+import { calcular, calibrarVolumeEspecifico, ENTRADAS_PADRAO, FORMATOS } from '../src/calc.js';
 
 const TOL = 1e-6;
 
@@ -8,6 +8,13 @@ function perto(atual, esperado, msg) {
   assert.ok(
     Number.isFinite(atual) && Math.abs(atual - esperado) < TOL,
     `${msg}: esperado ~${esperado}, recebido ${atual}`
+  );
+}
+
+function pertoCom(atual, esperado, tol, msg) {
+  assert.ok(
+    Number.isFinite(atual) && Math.abs(atual - esperado) < tol,
+    `${msg}: esperado ~${esperado} (±${tol}), recebido ${atual}`
   );
 }
 
@@ -64,10 +71,46 @@ test('métricas derivadas reproduzem a planilha', () => {
   const { pao } = calcular(ENTRADAS_PADRAO);
   perto(pao.hidratacaoReal, 0.7076923077, 'hidratação real');
   perto(pao.pesoAssado, 498.4, 'peso assado por pão');
-  perto(pao.largura, 12.15141476, 'largura');
-  perto(pao.comprimento, 26.73311248, 'comprimento');
-  perto(pao.altura, 10.32870255, 'altura');
+  // Valor de referência da geometria corrigida: ∛(498,4 × 2,7 ÷ 0,55 ÷ 1,87).
+  // Tolerância mais folgada que a do resto porque é raiz cúbica calculada à
+  // mão — as identidades abaixo é que provam que a conta está certa.
+  pertoCom(pao.largura, 10.9374, 1e-3, 'largura');
   assert.equal(pao.fornadas, 1, 'fornadas');
+});
+
+test('a caixa fecha com o volume da fôrma — a raiz cúbica está no lugar certo', () => {
+  const { pao } = calcular(ENTRADAS_PADRAO);
+  // Era exatamente isto que a fórmula antiga violava: ela aplicava as
+  // proporções DEPOIS da raiz, e a caixa saía 1,87× maior que o volume usado
+  // para calculá-la.
+  perto(pao.comprimento * pao.largura * pao.altura, pao.volumeForma, 'caixa = volume da fôrma');
+  perto(pao.volumeForma * 0.55, pao.pesoAssado * 2.7, 'o pão ocupa 55% da fôrma');
+});
+
+test('as dimensões guardam as proporções de cada formato da tabela', () => {
+  for (const fmt of FORMATOS) {
+    const { pao } = calcular({ ...ENTRADAS_PADRAO, formato: fmt.chave });
+    perto(pao.comprimento / pao.largura, fmt.razaoC, `${fmt.chave}, comprimento`);
+    perto(pao.altura / pao.largura, fmt.razaoA, `${fmt.chave}, altura`);
+    perto(pao.comprimento * pao.largura * pao.altura, pao.volumeForma, `${fmt.chave}, caixa`);
+    perto(pao.volumeForma * fmt.preenchimento, pao.pesoAssado * 2.7, `${fmt.chave}, folga`);
+  }
+});
+
+test('mais crescimento dá pão maior, e o volume da fôrma acompanha', () => {
+  const magro = calcular({ ...ENTRADAS_PADRAO, volumeEspecifico: 2.1 }).pao;
+  const cheio = calcular({ ...ENTRADAS_PADRAO, volumeEspecifico: 3.4 }).pao;
+  assert.ok(cheio.altura > magro.altura, 'altura cresce com o volume específico');
+  perto(cheio.volumeForma / magro.volumeForma, 3.4 / 2.1, 'volume da fôrma é proporcional');
+});
+
+test('peso assado zero não produz dimensão negativa nem NaN', () => {
+  const semPao = calcular({ ...ENTRADAS_PADRAO, numeroPaes: 0 }).pao;
+  const crescimentoNegativo = calcular({ ...ENTRADAS_PADRAO, volumeEspecifico: -1 }).pao;
+  for (const chave of ['largura', 'comprimento', 'altura', 'volumeForma']) {
+    assert.equal(semPao[chave], 0, `${chave} zerado sem pão`);
+    assert.equal(crescimentoNegativo[chave], 0, `${chave} zerado com crescimento negativo`);
+  }
 });
 
 test('custos reproduzem a planilha', () => {
@@ -652,4 +695,65 @@ test('lista de farinhas vazia gera aviso em vez de dividir por zero', () => {
   const r = calcular({ ...ENTRADAS_PADRAO, farinhas: [] });
   todosFinitos(r);
   assert.ok(r.avisos.length > 0, 'deveria avisar');
+});
+
+// ---------------------------------------------------------------------------
+// Formato da fôrma
+// ---------------------------------------------------------------------------
+
+test('formato sobrevive à normalização e cai no padrão quando é lixo', () => {
+  assert.equal(calcular({ ...ENTRADAS_PADRAO, formato: 'boule' }).pao.formato, 'boule');
+  assert.equal(calcular({ ...ENTRADAS_PADRAO, formato: 'inventado' }).pao.formato, 'batard');
+  assert.equal(calcular({ ...ENTRADAS_PADRAO, formato: 42 }).pao.formato, 'batard');
+  assert.equal(calcular({ ...ENTRADAS_PADRAO, formato: undefined }).pao.formato, 'batard');
+  // Chave herdada de Object.prototype: a busca por índice acha o método e
+  // aprovaria 'constructor' como se fosse formato.
+  assert.equal(calcular({ ...ENTRADAS_PADRAO, formato: 'constructor' }).pao.formato, 'batard');
+  assert.equal(calcular({ ...ENTRADAS_PADRAO, formato: 'toString' }).pao.formato, 'batard');
+});
+
+test('a tabela de formatos tem os quatro formatos, com proporções positivas', () => {
+  assert.deepEqual(
+    FORMATOS.map((f) => f.chave),
+    ['batard', 'boule', 'baguete', 'retangular']
+  );
+  for (const f of FORMATOS) {
+    assert.ok(f.razaoC > 0 && f.razaoA > 0, `${f.chave}: razões positivas`);
+    assert.ok(f.preenchimento > 0 && f.preenchimento <= 1, `${f.chave}: preenchimento entre 0 e 1`);
+    assert.ok(f.rotulo.length > 0, `${f.chave}: tem rótulo`);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Calibração do volume específico a partir da altura medida
+// ---------------------------------------------------------------------------
+
+test('a calibração do crescimento é a volta exata da ida', () => {
+  for (const chave of ['batard', 'boule', 'baguete', 'retangular']) {
+    for (const v of [2.1, 2.7, 3.4]) {
+      const { pao } = calcular({ ...ENTRADAS_PADRAO, formato: chave, volumeEspecifico: v });
+      const devolvido = calibrarVolumeEspecifico(pao.pesoAssado, pao.altura, chave);
+      perto(devolvido, v, `${chave} a ${v} cm³/g`);
+    }
+  }
+});
+
+test('a calibração usa o peso que recebe, não o da receita', () => {
+  const { pao } = calcular(ENTRADAS_PADRAO);
+  const comPesoMaior = calibrarVolumeEspecifico(pao.pesoAssado * 1.1, pao.altura, 'batard');
+  perto(comPesoMaior, 2.7 / 1.1, 'mesmo volume repartido em mais grama dá menos cm³/g');
+});
+
+test('a calibração recusa medida impossível', () => {
+  const { pao } = calcular(ENTRADAS_PADRAO);
+  assert.equal(calibrarVolumeEspecifico(pao.pesoAssado, 0, 'batard'), null, 'altura zero');
+  assert.equal(calibrarVolumeEspecifico(pao.pesoAssado, -5, 'batard'), null, 'altura negativa');
+  assert.equal(calibrarVolumeEspecifico(0, 9.3, 'batard'), null, 'peso zero');
+  assert.equal(calibrarVolumeEspecifico(-10, 9.3, 'batard'), null, 'peso negativo');
+  assert.equal(calibrarVolumeEspecifico('nada', 9.3, 'batard'), null, 'peso não numérico');
+  assert.equal(calibrarVolumeEspecifico(pao.pesoAssado, 9.3, 'inventado'), null, 'formato desconhecido');
+  assert.equal(calibrarVolumeEspecifico(pao.pesoAssado, 9.3, 'constructor'), null, 'chave de Object.prototype');
+  assert.equal(calibrarVolumeEspecifico(pao.pesoAssado, 3, 'batard'), null, 'baixo demais para ser pão');
+  assert.equal(calibrarVolumeEspecifico(pao.pesoAssado, 25, 'batard'), null, 'alto demais para ser pão');
+  assert.equal(calibrarVolumeEspecifico(pao.pesoAssado, 'nada', 'batard'), null, 'altura não numérica');
 });

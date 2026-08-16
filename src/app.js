@@ -8,7 +8,7 @@
  * é o que impede o campo de perder o foco.
  */
 
-import { calcular, calibrarPerda, ENTRADAS_PADRAO } from './calc.js';
+import { calcular, calibrarPerda, calibrarVolumeEspecifico, ENTRADAS_PADRAO } from './calc.js';
 import { CAMPOS, CAMPO_POR_CHAVE, ESCALAS, GRUPOS_DE_ESCALA, MOLDE, formatarEntrada, formatarValor, paraArmazenamento } from './campos.js';
 import { criarPersistencia, criarRegistro, diffDoRegistro, estadoInicial, exportar, gerarId, importar, novaReceita, receitaAtiva, registrosDaReceita } from './store.js';
 
@@ -57,6 +57,9 @@ const g1 = (v) => `${fmtNum(v, 1)}${uni('g')}`;
 const pct = (v) => `${fmtNum(v * 100, 1)}${uni('%')}`;
 const brl = (v) => `${moeda()}${fmtNum(v, 2)}`;
 const cm = (v) => `${fmtNum(v, 1)}${uni('cm')}`;
+
+// Fôrma e cesta se compram por volume, e ninguém compra em centímetro cúbico.
+const litros = (v) => `${fmtNum(v / 1000, 2)}${uni('L')}`;
 
 /** Inteiro quando o valor é redondo; uma casa quando a divisão deixou resto. */
 const redondo = (v) => Math.abs(v - Math.round(v)) < 0.05;
@@ -151,14 +154,34 @@ function controleNumerico(molde, valor, atributos, rotuloAria) {
   </span>`;
 }
 
+/** O seletor mora na mesma moldura dos numéricos, só que sem os botões de passo. */
+function controleOpcoes(campo, valor) {
+  const conhecido = campo.opcoes.some((o) => o.valor === valor);
+  const opcoes = campo.opcoes
+    .map((o) => `<option value="${o.valor}"${o.valor === valor ? ' selected' : ''}>${escapar(o.rotulo)}</option>`)
+    .join('');
+  // Sem esta opção, um formato fora da tabela — só chega assim por importação
+  // corrompida — deixaria nenhuma `selected`, e o navegador mostraria a
+  // primeira como se fosse a escolhida. O travessão é o mesmo que o diário usa
+  // para valor que ele não reconhece.
+  const foraDaTabela = conhecido ? '' : '<option value="" selected>—</option>';
+  return `<span class="campo-controle">
+    <select data-campo="${campo.chave}" aria-label="${escapar(campo.rotulo)}">${foraDaTabela}${opcoes}</select>
+  </span>`;
+}
+
 function campoEntrada(chave, entradas) {
   const campo = CAMPO_POR_CHAVE[chave];
+  const controle =
+    campo.tipo === 'opcoes'
+      ? controleOpcoes(campo, entradas[chave])
+      : controleNumerico(campo, entradas[chave], `data-campo="${chave}"`, campo.rotulo);
   return `<div class="campo">
     <span class="campo-texto">
       <span class="campo-rotulo">${campo.rotulo}</span>
       ${campo.dica ? `<span class="campo-dica">${campo.dica}</span>` : ''}
     </span>
-    ${controleNumerico(campo, entradas[chave], `data-campo="${chave}"`, campo.rotulo)}
+    ${controle}
   </div>`;
 }
 
@@ -306,10 +329,11 @@ function saidasPao(r) {
 
     <section class="secao">
       <h2 class="secao-titulo">Fôrma estimada</h2>
-      <div class="metricas tres">
+      <div class="metricas quatro">
         ${metrica('Comprimento', cm(r.pao.comprimento))}
         ${metrica('Largura', cm(r.pao.largura))}
         ${metrica('Altura', cm(r.pao.altura))}
+        ${metrica('Volume', litros(r.pao.volumeForma))}
       </div>
     </section>`;
 }
@@ -564,6 +588,25 @@ function blocoPesagem(registro) {
   </div>`;
 }
 
+/**
+ * Espelho de `blocoPesagem` para a altura. São independentes de propósito:
+ * mede-se um sem o outro, e a linha que existe tem que aparecer sozinha.
+ */
+function blocoAltura(registro) {
+  if (!(Number(registro.alturaReal) > 0)) return '';
+  const r = calcular(registro.snapshot);
+  // Com um pão pesado, o peso real é melhor base que o estimado: senão o erro
+  // da perda no forno entraria na conta do crescimento.
+  const peso = Number(registro.pesoRealAssado) > 0 ? Number(registro.pesoRealAssado) : r.pao.pesoAssado;
+  const volume = calibrarVolumeEspecifico(peso, Number(registro.alturaReal), r.pao.formato);
+  return `<div class="pesagem-real">
+    <span class="sep">estimado</span> ${fmtNum(r.pao.altura, 1)} cm
+    <span class="sep">·</span>
+    <span class="sep">real</span> <span class="real">${fmtNum(Number(registro.alturaReal), 1)} cm</span>
+    ${volume === null ? '' : `<button class="calibrar" data-acao="calibrar-crescimento" data-id="${registro.id}">calibrar crescimento → ${fmtNum(volume, 1)} cm³/g</button>`}
+  </div>`;
+}
+
 function blocoRetrato(registro) {
   const e = registro.snapshot;
   const nomeFarinha = (id) => e.farinhas?.find((f) => f.id === id)?.nome ?? 'Farinha';
@@ -630,6 +673,7 @@ function cartaoRegistro(registro, mostrarReceita) {
           .join('')}</div>`
       : `<p class="diff-vazio">${ehAPrimeira ? 'Primeira fornada registrada desta receita.' : 'Sem alterações nos parâmetros desde a fornada anterior.'}</p>`}
     ${blocoPesagem(registro)}
+    ${blocoAltura(registro)}
     <p class="observacao">${escapar(registro.observacao)}</p>
     ${notas ? `<div class="notas-rapidas">${notas}</div>` : ''}
     ${partesProcesso.length ? `<div class="notas-rapidas">${partesProcesso.map((p) => `<span class="nota-item">${p}</span>`).join('')}</div>` : ''}
@@ -954,6 +998,11 @@ function folhaFornada() {
       <input type="text" inputmode="decimal" id="f-peso" placeholder="pese um pão e anote">
     </label>
 
+    <label class="campo-livre">
+      <span>Altura do pão assado — estimado ${fmtNum(r.pao.altura, 1)} cm</span>
+      <input type="text" inputmode="decimal" id="f-altura" placeholder="meça um pão e anote">
+    </label>
+
     ${GRUPOS_DE_ESCALA.map(
       (grupo) => `<div class="escalas">
         <span class="escalas-titulo">${grupo}</span>
@@ -1037,6 +1086,7 @@ function salvarFornada() {
       quando: quandoCampo ? new Date(quandoCampo).toISOString() : undefined,
       observacao: document.getElementById('f-obs').value.trim(),
       pesoRealAssado: numeroOuNulo('f-peso'),
+      alturaReal: numeroOuNulo('f-altura'),
       notas,
       processo: {
         fermentacaoH: numeroOuNulo('f-fermentacao'),
@@ -1116,7 +1166,10 @@ function moldeDe(lista, attr) {
 function aplicarEntrada(chave, valorExibido) {
   const campo = CAMPO_POR_CHAVE[chave];
   const ativa = receitaAtiva(estado);
-  ativa.entradas = { ...ativa.entradas, [chave]: paraArmazenamento(campo, valorExibido) };
+  // Opção é guardada como veio: `paraArmazenamento` divide pelo fator e
+  // transformaria 'boule' em NaN.
+  const valor = campo.tipo === 'opcoes' ? valorExibido : paraArmazenamento(campo, valorExibido);
+  ativa.entradas = { ...ativa.entradas, [chave]: valor };
   marcarAlterada();
   atualizar();
   salvar();
@@ -1346,6 +1399,28 @@ const ACOES = {
     avisar(`Perda no forno agora é ${fmtNum(perda * 100, 1)}%.`);
   },
 
+  async 'calibrar-crescimento'(el) {
+    const registro = estado.registros.find((r) => r.id === el.dataset.id);
+    if (!registro) return;
+    const r = calcular(registro.snapshot);
+    const peso = Number(registro.pesoRealAssado) > 0 ? Number(registro.pesoRealAssado) : r.pao.pesoAssado;
+    const volume = calibrarVolumeEspecifico(peso, Number(registro.alturaReal), r.pao.formato);
+    if (volume === null) return;
+
+    const ativa = receitaAtiva(estado);
+    const ok = await confirmar({
+      titulo: 'Calibrar o crescimento?',
+      mensagem: `Troca de ${fmtNum(ativa.entradas.volumeEspecifico, 1)} para ${fmtNum(volume, 1)} cm³/g na receita "${ativa.nome}", medido a partir da altura deste pão.`,
+      rotulo: 'Calibrar',
+    });
+    if (!ok) return;
+    ativa.entradas = { ...ativa.entradas, volumeEspecifico: volume };
+    marcarAlterada();
+    salvar();
+    render();
+    avisar(`Volume específico agora é ${fmtNum(volume, 1)} cm³/g.`);
+  },
+
   escala(el) {
     const jaMarcado = el.getAttribute('aria-pressed') === 'true';
     el.closest('.escala-botoes').querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', 'false'));
@@ -1426,6 +1501,11 @@ function montar() {
       const valor = paraNumero(alvo.value);
       // Estados intermediários como "70," não devem zerar a receita.
       if (Number.isFinite(valor)) aplicarEntrada(alvo.dataset.campo, valor);
+      return;
+    }
+
+    if (alvo.matches?.('select[data-campo]')) {
+      aplicarEntrada(alvo.dataset.campo, alvo.value);
       return;
     }
 

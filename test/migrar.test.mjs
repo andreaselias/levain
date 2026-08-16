@@ -261,3 +261,19 @@ test('migrarEstado não estraga um estado que já está em v2', () => {
   });
   assert.deepEqual(migrarEstado(v2), v2);
 });
+
+// ---------------------------------------------------------------------------
+// Formato e volume específico: entradas novas, sem equivalente em v1/v2
+// ---------------------------------------------------------------------------
+
+test('estado antigo ganha os padrões de formato e crescimento', () => {
+  const migrado = migrarEntradas(V1);
+  assert.equal(migrado.formato, 'batard', 'formato padrão');
+  perto(migrado.volumeEspecifico, 2.7, 'volume específico padrão');
+});
+
+test('migração preserva o formato já escolhido, sem virar número', () => {
+  const migrado = migrarEntradas({ ...V1, formato: 'boule', volumeEspecifico: 2.2 });
+  assert.equal(migrado.formato, 'boule');
+  perto(migrado.volumeEspecifico, 2.2, 'volume específico preservado');
+});

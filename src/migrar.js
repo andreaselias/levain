@@ -10,7 +10,7 @@
  * os extras não entravam no peso, e agora entram.
  */
 
-import { ENTRADAS_PADRAO, LISTAS } from './calc.js';
+import { ENTRADAS_PADRAO, LISTAS, TEXTOS } from './calc.js';
 
 export const VERSAO_ESTADO = 3;
 
@@ -36,7 +36,9 @@ function escalares(v) {
   const saida = {};
   for (const [chave, padrao] of Object.entries(ENTRADAS_PADRAO)) {
     if (LISTAS.includes(chave)) continue;
-    saida[chave] = num(v[chave], padrao);
+    // A validação do valor é de `calcular`; aqui só se preserva o que veio,
+    // porque a migração não conhece o vocabulário de cada campo de texto.
+    saida[chave] = TEXTOS.includes(chave) ? (v[chave] ?? padrao) : num(v[chave], padrao);
   }
   return saida;
 }

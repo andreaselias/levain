@@ -9,6 +9,23 @@
  * referência de fórmulas e os valores que servem de critério de aceitação.
  */
 
+/**
+ * Proporções de cada formato, com a largura valendo 1.
+ *
+ * `preenchimento` é quanto do retângulo envolvente a massa de fato ocupa —
+ * junta a folga da fôrma com o fato de um pão não ser um tijolo. Por isso é
+ * alto na fôrma retangular, onde a massa encosta na parede, e baixo nos
+ * formatos livres, que são arredondados e crescem sem parede que os contenha.
+ */
+export const FORMATOS = [
+  { chave: 'batard', rotulo: 'Batard', razaoC: 2.2, razaoA: 0.85, preenchimento: 0.55 },
+  { chave: 'boule', rotulo: 'Boule', razaoC: 1, razaoA: 0.7, preenchimento: 0.6 },
+  { chave: 'baguete', rotulo: 'Baguete / filão', razaoC: 6, razaoA: 0.9, preenchimento: 0.55 },
+  { chave: 'retangular', rotulo: 'Fôrma retangular', razaoC: 3.2, razaoA: 1, preenchimento: 0.8 },
+];
+
+export const FORMATO_POR_CHAVE = Object.fromEntries(FORMATOS.map((f) => [f.chave, f]));
+
 export const ENTRADAS_PADRAO = {
   // Objetivo — muda a cada produção e dimensiona todo o resto
   pesoAssadoDesejado: 500,
@@ -53,6 +70,11 @@ export const ENTRADAS_PADRAO = {
   // Ajustes
   fatorArredondamento: 10,
   perdaForno: 0.11,
+  // Quanto o pão cresce, em cm³ por grama de pão assado. É o que mais varia
+  // com a receita — centeio pesado fica em 2,0-2,4, branco bem fermentado
+  // passa de 3,5 — e o diário calibra a partir de um pão medido de verdade.
+  volumeEspecifico: 2.7,
+  formato: 'batard',
   paesPorFornada: 2,
   tempoPreAquecimento: 45,
   tempoCozimento: 40,
@@ -78,6 +100,13 @@ export const ENTRADAS_PADRAO = {
 
 /** Campos que são listas — tratados à parte da cópia de escalares. */
 export const LISTAS = ['farinhas', 'composicaoPao', 'composicaoStarter', 'liquidos', 'solidos'];
+
+/**
+ * Campos escalares que guardam texto, não número. Existem para serem pulados
+ * pelos laços que coagem tudo com `num()` — sem isso, 'boule' vira o padrão
+ * numérico silenciosamente.
+ */
+export const TEXTOS = ['formato'];
 
 /**
  * O Excel normaliza para 15 dígitos significativos antes de arredondar. Sem
@@ -152,9 +181,12 @@ export function calcular(entradas) {
 
   const e = {};
   for (const [chave, padrao] of Object.entries(ENTRADAS_PADRAO)) {
-    if (LISTAS.includes(chave)) continue;
+    if (LISTAS.includes(chave) || TEXTOS.includes(chave)) continue;
     e[chave] = num(bruto[chave], padrao);
   }
+  // Formato desconhecido cai no padrão: o resto da conta lê as razões da tabela
+  // e não tem como seguir sem elas.
+  e.formato = Object.hasOwn(FORMATO_POR_CHAVE, bruto.formato) ? bruto.formato : ENTRADAS_PADRAO.formato;
 
   const farinhas = comoLista(bruto.farinhas ?? ENTRADAS_PADRAO.farinhas).map((f, i) => ({
     id: f.id ?? `f${i}`,
@@ -316,9 +348,20 @@ export function calcular(entradas) {
   const pesoAssadoMassa = massaPorPao * (1 - e.perdaForno);
   const pesoAssado = pesoAssadoMassa + solidosPorPao;
 
-  const largura = pesoAssado > 0 ? Math.cbrt((pesoAssado * 2.7) / 0.75) : 0;
-  const comprimento = largura * 2.2;
-  const altura = largura * 0.85;
+  // A ordem importa: o volume é dividido pelas razões ANTES da raiz cúbica.
+  // Fazer o contrário — que era o que esta conta fazia — infla a caixa pelo
+  // produto das razões e faz o volume específico significar outra coisa.
+  // `e.formato` já saiu validado da normalização, então a busca direta basta.
+  const fmt = FORMATO_POR_CHAVE[e.formato];
+  // Volume específico negativo não devia existir, mas a entrada não é
+  // validada antes daqui — sem o segundo termo da guarda, a fôrma sairia com
+  // volume negativo enquanto as dimensões, protegidas por `volumeForma > 0`,
+  // zerariam. Melhor as duas coisas zeradas juntas do que uma se contradizendo.
+  const volumeForma =
+    pesoAssado > 0 && e.volumeEspecifico > 0 ? (pesoAssado * e.volumeEspecifico) / fmt.preenchimento : 0;
+  const largura = volumeForma > 0 ? Math.cbrt(volumeForma / (fmt.razaoC * fmt.razaoA)) : 0;
+  const comprimento = largura * fmt.razaoC;
+  const altura = largura * fmt.razaoA;
   if (!(e.paesPorFornada > 0)) {
     avisos.push('Quantos pães cabem por fornada precisa ser maior que zero.');
   }
@@ -486,9 +529,11 @@ export function calcular(entradas) {
       hidratacaoReal: fin(hidratacaoReal),
       pesoAssadoMassa: fin(pesoAssadoMassa),
       pesoAssado: fin(pesoAssado),
+      formato: e.formato,
       largura: fin(largura),
       comprimento: fin(comprimento),
       altura: fin(altura),
+      volumeForma: fin(volumeForma),
       fornadas: fin(fornadas),
       tempoTotal: fin(tempoTotal),
     },
@@ -518,4 +563,35 @@ export function calibrarPerda(massaPorPao, pesoRealAssado, solidosPorPao = 0) {
   const perda = 1 - massaAssada / massaPorPao;
   if (!Number.isFinite(perda) || perda < 0 || perda >= 1) return null;
   return perda;
+}
+
+/**
+ * Resolve o volume específico a partir da altura de um pão medido de verdade,
+ * invertendo a geometria da fôrma.
+ *
+ * Mede-se a altura e não o comprimento porque é ela que responde ao
+ * crescimento: o comprimento de um batard quem define é o shaping.
+ *
+ * Quem chama passa o peso assado REAL quando houver um pão pesado. Usar o
+ * estimado faria o erro da perda no forno entrar aqui dentro, e os dois
+ * parâmetros passariam a se contaminar a cada calibração.
+ */
+export function calibrarVolumeEspecifico(pesoRealAssado, alturaReal, formato) {
+  // Busca por propriedade própria: a chave vem de fora e `[formato]` num
+  // objeto comum aprovaria 'constructor' como se fosse formato.
+  const fmt = Object.hasOwn(FORMATO_POR_CHAVE, formato) ? FORMATO_POR_CHAVE[formato] : null;
+  const peso = Number(pesoRealAssado);
+  const altura = Number(alturaReal);
+  if (!fmt || !(peso > 0) || !(altura > 0)) return null;
+
+  const largura = altura / fmt.razaoA;
+  const volumeForma = fmt.razaoC * fmt.razaoA * largura ** 3;
+  const volumeEspecifico = (volumeForma * fmt.preenchimento) / peso;
+
+  // Fora desta faixa não é pão: ou a régua mediu outra coisa, ou o peso
+  // anotado é de outra fornada. A faixa é deliberadamente mais larga que a
+  // variação típica de receita descrita em `ENTRADAS_PADRAO.volumeEspecifico`
+  // (2,0-3,5+) — aqui o objetivo é pegar medida errada, não julgar a receita.
+  if (!Number.isFinite(volumeEspecifico) || volumeEspecifico < 1.5 || volumeEspecifico > 5) return null;
+  return volumeEspecifico;
 }

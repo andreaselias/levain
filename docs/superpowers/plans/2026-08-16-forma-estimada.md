@@ -290,6 +290,7 @@ Em `src/calc.js`, troque as três linhas (319-321) por:
   // A ordem importa: o volume é dividido pelas razões ANTES da raiz cúbica.
   // Fazer o contrário — que era o que esta conta fazia — infla a caixa pelo
   // produto das razões e faz o volume específico significar outra coisa.
+  // `e.formato` já saiu validado da normalização, então a busca direta basta.
   const f = FORMATO_POR_CHAVE[e.formato];
   const volumeForma = pesoAssado > 0 ? (pesoAssado * e.volumeEspecifico) / f.preenchimento : 0;
   const largura = volumeForma > 0 ? Math.cbrt(volumeForma / (f.razaoC * f.razaoA)) : 0;
@@ -352,6 +353,7 @@ test('a calibração recusa medida impossível', () => {
   assert.equal(calibrarVolumeEspecifico(pao.pesoAssado, -5, 'batard'), null, 'altura negativa');
   assert.equal(calibrarVolumeEspecifico(0, 9.3, 'batard'), null, 'peso zero');
   assert.equal(calibrarVolumeEspecifico(pao.pesoAssado, 9.3, 'inventado'), null, 'formato desconhecido');
+  assert.equal(calibrarVolumeEspecifico(pao.pesoAssado, 9.3, 'constructor'), null, 'chave de Object.prototype');
   assert.equal(calibrarVolumeEspecifico(pao.pesoAssado, 3, 'batard'), null, 'baixo demais para ser pão');
   assert.equal(calibrarVolumeEspecifico(pao.pesoAssado, 25, 'batard'), null, 'alto demais para ser pão');
   assert.equal(calibrarVolumeEspecifico(pao.pesoAssado, 'nada', 'batard'), null, 'altura não numérica');
@@ -386,7 +388,9 @@ Em `src/calc.js`, logo depois de `calibrarPerda`:
  * parâmetros passariam a se contaminar a cada calibração.
  */
 export function calibrarVolumeEspecifico(pesoAssado, alturaReal, chaveFormato) {
-  const f = FORMATO_POR_CHAVE[chaveFormato];
+  // Busca por propriedade própria: a chave vem de fora e `[chaveFormato]` num
+  // objeto comum aprovaria 'constructor' como se fosse formato.
+  const f = Object.hasOwn(FORMATO_POR_CHAVE, chaveFormato) ? FORMATO_POR_CHAVE[chaveFormato] : null;
   const peso = Number(pesoAssado);
   const altura = Number(alturaReal);
   if (!f || !(peso > 0) || !(altura > 0)) return null;
