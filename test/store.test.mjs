@@ -450,3 +450,49 @@ test('formato igual não polui o diff', () => {
   );
   assert.equal(mudancas.filter((m) => m.chave === 'formato').length, 0);
 });
+
+test('o registro guarda a altura medida, e nulo quando não foi medida', () => {
+  const receita = novaReceita('Teste');
+  assert.equal(criarRegistro(receita, {}, { agora: T0 }).alturaReal, null);
+  assert.equal(criarRegistro(receita, { alturaReal: 9.4 }, { agora: T0 }).alturaReal, 9.4);
+});
+
+test('a altura medida sobrevive ao export/import', () => {
+  const estado = estadoInicial();
+  const receita = estado.receitas[0];
+  estado.registros.push(criarRegistro(receita, { alturaReal: 9.4, pesoRealAssado: 505 }, { agora: T0 }));
+
+  const { ok, estado: voltou } = importar(exportar(estado));
+  assert.ok(ok, 'importou');
+  assert.equal(voltou.registros[0].alturaReal, 9.4);
+});
+
+// Um retrato v3 sem `formato` é o que uma fornada salva antes desse campo
+// existir realmente parece: `migrarEntradas` devolve v3 sem tocar, e é o
+// spread de `clonarEntradas` — `{ ...ENTRADAS_PADRAO, ...base }` — quem
+// preenche o buraco. Sem essa ordem, a primeira vez que o diário abrisse
+// depois do upgrade mostraria "Formato: — → Batard" para todo mundo.
+//
+// A hidratação diferente do padrão não é enfeite: um retrato onde tudo mais
+// já bate com ENTRADAS_PADRAO não distingue "buraco preenchido pelo padrão"
+// de "tudo pisado pelo padrão" — as duas ordens do spread dariam o mesmo
+// resultado. Com um campo que a fornada realmente tinha, só a ordem certa
+// preserva a hidratação e ainda assim preenche o formato ausente.
+test('fornada antiga sem formato herda o padrão sem perder os campos que já tinha', () => {
+  const { formato, ...semFormato } = { ...ENTRADAS_PADRAO, hidratacao: 0.65 };
+  assert.ok(!('formato' in semFormato), 'o teste só vale se a chave estiver mesmo ausente');
+  assert.ok(Array.isArray(semFormato.composicaoPao), 'tem que ser v3 para migrarEntradas não mexer');
+
+  // Não passa por novaReceita: ela mesma chama clonarEntradas e já preencheria
+  // o buraco antes da hora. O que se quer exercitar é o clonarEntradas de
+  // dentro de criarRegistro — o caminho real de uma fornada antiga relida.
+  const receita = { id: 'r1', entradas: semFormato };
+  const registro = criarRegistro(receita, {}, { id: 'g1', agora: T0 });
+
+  assert.equal(registro.snapshot.formato, 'batard', 'formato ausente vira o padrão, não fica undefined');
+  assert.equal(registro.snapshot.hidratacao, 0.65, 'campo que a fornada tinha não pode ser pisado pelo padrão');
+
+  const mudancas = diffEntradas(registro.snapshot, ENTRADAS_PADRAO);
+  assert.equal(mudancas.filter((m) => m.chave === 'formato').length, 0, 'nada de "Formato: — → Batard" na primeira leitura');
+  assert.ok(mudancas.some((m) => m.chave === 'hidratacao'), 'a mudança real de hidratação continua aparecendo');
+});

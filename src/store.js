@@ -88,6 +88,7 @@ export function criarRegistro(receita, dados = {}, opcoes = {}) {
     observacao: dados.observacao ?? '',
     snapshot: clonarEntradas(receita.entradas),
     pesoRealAssado: dados.pesoRealAssado ?? null,
+    alturaReal: dados.alturaReal ?? null,
     notas: { ...notasEmBranco(), ...(dados.notas ?? {}) },
     processo: {
       fermentacaoH: null,
@@ -315,6 +316,7 @@ function normalizarRegistro(bruto) {
     observacao: String(bruto.observacao ?? ''),
     snapshot: clonarEntradas(bruto.snapshot),
     pesoRealAssado: bruto.pesoRealAssado ?? null,
+    alturaReal: bruto.alturaReal ?? null,
     notas: { ...notasEmBranco(), ...(bruto.notas ?? {}) },
     processo: {
       fermentacaoH: null,
