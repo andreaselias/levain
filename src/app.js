@@ -51,11 +51,18 @@ function fmtNum(valor, casas) {
   return formatadores.get(casas).format(Number.isFinite(valor) ? valor : 0);
 }
 
+/**
+ * Unidade que vem DEPOIS do número (g, %, cm, min) fica menor: lê-se como
+ * anotação. Já o "R$" vem antes e faz parte do número — reduzi-lo quebra a
+ * leitura, então acompanha o tamanho.
+ */
 const uni = (texto) => `<span class="unidade">${texto}</span>`;
+const moeda = () => '<span class="moeda">R$</span>';
+
 const g = (v) => `${fmtNum(v, 0)}${uni('g')}`;
 const g1 = (v) => `${fmtNum(v, 1)}${uni('g')}`;
 const pct = (v) => `${fmtNum(v * 100, 1)}${uni('%')}`;
-const brl = (v) => `${uni('R$')}${fmtNum(v, 2)}`;
+const brl = (v) => `${moeda()}${fmtNum(v, 2)}`;
 const cm = (v) => `${fmtNum(v, 1)}${uni('cm')}`;
 
 function formatarMinutos(minutos) {
@@ -251,7 +258,7 @@ function listaDeComposicao(titulo, chave, entradas, marcaResto, nota) {
 // Aba Pão
 // ---------------------------------------------------------------------------
 
-function saidasPao(r, entradas) {
+function saidasPao(r) {
   const usados = r.pao.farinhas.filter((f) => f.gramas > 0);
   const liquidos = r.pao.liquidos.filter((l) => l.gramas > 0);
   const solidos = r.pao.solidos.filter((s) => s.gramas > 0);
@@ -421,7 +428,7 @@ function linhaDeCusto(item) {
   return `<div class="ticket-linha${semPreco ? ' sem-preco' : ''}">
     <span class="ticket-nome">${escapar(item.nome)}<span class="ticket-detalhe">${detalhes.join(' · ')}</span></span>
     <span class="ticket-pontilhado"></span>
-    <span class="ticket-valor">${semPreco ? `${uni('R$')}—` : brl(item.custo)}</span>
+    <span class="ticket-valor">${semPreco ? `${moeda()}—` : brl(item.custo)}</span>
   </div>`;
 }
 
@@ -450,7 +457,7 @@ function saidasCustos(r, entradas) {
 
     <section class="secao">
       <h2 class="secao-titulo">De onde vem o custo</h2>
-      <div class="ticket">
+      <div class="ticket ticket-custo">
         <div class="ticket-borda"></div>
         ${r.custos.itens.length
           ? r.custos.itens.map(linhaDeCusto).join('')
@@ -698,7 +705,7 @@ function atualizar() {
     abaAtiva === 'starter'
       ? saidasStarter(r)
       : abaAtiva === 'pao'
-        ? saidasPao(r, ativa.entradas)
+        ? saidasPao(r)
         : abaAtiva === 'custos'
           ? saidasCustos(r, ativa.entradas)
           : saidasDiario();

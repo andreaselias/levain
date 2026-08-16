@@ -489,6 +489,14 @@ button {
   letter-spacing: 0;
 }
 
+/* O "R$" vem antes do número e faz parte dele: mesmo tamanho, mesma cor.
+   Encolhê-lo, como se faz com um sufixo de unidade, quebra a leitura. */
+.moeda {
+  font-size: inherit;
+  color: inherit;
+  margin-right: 0.12em;
+}
+
 /* Somas parciais: mesma estrutura da linha de item, com um degrau de peso. */
 .ticket-soma {
   display: flex;
@@ -511,8 +519,32 @@ button {
   color: var(--tinta-suave);
 }
 
-.ticket-soma .ticket-valor {
-  font-size: 1.05rem;
+/* O caixa-alta é do rótulo, não do detalhe: sem isto "1 h 25 min" vira
+   "1H 25MIN". */
+.ticket-soma .ticket-detalhe {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* ---- Ticket de custos ----------------------------------------------------
+   Aqui todo valor tem o mesmo tamanho: item, soma parcial e total. Antes cada
+   linha de ingrediente era maior que o próprio total, o que invertia a
+   hierarquia. Quem separa o total é o traço grosso e o rótulo, não o corpo.
+   A pesagem, na aba Pão, continua grande de propósito: é lida com as mãos na
+   massa, de longe. */
+
+.ticket-custo .ticket-valor,
+.ticket-custo .ticket-rodape .valor {
+  font-size: 1.12rem;
+}
+
+.ticket-custo .ticket-linha {
+  padding: 9px 0;
+}
+
+.ticket-custo .ticket-rodape .rotulo {
+  color: var(--tinta);
+  font-weight: 600;
 }
 
 .ticket-linha.sem-preco .ticket-valor {
@@ -633,11 +665,14 @@ button {
 
 .heroi .valor {
   font-family: var(--fonte-numero);
-  font-size: 2.7rem;
+  /* Um pouco menor que antes porque o "R$" agora ocupa o mesmo corpo do
+     número, e "R$13,87" precisa caber numa tela de 360 px. */
+  font-size: 2.3rem;
   line-height: 0.95;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.045em;
   color: var(--crosta-viva);
+  white-space: nowrap;
 }
 
 .heroi .valor .unidade {

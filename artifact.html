@@ -500,6 +500,14 @@ button {
   letter-spacing: 0;
 }
 
+/* O "R$" vem antes do número e faz parte dele: mesmo tamanho, mesma cor.
+   Encolhê-lo, como se faz com um sufixo de unidade, quebra a leitura. */
+.moeda {
+  font-size: inherit;
+  color: inherit;
+  margin-right: 0.12em;
+}
+
 /* Somas parciais: mesma estrutura da linha de item, com um degrau de peso. */
 .ticket-soma {
   display: flex;
@@ -522,8 +530,32 @@ button {
   color: var(--tinta-suave);
 }
 
-.ticket-soma .ticket-valor {
-  font-size: 1.05rem;
+/* O caixa-alta é do rótulo, não do detalhe: sem isto "1 h 25 min" vira
+   "1H 25MIN". */
+.ticket-soma .ticket-detalhe {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* ---- Ticket de custos ----------------------------------------------------
+   Aqui todo valor tem o mesmo tamanho: item, soma parcial e total. Antes cada
+   linha de ingrediente era maior que o próprio total, o que invertia a
+   hierarquia. Quem separa o total é o traço grosso e o rótulo, não o corpo.
+   A pesagem, na aba Pão, continua grande de propósito: é lida com as mãos na
+   massa, de longe. */
+
+.ticket-custo .ticket-valor,
+.ticket-custo .ticket-rodape .valor {
+  font-size: 1.12rem;
+}
+
+.ticket-custo .ticket-linha {
+  padding: 9px 0;
+}
+
+.ticket-custo .ticket-rodape .rotulo {
+  color: var(--tinta);
+  font-weight: 600;
 }
 
 .ticket-linha.sem-preco .ticket-valor {
@@ -644,11 +676,14 @@ button {
 
 .heroi .valor {
   font-family: var(--fonte-numero);
-  font-size: 2.7rem;
+  /* Um pouco menor que antes porque o "R$" agora ocupa o mesmo corpo do
+     número, e "R$13,87" precisa caber numa tela de 360 px. */
+  font-size: 2.3rem;
   line-height: 0.95;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.045em;
   color: var(--crosta-viva);
+  white-space: nowrap;
 }
 
 .heroi .valor .unidade {
@@ -2676,11 +2711,18 @@ function fmtNum(valor, casas) {
   return formatadores.get(casas).format(Number.isFinite(valor) ? valor : 0);
 }
 
+/**
+ * Unidade que vem DEPOIS do número (g, %, cm, min) fica menor: lê-se como
+ * anotação. Já o "R$" vem antes e faz parte do número — reduzi-lo quebra a
+ * leitura, então acompanha o tamanho.
+ */
 const uni = (texto) => `<span class="unidade">${texto}</span>`;
+const moeda = () => '<span class="moeda">R$</span>';
+
 const g = (v) => `${fmtNum(v, 0)}${uni('g')}`;
 const g1 = (v) => `${fmtNum(v, 1)}${uni('g')}`;
 const pct = (v) => `${fmtNum(v * 100, 1)}${uni('%')}`;
-const brl = (v) => `${uni('R$')}${fmtNum(v, 2)}`;
+const brl = (v) => `${moeda()}${fmtNum(v, 2)}`;
 const cm = (v) => `${fmtNum(v, 1)}${uni('cm')}`;
 
 function formatarMinutos(minutos) {
@@ -2876,7 +2918,7 @@ function listaDeComposicao(titulo, chave, entradas, marcaResto, nota) {
 // Aba Pão
 // ---------------------------------------------------------------------------
 
-function saidasPao(r, entradas) {
+function saidasPao(r) {
   const usados = r.pao.farinhas.filter((f) => f.gramas > 0);
   const liquidos = r.pao.liquidos.filter((l) => l.gramas > 0);
   const solidos = r.pao.solidos.filter((s) => s.gramas > 0);
@@ -3046,7 +3088,7 @@ function linhaDeCusto(item) {
   return `<div class="ticket-linha${semPreco ? ' sem-preco' : ''}">
     <span class="ticket-nome">${escapar(item.nome)}<span class="ticket-detalhe">${detalhes.join(' · ')}</span></span>
     <span class="ticket-pontilhado"></span>
-    <span class="ticket-valor">${semPreco ? `${uni('R$')}—` : brl(item.custo)}</span>
+    <span class="ticket-valor">${semPreco ? `${moeda()}—` : brl(item.custo)}</span>
   </div>`;
 }
 
@@ -3075,7 +3117,7 @@ function saidasCustos(r, entradas) {
 
     <section class="secao">
       <h2 class="secao-titulo">De onde vem o custo</h2>
-      <div class="ticket">
+      <div class="ticket ticket-custo">
         <div class="ticket-borda"></div>
         ${r.custos.itens.length
           ? r.custos.itens.map(linhaDeCusto).join('')
@@ -3323,7 +3365,7 @@ function atualizar() {
     abaAtiva === 'starter'
       ? saidasStarter(r)
       : abaAtiva === 'pao'
-        ? saidasPao(r, ativa.entradas)
+        ? saidasPao(r)
         : abaAtiva === 'custos'
           ? saidasCustos(r, ativa.entradas)
           : saidasDiario();
