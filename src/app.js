@@ -10,7 +10,7 @@
 
 import { calcular, calibrarPerda, calibrarVolumeEspecifico, ENTRADAS_PADRAO } from './calc.js';
 import { CAMPOS, CAMPO_POR_CHAVE, ESCALAS, GRUPOS_DE_ESCALA, MOLDE, formatarEntrada, formatarValor, paraArmazenamento } from './campos.js';
-import { criarPersistencia, criarRegistro, diffDoRegistro, estadoInicial, exportar, gerarId, importar, novaReceita, receitaAtiva, registrosDaReceita } from './store.js';
+import { criarPersistencia, criarRegistro, diffDoRegistro, estadoInicial, exportar, gerarId, importar, novaReceita, receitaAtiva, receitaDoRegistro, registrosDaReceita } from './store.js';
 
 const ABAS = [
   { id: 'starter', glifo: '🫧', rotulo: 'Starter' },
@@ -113,8 +113,19 @@ function salvar() {
   temporizadorSalvar = setTimeout(() => persistencia.salvar(estado), 300);
 }
 
-function marcarAlterada() {
-  receitaAtiva(estado).atualizadaEm = new Date().toISOString();
+// A receita alterada é quase sempre a que está aberta, mas não sempre: calibrar
+// a partir do diário mexe na receita da fornada medida, que pode ser outra.
+function marcarAlterada(receita = receitaAtiva(estado)) {
+  receita.atualizadaEm = new Date().toISOString();
+}
+
+/**
+ * Sufixo do aviso de calibração. Quando o valor foi escrito noutra receita, a
+ * tela não muda e o aviso sozinho falaria de um número que ninguém vê — daí o
+ * nome. Na receita aberta o nome seria ruído, e fica de fora.
+ */
+function ondeCalibrou(receita) {
+  return receita.id === receitaAtiva(estado).id ? '' : ` em "${receita.nome}"`;
 }
 
 // ---------------------------------------------------------------------------
@@ -629,7 +640,7 @@ function blocoRetrato(registro) {
 
 function cartaoRegistro(registro, mostrarReceita) {
   const diffs = diffDoRegistro(estado, registro);
-  const receita = estado.receitas.find((r) => r.id === registro.receitaId);
+  const receita = receitaDoRegistro(estado, registro);
 
   // Diff vazio tem dois significados diferentes, e confundi-los engana quem lê:
   // ou nada mudou, ou esta é a fornada mais antiga e não há com o que comparar.
@@ -1385,18 +1396,21 @@ const ACOES = {
     const perda = calibrarPerda(r.pao.massaPorPao, Number(registro.pesoRealAssado), r.pao.solidosPorPao);
     if (perda === null) return;
 
-    const ativa = receitaAtiva(estado);
+    // A medida veio desta fornada, então quem se calibra é a receita dela — e
+    // com o filtro em "Todas" essa receita pode não ser a que está aberta.
+    const alvo = receitaDoRegistro(estado, registro);
+    if (!alvo) return;
     const ok = await confirmar({
       titulo: 'Calibrar a perda no forno?',
-      mensagem: `Troca de ${fmtNum(ativa.entradas.perdaForno * 100, 1)}% para ${fmtNum(perda * 100, 1)}% na receita "${ativa.nome}", medido a partir deste pão.`,
+      mensagem: `Troca de ${fmtNum(alvo.entradas.perdaForno * 100, 1)}% para ${fmtNum(perda * 100, 1)}% na receita "${alvo.nome}", medido a partir deste pão.`,
       rotulo: 'Calibrar',
     });
     if (!ok) return;
-    ativa.entradas = { ...ativa.entradas, perdaForno: perda };
-    marcarAlterada();
+    alvo.entradas = { ...alvo.entradas, perdaForno: perda };
+    marcarAlterada(alvo);
     salvar();
     render();
-    avisar(`Perda no forno agora é ${fmtNum(perda * 100, 1)}%.`);
+    avisar(`Perda no forno agora é ${fmtNum(perda * 100, 1)}%${ondeCalibrou(alvo)}.`);
   },
 
   async 'calibrar-crescimento'(el) {
@@ -1407,18 +1421,19 @@ const ACOES = {
     const volume = calibrarVolumeEspecifico(peso, Number(registro.alturaReal), r.pao.formato);
     if (volume === null) return;
 
-    const ativa = receitaAtiva(estado);
+    const alvo = receitaDoRegistro(estado, registro);
+    if (!alvo) return;
     const ok = await confirmar({
       titulo: 'Calibrar o crescimento?',
-      mensagem: `Troca de ${fmtNum(ativa.entradas.volumeEspecifico, 1)} para ${fmtNum(volume, 1)} cm³/g na receita "${ativa.nome}", medido a partir da altura deste pão.`,
+      mensagem: `Troca de ${fmtNum(alvo.entradas.volumeEspecifico, 1)} para ${fmtNum(volume, 1)} cm³/g na receita "${alvo.nome}", medido a partir da altura deste pão.`,
       rotulo: 'Calibrar',
     });
     if (!ok) return;
-    ativa.entradas = { ...ativa.entradas, volumeEspecifico: volume };
-    marcarAlterada();
+    alvo.entradas = { ...alvo.entradas, volumeEspecifico: volume };
+    marcarAlterada(alvo);
     salvar();
     render();
-    avisar(`Volume específico agora é ${fmtNum(volume, 1)} cm³/g.`);
+    avisar(`Volume específico agora é ${fmtNum(volume, 1)} cm³/g${ondeCalibrou(alvo)}.`);
   },
 
   escala(el) {
