@@ -236,6 +236,21 @@ export function diffEntradas(anterior, atual) {
   const mudancas = [];
 
   for (const campo of CAMPOS) {
+    // Campo de opções compara por identidade e é escrito pelo rótulo. O ramo
+    // numérico abaixo o descartaria calado, porque 'boule' não é finito.
+    if (campo.tipo === 'opcoes') {
+      const de = anterior[campo.chave];
+      const para = atual[campo.chave];
+      if (de === para) continue;
+      mudancas.push({
+        chave: campo.chave,
+        rotulo: campo.rotulo,
+        de: formatarValor(campo, de),
+        para: formatarValor(campo, para),
+      });
+      continue;
+    }
+
     const de = Number(anterior[campo.chave]);
     const para = Number(atual[campo.chave]);
     if (!Number.isFinite(de) || !Number.isFinite(para)) continue;

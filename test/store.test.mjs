@@ -430,3 +430,23 @@ test('campo de opções é formatado pelo rótulo, não pelo número', () => {
 test('o volume específico é formatado com a unidade', () => {
   assert.equal(formatarValor(CAMPO_POR_CHAVE.volumeEspecifico, 2.7), '2,7 cm³/g');
 });
+
+test('trocar de formato aparece no diff, com os rótulos', () => {
+  const mudancas = diffEntradas(
+    { ...ENTRADAS_PADRAO, formato: 'batard' },
+    { ...ENTRADAS_PADRAO, formato: 'boule' }
+  );
+  const linha = mudancas.find((m) => m.chave === 'formato');
+  assert.ok(linha, 'a troca de formato entrou no diff');
+  assert.equal(linha.rotulo, 'Formato');
+  assert.equal(linha.de, 'Batard');
+  assert.equal(linha.para, 'Boule');
+});
+
+test('formato igual não polui o diff', () => {
+  const mudancas = diffEntradas(
+    { ...ENTRADAS_PADRAO, formato: 'boule', hidratacao: 0.7 },
+    { ...ENTRADAS_PADRAO, formato: 'boule', hidratacao: 0.75 }
+  );
+  assert.equal(mudancas.filter((m) => m.chave === 'formato').length, 0);
+});
