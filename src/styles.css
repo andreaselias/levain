@@ -1465,6 +1465,25 @@ details.retrato[open] summary::before {
   font-size: 1rem;
 }
 
+/* O campo de data e hora é o único controle desta folha que o iOS desenha com
+   régua própria: o shadow DOM dele tem largura mínima maior que a caixa, o
+   `width: 100%` acima não segura, e o campo vazava para fora da folha — era
+   isso que trazia a barra de rolagem horizontal no iPhone, que o Chromium não
+   reproduz porque lá a mínima é bem menor.
+
+   As três linhas trabalham juntas e nenhuma resolve sozinha: sem aparência
+   nativa o controle volta a obedecer ao modelo de caixa; `min-width: 0` derruba
+   o piso que o iOS impõe, e só depois disso o teto de `max-width` vale, porque
+   `min-width` ganha de `max-width`. O alinhamento à esquerda vem junto porque
+   o iOS centraliza o valor, e nenhum outro campo desta folha é centralizado. */
+.campo-livre input[type="datetime-local"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+  max-width: 100%;
+  text-align: left;
+}
+
 .campo-livre textarea {
   font-family: var(--fonte-titulo);
   line-height: 1.5;
