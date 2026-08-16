@@ -141,9 +141,21 @@ o comprimento quem define é o shaping — e é uma medida só, de régua.
 
 ## Migração
 
-Os dois campos entram em `ENTRADAS_PADRAO` com valor padrão, e `escalares()` já
-preenche o que falta a partir dele. Estado v3 salvo carrega sem bump de
-`VERSAO_ESTADO`.
+Os dois campos entram em `ENTRADAS_PADRAO` com valor padrão, e estado v3 salvo
+carrega sem bump de `VERSAO_ESTADO`.
+
+Quem preenche o buraco depende de quão velho é o estado, e vale ser preciso
+porque os dois caminhos são diferentes. Estado v1 e v2 passa por `escalares()`,
+que copia campo a campo a partir do padrão. Estado que já é v3 —
+que é o caso de qualquer fornada gravada recentemente — `migrarEntradas`
+devolve **intacto**, sem chamar `escalares()`; ali quem preenche é o spread
+`{ ...ENTRADAS_PADRAO, ...base }` de `clonarEntradas`, por onde toda receita e
+todo snapshot de fornada passam antes de serem guardados.
+
+Essa distinção não é acadêmica: é o spread do `clonarEntradas` que impede uma
+fornada antiga de exibir "Formato: — → Batard" no diff a primeira vez que o
+diário é aberto depois da atualização, e é por isso que existe um teste
+travando essa ordem em `test/store.test.mjs`.
 
 A regra do `migrar.js` — "quem já usava o app não pode ver número mudar" — é
 quebrada aqui de propósito, porque a geometria estava errada. Batard, 500 g,
