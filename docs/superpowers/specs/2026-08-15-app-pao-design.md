@@ -518,3 +518,22 @@ captura rejeição para que uma falha não derrube a interface em silêncio.
 `sandbox.html` fica no repositório reproduzindo essas condições. Qualquer coisa
 que dependa de API do navegador deve ser conferida ali, não só na página solta —
 foi o que expôs esta classe inteira de defeito.
+
+---
+
+# Correção — ativação não repartia a farinha do pote
+
+Data: 2026-08-15
+
+O ticket de ativação trazia uma linha genérica `Farinha — 54 g`. Num pote misto
+isso é inútil: quem alimenta um starter 90/10 precisa saber que são 48,6 g de
+branca e 5,4 g de integral, e o app não dizia.
+
+A nota "Dessa farinha: …" que existia embaixo referia-se à farinha **já embutida
+no starter** (os 60 g que vêm dentro dele), não à que se pesa para alimentar —
+duas grandezas diferentes que o texto deixava confundir.
+
+`starter.farinhasAtivar` reparte `farinhaAtivar` pela composição do pote, e o
+ticket passa a listar uma linha por farinha, com a proporção como legenda. Com
+uma farinha só, some a legenda e o valor volta a ser inteiro. A nota de baixo
+foi reescrita para dizer "da farinha já embutida no starter".

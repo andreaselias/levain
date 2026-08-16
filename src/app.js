@@ -65,6 +65,12 @@ const pct = (v) => `${fmtNum(v * 100, 1)}${uni('%')}`;
 const brl = (v) => `${moeda()}${fmtNum(v, 2)}`;
 const cm = (v) => `${fmtNum(v, 1)}${uni('cm')}`;
 
+/** Inteiro quando o valor é redondo; uma casa quando a divisão deixou resto. */
+const gAuto = (v) => (Math.abs(v - Math.round(v)) < 0.05 ? g(v) : g1(v));
+
+/** "90%" enxuto, para a legenda de uma linha do ticket. */
+const pctCurto = (v) => `${fmtNum(v * 100, Number.isInteger(v * 100) ? 0 : 1)}% do pote`;
+
 function formatarMinutos(minutos) {
   const total = Math.max(0, Math.round(minutos));
   const horas = Math.floor(total / 60);
@@ -352,6 +358,14 @@ function entradasPao(entradas) {
 
 function saidasStarter(r) {
   const composicao = r.starter.farinhas.filter((f) => f.gramas > 0.05);
+  // A farinha que se pesa para alimentar o pote, nomeada uma a uma: num pote
+  // misto, "farinha: 54 g" não diz quanto pôr de cada.
+  const paraPesar = r.starter.farinhasAtivar.filter((f) => f.gramas > 0.05);
+  const misturado = paraPesar.length > 1;
+  const linhasDeFarinha = paraPesar.length
+    ? paraPesar.map((f) => linhaTicket(f.nome, gAuto(f.gramas), misturado ? pctCurto(f.pct) : '')).join('')
+    : linhaTicket('Farinha', g(r.starter.farinhaAtivar));
+
   return `
     ${blocoAvisos(r)}
     <section class="secao">
@@ -359,7 +373,7 @@ function saidasStarter(r) {
       <div class="ticket">
         <div class="ticket-borda"></div>
         ${linhaTicket('Starter-mãe do pote', g(r.starter.maeParaAtivar))}
-        ${linhaTicket('Farinha', g(r.starter.farinhaAtivar))}
+        ${linhasDeFarinha}
         ${linhaTicket('Água', g(r.starter.aguaAtivar))}
         <div class="ticket-rodape">
           <span class="rotulo">Starter ativado</span>
@@ -378,7 +392,7 @@ function saidasStarter(r) {
         ${metrica('Água embutida', g1(r.starter.aguaNoStarter))}
       </div>
       ${composicao.length
-        ? `<p class="nota-rodape">Dessa farinha: ${composicao
+        ? `<p class="nota-rodape">Da farinha já embutida no starter: ${composicao
             .map((f) => `${fmtNum(f.gramas, 1)} g de ${escapar(f.nome.toLowerCase())}`)
             .join(', ')}.</p>`
         : ''}

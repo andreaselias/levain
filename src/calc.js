@@ -309,6 +309,16 @@ export function calcular(entradas) {
     gramas: farinhaNoStarter * f.pct,
   }));
 
+  // A farinha que se PESA para alimentar o pote, repartida pela mesma
+  // composição. Sem isto o ticket de ativação diz só "farinha: 54 g" e quem
+  // tem um pote misto não sabe quanto pôr de cada uma.
+  const farinhasParaAtivar = composicaoStarter.map((f) => ({
+    id: f.id,
+    nome: f.nome,
+    pct: f.pct,
+    gramas: farinhaAtivar * f.pct,
+  }));
+
   // --- 7. Custos -----------------------------------------------------------
   // Preços de ingrediente são por quilo; embalagem e etiqueta, por unidade.
   const embalagem = e.embalagemExterna + e.embalagemInterna + e.etiqueta;
@@ -407,6 +417,7 @@ export function calcular(entradas) {
       totalAtivado: fin(totalAtivado),
       sobra: fin(sobra),
       farinhas: limpar(farinhasDoStarter, ['pct', 'gramas']),
+      farinhasAtivar: limpar(farinhasParaAtivar, ['pct', 'gramas']),
     },
     pao: {
       farinhas: limpar(pesosFarinha, ['pct', 'gramas', 'preco']),

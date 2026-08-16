@@ -272,6 +272,45 @@ test('starter de integral custa mais que starter de branca', () => {
   perto(integral.custos.producao - branco.custos.producao, (60 * (11 - 4.46)) / 1000, 'delta de custo');
 });
 
+test('a farinha da ativação é repartida pela composição do pote', () => {
+  const r = calcular(
+    comFarinhas([
+      { nome: 'Branca', preco: 4.46 },
+      { nome: 'Integral', preco: 11, pct: 0.1, pctStarter: 0.1 },
+    ])
+  );
+  // São 54 g de farinha para alimentar, num pote 90/10
+  perto(r.starter.farinhaAtivar, 54, 'total a pesar');
+  perto(gramas(r.starter.farinhasAtivar, 'Branca'), 48.6, 'branca a pesar');
+  perto(gramas(r.starter.farinhasAtivar, 'Integral'), 5.4, 'integral a pesar');
+});
+
+test('as partes da ativação somam o total de farinha a pesar', () => {
+  const r = calcular(
+    comFarinhas([
+      { nome: 'Branca' },
+      { nome: 'Integral', pctStarter: 0.15 },
+      { nome: 'Centeio', pctStarter: 0.25 },
+    ])
+  );
+  const soma = r.starter.farinhasAtivar.reduce((s, f) => s + f.gramas, 0);
+  perto(soma, r.starter.farinhaAtivar, 'soma das partes');
+});
+
+test('pote de uma farinha só dá uma linha, com o total inteiro', () => {
+  const r = calcular(ENTRADAS_PADRAO);
+  assert.equal(r.starter.farinhasAtivar.length, 1);
+  perto(r.starter.farinhasAtivar[0].gramas, r.starter.farinhaAtivar, 'tudo numa linha');
+});
+
+test('farinha do pote em 0% não recebe farinha na ativação', () => {
+  const r = calcular(
+    comFarinhas([{ nome: 'Branca' }, { nome: 'Integral', pctStarter: 0 }])
+  );
+  perto(gramas(r.starter.farinhasAtivar, 'Integral'), 0, 'nada de integral');
+  perto(gramas(r.starter.farinhasAtivar, 'Branca'), r.starter.farinhaAtivar, 'tudo na branca');
+});
+
 test('a composição do starter não altera os pesos da massa', () => {
   const a = calcular(comFarinhas([{ nome: 'Branca' }, { nome: 'Integral', pct: 0.1 }]));
   const b = calcular(comFarinhas([{ nome: 'Branca' }, { nome: 'Integral', pct: 0.1, pctStarter: 1 }]));
