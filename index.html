@@ -3510,6 +3510,25 @@ function blocoPesagem(registro) {
   </div>`;
 }
 
+/**
+ * Espelho de `blocoPesagem` para a altura. São independentes de propósito:
+ * mede-se um sem o outro, e a linha que existe tem que aparecer sozinha.
+ */
+function blocoAltura(registro) {
+  if (!(Number(registro.alturaReal) > 0)) return '';
+  const r = calcular(registro.snapshot);
+  // Com um pão pesado, o peso real é melhor base que o estimado: senão o erro
+  // da perda no forno entraria na conta do crescimento.
+  const peso = Number(registro.pesoRealAssado) > 0 ? Number(registro.pesoRealAssado) : r.pao.pesoAssado;
+  const volume = calibrarVolumeEspecifico(peso, Number(registro.alturaReal), r.pao.formato);
+  return `<div class="pesagem-real">
+    <span class="sep">estimado</span> ${fmtNum(r.pao.altura, 1)} cm
+    <span class="sep">·</span>
+    <span class="sep">real</span> <span class="real">${fmtNum(Number(registro.alturaReal), 1)} cm</span>
+    ${volume === null ? '' : `<button class="calibrar" data-acao="calibrar-crescimento" data-id="${registro.id}">calibrar crescimento → ${fmtNum(volume, 1)} cm³/g</button>`}
+  </div>`;
+}
+
 function blocoRetrato(registro) {
   const e = registro.snapshot;
   const nomeFarinha = (id) => e.farinhas?.find((f) => f.id === id)?.nome ?? 'Farinha';
@@ -3576,6 +3595,7 @@ function cartaoRegistro(registro, mostrarReceita) {
           .join('')}</div>`
       : `<p class="diff-vazio">${ehAPrimeira ? 'Primeira fornada registrada desta receita.' : 'Sem alterações nos parâmetros desde a fornada anterior.'}</p>`}
     ${blocoPesagem(registro)}
+    ${blocoAltura(registro)}
     <p class="observacao">${escapar(registro.observacao)}</p>
     ${notas ? `<div class="notas-rapidas">${notas}</div>` : ''}
     ${partesProcesso.length ? `<div class="notas-rapidas">${partesProcesso.map((p) => `<span class="nota-item">${p}</span>`).join('')}</div>` : ''}
@@ -4299,6 +4319,28 @@ const ACOES = {
     salvar();
     render();
     avisar(`Perda no forno agora é ${fmtNum(perda * 100, 1)}%.`);
+  },
+
+  async 'calibrar-crescimento'(el) {
+    const registro = estado.registros.find((r) => r.id === el.dataset.id);
+    if (!registro) return;
+    const r = calcular(registro.snapshot);
+    const peso = Number(registro.pesoRealAssado) > 0 ? Number(registro.pesoRealAssado) : r.pao.pesoAssado;
+    const volume = calibrarVolumeEspecifico(peso, Number(registro.alturaReal), r.pao.formato);
+    if (volume === null) return;
+
+    const ativa = receitaAtiva(estado);
+    const ok = await confirmar({
+      titulo: 'Calibrar o crescimento?',
+      mensagem: `Troca de ${fmtNum(ativa.entradas.volumeEspecifico, 1)} para ${fmtNum(volume, 1)} cm³/g na receita "${ativa.nome}", medido a partir da altura deste pão.`,
+      rotulo: 'Calibrar',
+    });
+    if (!ok) return;
+    ativa.entradas = { ...ativa.entradas, volumeEspecifico: volume };
+    marcarAlterada();
+    salvar();
+    render();
+    avisar(`Volume específico agora é ${fmtNum(volume, 1)} cm³/g.`);
   },
 
   escala(el) {
