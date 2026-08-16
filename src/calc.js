@@ -564,3 +564,34 @@ export function calibrarPerda(massaPorPao, pesoRealAssado, solidosPorPao = 0) {
   if (!Number.isFinite(perda) || perda < 0 || perda >= 1) return null;
   return perda;
 }
+
+/**
+ * Resolve o volume específico a partir da altura de um pão medido de verdade,
+ * invertendo a geometria da fôrma.
+ *
+ * Mede-se a altura e não o comprimento porque é ela que responde ao
+ * crescimento: o comprimento de um batard quem define é o shaping.
+ *
+ * Quem chama passa o peso assado REAL quando houver um pão pesado. Usar o
+ * estimado faria o erro da perda no forno entrar aqui dentro, e os dois
+ * parâmetros passariam a se contaminar a cada calibração.
+ */
+export function calibrarVolumeEspecifico(pesoRealAssado, alturaReal, formato) {
+  // Busca por propriedade própria: a chave vem de fora e `[formato]` num
+  // objeto comum aprovaria 'constructor' como se fosse formato.
+  const fmt = Object.hasOwn(FORMATO_POR_CHAVE, formato) ? FORMATO_POR_CHAVE[formato] : null;
+  const peso = Number(pesoRealAssado);
+  const altura = Number(alturaReal);
+  if (!fmt || !(peso > 0) || !(altura > 0)) return null;
+
+  const largura = altura / fmt.razaoA;
+  const volumeForma = fmt.razaoC * fmt.razaoA * largura ** 3;
+  const volumeEspecifico = (volumeForma * fmt.preenchimento) / peso;
+
+  // Fora desta faixa não é pão: ou a régua mediu outra coisa, ou o peso
+  // anotado é de outra fornada. A faixa é deliberadamente mais larga que a
+  // variação típica de receita descrita em `ENTRADAS_PADRAO.volumeEspecifico`
+  // (2,0-3,5+) — aqui o objetivo é pegar medida errada, não julgar a receita.
+  if (!Number.isFinite(volumeEspecifico) || volumeEspecifico < 1.5 || volumeEspecifico > 5) return null;
+  return volumeEspecifico;
+}

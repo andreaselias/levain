@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calcular, ENTRADAS_PADRAO, FORMATOS } from '../src/calc.js';
+import { calcular, calibrarVolumeEspecifico, ENTRADAS_PADRAO, FORMATOS } from '../src/calc.js';
 
 const TOL = 1e-6;
 
@@ -722,4 +722,38 @@ test('a tabela de formatos tem os quatro formatos, com proporções positivas', 
     assert.ok(f.preenchimento > 0 && f.preenchimento <= 1, `${f.chave}: preenchimento entre 0 e 1`);
     assert.ok(f.rotulo.length > 0, `${f.chave}: tem rótulo`);
   }
+});
+
+// ---------------------------------------------------------------------------
+// Calibração do volume específico a partir da altura medida
+// ---------------------------------------------------------------------------
+
+test('a calibração do crescimento é a volta exata da ida', () => {
+  for (const chave of ['batard', 'boule', 'baguete', 'retangular']) {
+    for (const v of [2.1, 2.7, 3.4]) {
+      const { pao } = calcular({ ...ENTRADAS_PADRAO, formato: chave, volumeEspecifico: v });
+      const devolvido = calibrarVolumeEspecifico(pao.pesoAssado, pao.altura, chave);
+      perto(devolvido, v, `${chave} a ${v} cm³/g`);
+    }
+  }
+});
+
+test('a calibração usa o peso que recebe, não o da receita', () => {
+  const { pao } = calcular(ENTRADAS_PADRAO);
+  const comPesoMaior = calibrarVolumeEspecifico(pao.pesoAssado * 1.1, pao.altura, 'batard');
+  perto(comPesoMaior, 2.7 / 1.1, 'mesmo volume repartido em mais grama dá menos cm³/g');
+});
+
+test('a calibração recusa medida impossível', () => {
+  const { pao } = calcular(ENTRADAS_PADRAO);
+  assert.equal(calibrarVolumeEspecifico(pao.pesoAssado, 0, 'batard'), null, 'altura zero');
+  assert.equal(calibrarVolumeEspecifico(pao.pesoAssado, -5, 'batard'), null, 'altura negativa');
+  assert.equal(calibrarVolumeEspecifico(0, 9.3, 'batard'), null, 'peso zero');
+  assert.equal(calibrarVolumeEspecifico(-10, 9.3, 'batard'), null, 'peso negativo');
+  assert.equal(calibrarVolumeEspecifico('nada', 9.3, 'batard'), null, 'peso não numérico');
+  assert.equal(calibrarVolumeEspecifico(pao.pesoAssado, 9.3, 'inventado'), null, 'formato desconhecido');
+  assert.equal(calibrarVolumeEspecifico(pao.pesoAssado, 9.3, 'constructor'), null, 'chave de Object.prototype');
+  assert.equal(calibrarVolumeEspecifico(pao.pesoAssado, 3, 'batard'), null, 'baixo demais para ser pão');
+  assert.equal(calibrarVolumeEspecifico(pao.pesoAssado, 25, 'batard'), null, 'alto demais para ser pão');
+  assert.equal(calibrarVolumeEspecifico(pao.pesoAssado, 'nada', 'batard'), null, 'altura não numérica');
 });
