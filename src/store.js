@@ -71,6 +71,17 @@ export function receitaAtiva(estado) {
   return estado.receitas.find((r) => r.id === estado.receitaAtivaId) ?? estado.receitas[0] ?? null;
 }
 
+/**
+ * A receita a que uma fornada pertence — que não é necessariamente a que está
+ * aberta na tela. Com o filtro do diário em "Todas", o cartão de qualquer
+ * receita aparece, e quem age sobre esse cartão tem que agir sobre a receita
+ * dele. Devolve `null` como `receitaAtiva`, para as duas terem o mesmo
+ * contrato de "não achei" — os chamadores de hoje tratariam `undefined` igual.
+ */
+export function receitaDoRegistro(estado, registro) {
+  return estado.receitas.find((r) => r.id === registro?.receitaId) ?? null;
+}
+
 // ---------------------------------------------------------------------------
 // Diário
 // ---------------------------------------------------------------------------

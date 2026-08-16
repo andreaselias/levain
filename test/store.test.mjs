@@ -12,6 +12,8 @@ import {
   exportar,
   importar,
   criarPersistencia,
+  receitaAtiva,
+  receitaDoRegistro,
 } from '../src/store.js';
 
 const T0 = '2026-08-01T10:00:00.000Z';
@@ -495,4 +497,33 @@ test('fornada antiga sem formato herda o padrão sem perder os campos que já ti
   const mudancas = diffEntradas(registro.snapshot, ENTRADAS_PADRAO);
   assert.equal(mudancas.filter((m) => m.chave === 'formato').length, 0, 'nada de "Formato: — → Batard" na primeira leitura');
   assert.ok(mudancas.some((m) => m.chave === 'hidratacao'), 'a mudança real de hidratação continua aparecendo');
+});
+
+test('a fornada aponta para a receita dela, não para a que está aberta', () => {
+  const estado = estadoInicial();
+  const pao = estado.receitas[0];
+  const brioche = novaReceita('Brioche');
+  estado.receitas.push(brioche);
+
+  const daBrioche = criarRegistro(brioche, { alturaReal: 9.4 }, { id: 'g1', agora: T0 });
+  estado.registros.push(daBrioche);
+
+  // O caso que o filtro "Todas" do diário expõe: a fornada é de uma receita e
+  // a tela está mostrando outra.
+  estado.receitaAtivaId = pao.id;
+  assert.equal(receitaAtiva(estado).id, pao.id, 'a receita aberta é a outra');
+  assert.equal(receitaDoRegistro(estado, daBrioche).id, brioche.id);
+  assert.equal(receitaDoRegistro(estado, daBrioche).nome, 'Brioche');
+});
+
+test('fornada sem receita correspondente não aponta para lugar nenhum', () => {
+  const estado = estadoInicial();
+  const orfa = { ...criarRegistro(estado.receitas[0], {}, { id: 'g1', agora: T0 }), receitaId: 'sumiu' };
+
+  // Nenhum caminho do app produz isto — apagar receita apaga as fornadas e a
+  // importação filtra as órfãs — mas devolver a receita aberta por engano é
+  // exatamente o defeito que esta função existe para não cometer.
+  assert.equal(receitaDoRegistro(estado, orfa), null);
+  assert.equal(receitaDoRegistro(estado, null), null);
+  assert.equal(receitaDoRegistro(estado, undefined), null);
 });
