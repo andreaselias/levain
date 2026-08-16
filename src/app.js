@@ -58,6 +58,9 @@ const pct = (v) => `${fmtNum(v * 100, 1)}${uni('%')}`;
 const brl = (v) => `${moeda()}${fmtNum(v, 2)}`;
 const cm = (v) => `${fmtNum(v, 1)}${uni('cm')}`;
 
+// Fôrma e cesta se compram por volume, e ninguém compra em centímetro cúbico.
+const litros = (v) => `${fmtNum(v / 1000, 2)}${uni('L')}`;
+
 /** Inteiro quando o valor é redondo; uma casa quando a divisão deixou resto. */
 const redondo = (v) => Math.abs(v - Math.round(v)) < 0.05;
 const gAuto = (v) => (redondo(v) ? g(v) : g1(v));
@@ -326,10 +329,11 @@ function saidasPao(r) {
 
     <section class="secao">
       <h2 class="secao-titulo">Fôrma estimada</h2>
-      <div class="metricas tres">
+      <div class="metricas quatro">
         ${metrica('Comprimento', cm(r.pao.comprimento))}
         ${metrica('Largura', cm(r.pao.largura))}
         ${metrica('Altura', cm(r.pao.altura))}
+        ${metrica('Volume', litros(r.pao.volumeForma))}
       </div>
     </section>`;
 }

@@ -601,6 +601,13 @@ button {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+/* Quatro métricas precisam de contagem fixa: o auto-fit vai de 2 para 4
+   passando por 3, e no meio do caminho a quarta fica órfã numa linha só
+   dela, com um vão cinza do lado. */
+.metricas.quatro {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .metrica {
   background: var(--papel-2);
   box-shadow: 0 0 0 1px var(--linha);
