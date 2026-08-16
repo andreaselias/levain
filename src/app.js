@@ -978,6 +978,11 @@ function folhaFornada() {
       <input type="text" inputmode="decimal" id="f-peso" placeholder="pese um pão e anote">
     </label>
 
+    <label class="campo-livre">
+      <span>Altura do pão assado — estimado ${fmtNum(r.pao.altura, 1)} cm</span>
+      <input type="text" inputmode="decimal" id="f-altura" placeholder="meça um pão e anote">
+    </label>
+
     ${GRUPOS_DE_ESCALA.map(
       (grupo) => `<div class="escalas">
         <span class="escalas-titulo">${grupo}</span>
@@ -1061,6 +1066,7 @@ function salvarFornada() {
       quando: quandoCampo ? new Date(quandoCampo).toISOString() : undefined,
       observacao: document.getElementById('f-obs').value.trim(),
       pesoRealAssado: numeroOuNulo('f-peso'),
+      alturaReal: numeroOuNulo('f-altura'),
       notas,
       processo: {
         fermentacaoH: numeroOuNulo('f-fermentacao'),
