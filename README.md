@@ -155,3 +155,8 @@ combinada são os extras.
 
 O projeto e a referência completa de fórmulas estão em
 [`docs/superpowers/specs/`](docs/superpowers/specs/).
+
+## Licença
+
+[MIT](LICENSE) — use, altere e redistribua à vontade, inclusive comercialmente.
+Só mantenha o aviso de copyright.
