@@ -29,17 +29,19 @@ jobs:
       - name: Testes
         run: npm test
 
-      - name: O build commitado bate com o código-fonte?
-        # O build é determinístico: nada de data nem de aleatório entra nele.
-        # Então uma diferença aqui significa que alguém mexeu em src/ e esqueceu
-        # de rodar `npm run build` — e o site iria ao ar defasado.
+      - name: Construir a partir do código-fonte
+        # O site publicado é SEMPRE construído aqui, nunca o arquivo commitado.
+        # Assim é impossível ir ao ar código defasado, por construção.
         run: |
+          git show HEAD:index.html > /tmp/commitado.html
           npm run build
-          if ! git diff --quiet -- index.html artifact.html; then
-            echo "::error::index.html está defasado em relação a src/. Rode 'npm run build' e faça commit do resultado."
-            git diff --stat -- index.html artifact.html
-            exit 1
-          fi
+
+      - name: O build commitado bate com o código-fonte?
+        # Guard para quem baixa o index.html do repositório em vez de usar o
+        # site. Compara só <style> e <script>, que é o que vem de src/ — o
+        # ícone é PNG comprimido com zlib, e a saída do zlib varia com a versão
+        # da biblioteca, então byte a byte acusaria diferença sem nada errado.
+        run: node scripts/conferir-build.mjs /tmp/commitado.html index.html
 
       - name: Montar o site
         # Só o que o navegador precisa. O código-fonte fica no repositório, não
