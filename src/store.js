@@ -101,7 +101,9 @@ export function criarRegistro(receita, dados = {}, opcoes = {}) {
     pesoRealAssado: dados.pesoRealAssado ?? null,
     alturaReal: dados.alturaReal ?? null,
     notas: { ...notasEmBranco(), ...(dados.notas ?? {}) },
+    // Na ordem da linha do tempo: alimenta o starter, mistura, fermenta, gela.
     processo: {
+      ativacaoH: null,
       fermentacaoH: null,
       geladeiraH: null,
       temperaturaC: null,
@@ -330,6 +332,7 @@ function normalizarRegistro(bruto) {
     alturaReal: bruto.alturaReal ?? null,
     notas: { ...notasEmBranco(), ...(bruto.notas ?? {}) },
     processo: {
+      ativacaoH: null,
       fermentacaoH: null,
       geladeiraH: null,
       temperaturaC: null,
