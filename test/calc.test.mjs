@@ -11,6 +11,13 @@ function perto(atual, esperado, msg) {
   );
 }
 
+function pertoCom(atual, esperado, tol, msg) {
+  assert.ok(
+    Number.isFinite(atual) && Math.abs(atual - esperado) < tol,
+    `${msg}: esperado ~${esperado} (±${tol}), recebido ${atual}`
+  );
+}
+
 /** Gramas de um item da lista de resultado, pelo nome. */
 function gramas(lista, nome) {
   const item = lista.find((x) => x.nome === nome);
@@ -64,10 +71,46 @@ test('métricas derivadas reproduzem a planilha', () => {
   const { pao } = calcular(ENTRADAS_PADRAO);
   perto(pao.hidratacaoReal, 0.7076923077, 'hidratação real');
   perto(pao.pesoAssado, 498.4, 'peso assado por pão');
-  perto(pao.largura, 12.15141476, 'largura');
-  perto(pao.comprimento, 26.73311248, 'comprimento');
-  perto(pao.altura, 10.32870255, 'altura');
+  // Valor de referência da geometria corrigida: ∛(498,4 × 2,7 ÷ 0,55 ÷ 1,87).
+  // Tolerância mais folgada que a do resto porque é raiz cúbica calculada à
+  // mão — as identidades abaixo é que provam que a conta está certa.
+  pertoCom(pao.largura, 10.9374, 1e-3, 'largura');
   assert.equal(pao.fornadas, 1, 'fornadas');
+});
+
+test('a caixa fecha com o volume da fôrma — a raiz cúbica está no lugar certo', () => {
+  const { pao } = calcular(ENTRADAS_PADRAO);
+  // Era exatamente isto que a fórmula antiga violava: ela aplicava as
+  // proporções DEPOIS da raiz, e a caixa saía 1,87× maior que o volume usado
+  // para calculá-la.
+  perto(pao.comprimento * pao.largura * pao.altura, pao.volumeForma, 'caixa = volume da fôrma');
+  perto(pao.volumeForma * 0.55, pao.pesoAssado * 2.7, 'o pão ocupa 55% da fôrma');
+});
+
+test('as dimensões guardam as proporções de cada formato da tabela', () => {
+  for (const fmt of FORMATOS) {
+    const { pao } = calcular({ ...ENTRADAS_PADRAO, formato: fmt.chave });
+    perto(pao.comprimento / pao.largura, fmt.razaoC, `${fmt.chave}, comprimento`);
+    perto(pao.altura / pao.largura, fmt.razaoA, `${fmt.chave}, altura`);
+    perto(pao.comprimento * pao.largura * pao.altura, pao.volumeForma, `${fmt.chave}, caixa`);
+    perto(pao.volumeForma * fmt.preenchimento, pao.pesoAssado * 2.7, `${fmt.chave}, folga`);
+  }
+});
+
+test('mais crescimento dá pão maior, e o volume da fôrma acompanha', () => {
+  const magro = calcular({ ...ENTRADAS_PADRAO, volumeEspecifico: 2.1 }).pao;
+  const cheio = calcular({ ...ENTRADAS_PADRAO, volumeEspecifico: 3.4 }).pao;
+  assert.ok(cheio.altura > magro.altura, 'altura cresce com o volume específico');
+  perto(cheio.volumeForma / magro.volumeForma, 3.4 / 2.1, 'volume da fôrma é proporcional');
+});
+
+test('peso assado zero não produz dimensão negativa nem NaN', () => {
+  const semPao = calcular({ ...ENTRADAS_PADRAO, numeroPaes: 0 }).pao;
+  const crescimentoNegativo = calcular({ ...ENTRADAS_PADRAO, volumeEspecifico: -1 }).pao;
+  for (const chave of ['largura', 'comprimento', 'altura', 'volumeForma']) {
+    assert.equal(semPao[chave], 0, `${chave} zerado sem pão`);
+    assert.equal(crescimentoNegativo[chave], 0, `${chave} zerado com crescimento negativo`);
+  }
 });
 
 test('custos reproduzem a planilha', () => {

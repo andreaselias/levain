@@ -348,9 +348,20 @@ export function calcular(entradas) {
   const pesoAssadoMassa = massaPorPao * (1 - e.perdaForno);
   const pesoAssado = pesoAssadoMassa + solidosPorPao;
 
-  const largura = pesoAssado > 0 ? Math.cbrt((pesoAssado * 2.7) / 0.75) : 0;
-  const comprimento = largura * 2.2;
-  const altura = largura * 0.85;
+  // A ordem importa: o volume é dividido pelas razões ANTES da raiz cúbica.
+  // Fazer o contrário — que era o que esta conta fazia — infla a caixa pelo
+  // produto das razões e faz o volume específico significar outra coisa.
+  // `e.formato` já saiu validado da normalização, então a busca direta basta.
+  const fmt = FORMATO_POR_CHAVE[e.formato];
+  // Volume específico negativo não devia existir, mas a entrada não é
+  // validada antes daqui — sem o segundo termo da guarda, a fôrma sairia com
+  // volume negativo enquanto as dimensões, protegidas por `volumeForma > 0`,
+  // zerariam. Melhor as duas coisas zeradas juntas do que uma se contradizendo.
+  const volumeForma =
+    pesoAssado > 0 && e.volumeEspecifico > 0 ? (pesoAssado * e.volumeEspecifico) / fmt.preenchimento : 0;
+  const largura = volumeForma > 0 ? Math.cbrt(volumeForma / (fmt.razaoC * fmt.razaoA)) : 0;
+  const comprimento = largura * fmt.razaoC;
+  const altura = largura * fmt.razaoA;
   if (!(e.paesPorFornada > 0)) {
     avisos.push('Quantos pães cabem por fornada precisa ser maior que zero.');
   }
@@ -522,6 +533,7 @@ export function calcular(entradas) {
       largura: fin(largura),
       comprimento: fin(comprimento),
       altura: fin(altura),
+      volumeForma: fin(volumeForma),
       fornadas: fin(fornadas),
       tempoTotal: fin(tempoTotal),
     },
