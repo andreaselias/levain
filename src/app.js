@@ -727,6 +727,58 @@ function atualizar() {
 // Folhas modais
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Diálogos próprios
+//
+// `confirm()` e `alert()` nativos são IGNORADOS quando a página roda dentro de
+// um iframe com sandbox — que é o caso do link publicado. O navegador devolve
+// `false` sem mostrar nada, e toda ação protegida por confirmação simplesmente
+// não acontecia. Por isso a confirmação é desenhada na própria página.
+// ---------------------------------------------------------------------------
+
+let resolverDialogo = null;
+let temporizadorRecado = null;
+
+function confirmar({ titulo, mensagem = '', rotulo = 'Confirmar', perigo = false }) {
+  return new Promise((resolve) => {
+    // Se já houver um diálogo aberto, o anterior responde "não" e sai.
+    if (resolverDialogo) fecharDialogo(false);
+    resolverDialogo = resolve;
+    const el = document.getElementById('dialogo');
+    el.innerHTML = `<div class="folha-fundo" data-acao="dialogo-nao"></div>
+      <div class="dialogo-corpo" role="alertdialog" aria-modal="true">
+        <h2 class="dialogo-titulo">${escapar(titulo)}</h2>
+        ${mensagem ? `<p class="dialogo-texto">${escapar(mensagem)}</p>` : ''}
+        <div class="folha-acoes">
+          <button class="botao-principal${perigo ? ' perigo' : ''}" data-acao="dialogo-sim">${escapar(rotulo)}</button>
+          <button class="botao-secundario" data-acao="dialogo-nao">Cancelar</button>
+        </div>
+      </div>`;
+    el.hidden = false;
+    el.querySelector('[data-acao="dialogo-sim"]').focus();
+  });
+}
+
+function fecharDialogo(resposta) {
+  const el = document.getElementById('dialogo');
+  el.hidden = true;
+  el.innerHTML = '';
+  const responder = resolverDialogo;
+  resolverDialogo = null;
+  if (responder) responder(resposta);
+}
+
+/** Recado passageiro, no lugar do alert() que o sandbox engole. */
+function avisar(mensagem) {
+  const el = document.getElementById('recado');
+  el.textContent = mensagem;
+  el.hidden = false;
+  clearTimeout(temporizadorRecado);
+  temporizadorRecado = setTimeout(() => {
+    el.hidden = true;
+  }, 4500);
+}
+
 function abrirFolha(html) {
   const folha = document.getElementById('folha');
   folha.innerHTML = `<div class="folha-fundo" data-acao="fechar-folha"></div>
@@ -908,19 +960,26 @@ function folhaFornada() {
 // Ações
 // ---------------------------------------------------------------------------
 
-function aplicarBackup(texto) {
+async function aplicarBackup(texto) {
   const resultado = importar(texto);
   if (!resultado.ok) {
-    alert(`Não deu para importar: ${resultado.erro}`);
+    avisar(`Não deu para importar: ${resultado.erro}`);
     return;
   }
   const n = resultado.estado.receitas.length;
   const f = resultado.estado.registros.length;
-  if (!confirm(`Substituir tudo que está neste aparelho por ${n} receita(s) e ${f} fornada(s) do backup?`)) return;
+  const ok = await confirmar({
+    titulo: 'Restaurar backup?',
+    mensagem: `Isto substitui tudo que está neste aparelho por ${n} receita${n === 1 ? '' : 's'} e ${f} fornada${f === 1 ? '' : 's'} do arquivo.`,
+    rotulo: 'Restaurar',
+    perigo: true,
+  });
+  if (!ok) return;
   estado = resultado.estado;
   persistencia.salvar(estado);
   fecharFolha();
   render();
+  avisar('Backup restaurado.');
 }
 
 function salvarFornada() {
@@ -967,7 +1026,7 @@ function baixarBackup() {
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   } catch {
-    alert('O navegador bloqueou o download. Copie o texto do backup e guarde num arquivo.');
+    avisar('O navegador bloqueou o download. Use "Copiar" e guarde o texto num arquivo.');
   }
 }
 
@@ -1035,6 +1094,9 @@ function aplicarItem(lista, id, attr, valorExibido) {
 }
 
 const ACOES = {
+  'dialogo-sim': () => fecharDialogo(true),
+  'dialogo-nao': () => fecharDialogo(false),
+
   'abrir-receitas': folhaReceitas,
   'abrir-backup': folhaBackup,
   'fechar-folha': fecharFolha,
@@ -1050,10 +1112,10 @@ const ACOES = {
   'importar-texto'() {
     const texto = document.getElementById('json-entrada').value.trim();
     if (!texto) {
-      alert('Cole o conteúdo do backup na caixa antes de restaurar.');
+      avisar('Cole o conteúdo do backup na caixa antes de restaurar.');
       return;
     }
-    aplicarBackup(texto);
+    return aplicarBackup(texto);
   },
 
   'alternar-objetivo'() {
@@ -1098,24 +1160,35 @@ const ACOES = {
     render();
   },
 
-  'remover-item'(el) {
+  async 'remover-item'(el) {
     const { lista, id } = el.dataset;
     const ativa = receitaAtiva(estado);
     const ehComposicao = lista === 'composicaoPao' || lista === 'composicaoStarter';
 
     if (ehComposicao) {
       if (ativa.entradas[lista].length <= 1) {
-        alert('Precisa sobrar pelo menos uma farinha. Escolha outra antes de tirar esta.');
+        avisar('Precisa sobrar pelo menos uma farinha. Acrescente outra antes de tirar esta.');
         return;
       }
       const nome = ativa.entradas.farinhas.find((f) => f.id === id)?.nome ?? 'esta farinha';
       const onde = lista === 'composicaoPao' ? 'da massa' : 'do starter';
-      if (!confirm(`Tirar "${nome}" ${onde}? Ela continua no catálogo, com o preço.`)) return;
+      const ok = await confirmar({
+        titulo: `Tirar ${nome} ${onde}?`,
+        mensagem: 'Ela continua no catálogo, com o preço guardado, e pode voltar quando você quiser.',
+        rotulo: 'Tirar',
+      });
+      if (!ok) return;
       ativa.entradas[lista] = ativa.entradas[lista].filter((c) => c.farinhaId !== id);
     } else {
       const item = itemPorId(lista, id);
       if (!item) return;
-      if (!confirm(`Remover "${item.nome}" da receita?`)) return;
+      const ok = await confirmar({
+        titulo: `Remover ${item.nome}?`,
+        mensagem: 'O ingrediente sai da receita junto com o preço dele.',
+        rotulo: 'Remover',
+        perigo: true,
+      });
+      if (!ok) return;
       ativa.entradas[lista] = ativa.entradas[lista].filter((x) => x.id !== id);
     }
 
@@ -1173,15 +1246,23 @@ const ACOES = {
     render();
   },
 
-  'apagar-receita'(el) {
+  async 'apagar-receita'(el) {
     if (estado.receitas.length === 1) {
-      alert('Esta é a única receita. Crie outra antes de apagar esta.');
+      avisar('Esta é a única receita. Crie outra antes de apagar esta.');
       return;
     }
     const receita = estado.receitas.find((r) => r.id === el.dataset.id);
     if (!receita) return;
     const n = estado.registros.filter((r) => r.receitaId === receita.id).length;
-    if (!confirm(`Apagar a receita "${receita.nome}"?${n ? ` Isso também apaga ${n} fornada(s) do diário.` : ''}`)) return;
+    const ok = await confirmar({
+      titulo: `Apagar ${receita.nome}?`,
+      mensagem: n
+        ? `Isto apaga também ${n} fornada${n === 1 ? '' : 's'} do diário. Não dá para desfazer.`
+        : 'Não dá para desfazer.',
+      rotulo: 'Apagar',
+      perigo: true,
+    });
+    if (!ok) return;
 
     estado.receitas = estado.receitas.filter((r) => r.id !== receita.id);
     estado.registros = estado.registros.filter((r) => r.receitaId !== receita.id);
@@ -1193,14 +1274,20 @@ const ACOES = {
     render();
   },
 
-  'apagar-registro'(el) {
-    if (!confirm('Apagar esta fornada do diário?')) return;
+  async 'apagar-registro'(el) {
+    const ok = await confirmar({
+      titulo: 'Apagar esta fornada?',
+      mensagem: 'A observação e o retrato de parâmetros somem junto. Não dá para desfazer.',
+      rotulo: 'Apagar',
+      perigo: true,
+    });
+    if (!ok) return;
     estado.registros = estado.registros.filter((r) => r.id !== el.dataset.id);
     salvar();
     render();
   },
 
-  calibrar(el) {
+  async calibrar(el) {
     const registro = estado.registros.find((r) => r.id === el.dataset.id);
     if (!registro) return;
     const r = calcular(registro.snapshot);
@@ -1208,12 +1295,17 @@ const ACOES = {
     if (perda === null) return;
 
     const ativa = receitaAtiva(estado);
-    const atual = fmtNum(ativa.entradas.perdaForno * 100, 1);
-    if (!confirm(`Trocar a perda no forno de ${atual}% para ${fmtNum(perda * 100, 1)}% na receita "${ativa.nome}"?`)) return;
+    const ok = await confirmar({
+      titulo: 'Calibrar a perda no forno?',
+      mensagem: `Troca de ${fmtNum(ativa.entradas.perdaForno * 100, 1)}% para ${fmtNum(perda * 100, 1)}% na receita "${ativa.nome}", medido a partir deste pão.`,
+      rotulo: 'Calibrar',
+    });
+    if (!ok) return;
     ativa.entradas = { ...ativa.entradas, perdaForno: perda };
     marcarAlterada();
     salvar();
     render();
+    avisar(`Perda no forno agora é ${fmtNum(perda * 100, 1)}%.`);
   },
 
   escala(el) {
@@ -1258,7 +1350,9 @@ function montar() {
         </button>`
       ).join('')}
     </nav>
-    <div class="folha" id="folha" hidden></div>`;
+    <div class="folha" id="folha" hidden></div>
+    <div class="folha dialogo" id="dialogo" hidden></div>
+    <div class="recado" id="recado" role="status" hidden></div>`;
 
   document.addEventListener('click', (evento) => {
     const aba = evento.target.closest('.aba');
@@ -1270,8 +1364,19 @@ function montar() {
     const alvo = evento.target.closest('[data-acao]');
     if (alvo && ACOES[alvo.dataset.acao]) {
       evento.preventDefault();
-      ACOES[alvo.dataset.acao](alvo);
+      // Boa parte das ações é assíncrona por causa dos diálogos próprios; uma
+      // rejeição solta não pode derrubar o resto da interface em silêncio.
+      Promise.resolve(ACOES[alvo.dataset.acao](alvo)).catch((erro) => {
+        avisar('Alguma coisa deu errado nesta ação.');
+        console.error(erro);
+      });
     }
+  });
+
+  document.addEventListener('keydown', (evento) => {
+    if (evento.key !== 'Escape') return;
+    if (resolverDialogo) fecharDialogo(false);
+    else if (!document.getElementById('folha').hidden) fecharFolha();
   });
 
   document.addEventListener('input', (evento) => {
@@ -1310,7 +1415,7 @@ function montar() {
     if (!arquivo || !arquivo.files?.[0]) return;
     const leitor = new FileReader();
     leitor.onload = () => aplicarBackup(String(leitor.result));
-    leitor.onerror = () => alert('Não deu para ler o arquivo.');
+    leitor.onerror = () => avisar('Não deu para ler o arquivo.');
     leitor.readAsText(arquivo.files[0]);
   });
 

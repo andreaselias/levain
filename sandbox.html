@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Levain dentro de um sandbox</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 24px; line-height: 1.5; color: #222; }
+  p { max-width: 60ch; }
+  code { background: #eee; padding: 1px 4px; border-radius: 3px; }
+  iframe { width: 414px; height: 820px; border: 1px solid #999; border-radius: 4px; }
+</style>
+</head>
+<body>
+<h1>Levain dentro de um sandbox</h1>
+<p>
+  Reproduz as condições do link publicado, onde a página roda num iframe com
+  <code>sandbox</code> e sem <code>allow-modals</code>. Nessas condições o
+  navegador <strong>ignora</strong> <code>confirm()</code> e <code>alert()</code>
+  e bloqueia download — foi assim que se descobriu que todo botão de excluir
+  estava mudo. Sirva a pasta e abra esta página para conferir.
+</p>
+<iframe sandbox="allow-scripts allow-same-origin" src="./index.html"></iframe>
+</body>
+</html>

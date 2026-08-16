@@ -82,6 +82,12 @@ O build gera dois arquivos autocontidos, com CSS, JS e ícones embutidos:
 O JavaScript vira um script clássico de propósito: módulos ES são bloqueados por
 CORS quando a página abre via `file://`, que é justamente o caso de uso.
 
+`sandbox.html` embute o app num iframe com `sandbox`, reproduzindo as condições
+do link publicado. Vale conferir ali qualquer coisa que dependa de API do
+navegador: nesse contexto `confirm()`, `alert()` e download são **ignorados em
+silêncio**. É por isso que o app tem diálogo e recado próprios em vez dos
+nativos, e por isso o backup oferece copiar e colar além de baixar arquivo.
+
 ### Estrutura
 
 ```

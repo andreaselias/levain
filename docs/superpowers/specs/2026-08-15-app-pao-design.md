@@ -480,3 +480,41 @@ A participação sai de dentro do item do catálogo e vira as duas listas. A bas
 continua sendo o primeiro item, e as demais entram na composição só se o
 percentual era maior que zero — o que reproduz os números de v2 exatamente.
 `paesPorFornada` recebe 2 nas receitas antigas.
+
+---
+
+# Correção — diálogos nativos são ignorados no Artifact
+
+Data: 2026-08-15
+
+Relato: "os botões de excluir itens não estão funcionando".
+
+Causa: dentro de um iframe com `sandbox` e sem `allow-modals` — que é como o
+link publicado roda — o navegador **ignora** `confirm()` e devolve `false` sem
+mostrar nada:
+
+```
+Ignored call to 'confirm()'. The document is sandboxed,
+and the 'allow-modals' keyword is not set.
+```
+
+Como toda ação destrutiva estava protegida por `confirm()`, nada acontecia:
+remover farinha, líquido e sólido, apagar receita, apagar fornada, calibrar a
+perda e restaurar backup. `alert()` sofre do mesmo, então nem a mensagem de erro
+aparecia. É o mesmo parente do download bloqueado.
+
+O sandbox é do host, não dá para afrouxar. A correção é não depender de diálogo
+nativo:
+
+- `confirmar({titulo, mensagem, rotulo, perigo})` devolve uma Promise e desenha
+  a confirmação na própria página, numa camada acima da folha — porque quase
+  sempre é aberta de dentro de uma.
+- `avisar(mensagem)` mostra um recado passageiro no lugar do `alert()`.
+- Escape cancela; tocar fora cancela.
+
+Os manipuladores de ação passam a ser assíncronos, e o despachante de cliques
+captura rejeição para que uma falha não derrube a interface em silêncio.
+
+`sandbox.html` fica no repositório reproduzindo essas condições. Qualquer coisa
+que dependa de API do navegador deve ser conferida ali, não só na página solta —
+foi o que expôs esta classe inteira de defeito.
