@@ -62,6 +62,10 @@ export const ENTRADAS_PADRAO = {
   propAtivacaoStarter: 1,
   propAtivacaoFarinha: 3,
   propAtivacaoAgua: 3,
+  // Passo da balança para o que se pesa ao alimentar o pote. Separado do
+  // arredondamento da massa porque a escala é outra: 10 g numa ativação de
+  // 54 g destruiria a proporção.
+  arredondamentoAtivacao: 1,
 
   // Custos
   precoSal: 2.5,
@@ -106,6 +110,40 @@ const fin = (x) => (Number.isFinite(x) ? x : 0);
 
 function comoLista(valor) {
   return Array.isArray(valor) ? valor.filter((x) => x && typeof x === 'object') : [];
+}
+
+/**
+ * Reparte um total entre pesos mantendo cada parte num múltiplo do passo e a
+ * soma exatamente igual ao total.
+ *
+ * Usa maior resto: arredonda todas as partes para baixo e distribui as unidades
+ * que sobraram para quem tinha a maior fração. Arredondar cada parte por conta
+ * própria pareceria mais simples, mas aí a soma não fecha — e na cozinha isso
+ * vira uma grama a mais ou a menos de farinha sem explicação.
+ *
+ * A conta é feita em unidades inteiras do passo, o que também evita o ruído de
+ * ponto flutuante de somar 32,4 + 13,5 + 8,1.
+ */
+function repartirEmPassos(total, pesos, passo) {
+  if (pesos.length === 0) return [];
+  if (!(passo > 0)) return pesos.map((p) => total * p);
+
+  const unidades = Math.round(total / passo);
+  const ideais = pesos.map((p) => unidades * p);
+  const partes = ideais.map((v) => Math.floor(v + 1e-9));
+
+  let sobra = unidades - partes.reduce((soma, v) => soma + v, 0);
+  const porResto = ideais
+    .map((v, i) => ({ i, resto: v - Math.floor(v + 1e-9) }))
+    .sort((a, b) => b.resto - a.resto || a.i - b.i);
+
+  let k = 0;
+  while (sobra > 0 && porResto.length > 0) {
+    partes[porResto[k % porResto.length].i] += 1;
+    sobra -= 1;
+    k += 1;
+  }
+  return partes.map((u) => u * passo);
 }
 
 export function calcular(entradas) {
@@ -288,13 +326,18 @@ export function calcular(entradas) {
   const tempoTotal = e.tempoPreAquecimento + e.tempoCozimento * fornadas;
 
   // --- 6. Ativação do starter ---------------------------------------------
+  // Tudo que se pesa ao alimentar o pote cai no passo da balança: as
+  // proporções sozinhas produzem valores como 46,667 g, que ninguém mede.
+  const passoAtivacao = e.arredondamentoAtivacao;
+  const snapAtivacao = (x) => (passoAtivacao > 0 ? excelRound(x / passoAtivacao) * passoAtivacao : x);
+
   let maeParaAtivar = 0;
   let farinhaAtivar = 0;
   let aguaAtivar = 0;
   if (rSt > 0 && somaProp > 0) {
     maeParaAtivar = roundUp((starter * rSt) / somaProp);
-    farinhaAtivar = (maeParaAtivar * rFl) / rSt;
-    aguaAtivar = (maeParaAtivar * rWa) / rSt;
+    farinhaAtivar = snapAtivacao((maeParaAtivar * rFl) / rSt);
+    aguaAtivar = snapAtivacao((maeParaAtivar * rWa) / rSt);
   }
   const totalAtivado = maeParaAtivar + farinhaAtivar + aguaAtivar;
   const sobra = Math.max(totalAtivado - starter, 0);
@@ -311,12 +354,18 @@ export function calcular(entradas) {
 
   // A farinha que se PESA para alimentar o pote, repartida pela mesma
   // composição. Sem isto o ticket de ativação diz só "farinha: 54 g" e quem
-  // tem um pote misto não sabe quanto pôr de cada uma.
-  const farinhasParaAtivar = composicaoStarter.map((f) => ({
+  // tem um pote misto não sabe quanto pôr de cada uma. As partes caem no passo
+  // da balança e ainda assim somam o total exato.
+  const gramasParaAtivar = repartirEmPassos(
+    farinhaAtivar,
+    composicaoStarter.map((f) => f.pct),
+    passoAtivacao
+  );
+  const farinhasParaAtivar = composicaoStarter.map((f, i) => ({
     id: f.id,
     nome: f.nome,
     pct: f.pct,
-    gramas: farinhaAtivar * f.pct,
+    gramas: gramasParaAtivar[i] ?? 0,
   }));
 
   // --- 7. Custos -----------------------------------------------------------

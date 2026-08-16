@@ -388,12 +388,12 @@ function saidasStarter(r) {
       <div class="metricas">
         ${metrica('Hidratação do ativado', pct(r.starter.hidratacaoAtivado), true)}
         ${metrica('Sobra', g(r.starter.sobra))}
-        ${metrica('Farinha embutida', g1(r.starter.farinhaNoStarter))}
-        ${metrica('Água embutida', g1(r.starter.aguaNoStarter))}
+        ${metrica('Farinha embutida', gAuto(r.starter.farinhaNoStarter))}
+        ${metrica('Água embutida', gAuto(r.starter.aguaNoStarter))}
       </div>
       ${composicao.length
         ? `<p class="nota-rodape">Da farinha já embutida no starter: ${composicao
-            .map((f) => `${fmtNum(f.gramas, 1)} g de ${escapar(f.nome.toLowerCase())}`)
+            .map((f) => `${gAuto(f.gramas)} de ${escapar(f.nome.toLowerCase())}`)
             .join(', ')}.</p>`
         : ''}
     </section>`;

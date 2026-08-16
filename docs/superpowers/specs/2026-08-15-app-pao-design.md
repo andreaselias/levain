@@ -537,3 +537,36 @@ duas grandezas diferentes que o texto deixava confundir.
 ticket passa a listar uma linha por farinha, com a proporção como legenda. Com
 uma farinha só, some a legenda e o valor volta a ser inteiro. A nota de baixo
 foi reescrita para dizer "da farinha já embutida no starter".
+
+---
+
+# Correção — a ativação precisa sair em peso que se pesa
+
+Data: 2026-08-16
+
+Relato: "não consigo medir 5,4 g de farinha ou 48,6".
+
+Duas fontes de valor quebrado na ativação:
+
+1. A repartição por composição produzia frações (`54 × 0,9 = 48,6`).
+2. O **próprio total** já vinha quebrado com outras proporções:
+   `mãe × 5 ÷ 3 = 46,667 g`.
+
+`arredondamentoAtivacao` (padrão 1 g) é o passo da balança para tudo que se pesa
+ao alimentar o pote. É um campo à parte do `fatorArredondamento` da massa porque
+a escala é outra — 10 g numa ativação de 54 g destruiria a proporção.
+
+A repartição usa **maior resto**: arredonda todas as partes para baixo e
+distribui as unidades restantes para quem tinha a maior fração. Arredondar cada
+parte por conta própria seria mais simples e estaria errado — a soma não
+fecharia, e na cozinha isso vira uma grama sem explicação. Num passo de 5 g o
+método também protege a farinha minoritária: 10% de 45 g recebe 5 g em vez de
+ser zerada.
+
+A conta roda em unidades inteiras do passo, o que de quebra elimina o ruído de
+somar 32,4 + 13,5 + 8,1 e obter 86,99999999999999.
+
+`hidratacaoAtivado` continua saindo das proporções, não dos valores
+arredondados: fechar esse laço criaria dependência circular, já que a hidratação
+do starter dimensiona o próprio starter. O arredondamento é aproximação de
+balança, não redefinição da fórmula.

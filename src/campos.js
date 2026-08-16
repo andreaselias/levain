@@ -33,6 +33,7 @@ export const CAMPOS = [
   { chave: 'propAtivacaoStarter', rotulo: 'Proporção — starter', aba: 'starter', grupo: 'Ativação', unidade: '', passo: 1, casas: 1 },
   { chave: 'propAtivacaoFarinha', rotulo: 'Proporção — farinha', aba: 'starter', grupo: 'Ativação', unidade: '', passo: 1, casas: 1 },
   { chave: 'propAtivacaoAgua', rotulo: 'Proporção — água', aba: 'starter', grupo: 'Ativação', unidade: '', passo: 1, casas: 1 },
+  { chave: 'arredondamentoAtivacao', rotulo: 'Passo da balança', aba: 'starter', grupo: 'Ativação', unidade: 'g', passo: 0.5, casas: 1, dica: 'Arredonda o que você pesa para alimentar o pote. As partes continuam somando o total exato. Zero desliga.' },
 
   // --- Custos --------------------------------------------------------------
   { chave: 'precoSal', rotulo: 'Sal', aba: 'custos', grupo: 'Preço por quilo', unidade: 'R$/kg', passo: 0.1, casas: 2 },
