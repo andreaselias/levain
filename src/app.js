@@ -875,18 +875,14 @@ function fecharFolha() {
 function folhaReceitas() {
   const itens = estado.receitas
     .map((r) => {
-      const n = estado.registros.filter((x) => x.receitaId === r.id).length;
       const atual = r.id === estado.receitaAtivaId;
       return `<div class="item-receita" aria-current="${atual}">
         <button class="linha-receita" data-acao="trocar-receita" data-id="${r.id}">
           <span class="marca">${atual ? '●' : '○'}</span>
           <span class="nome">${escapar(r.nome)}</span>
-          <span class="contagem">${n} ${n === 1 ? 'fornada' : 'fornadas'}</span>
         </button>
         <span class="acoes-receita">
-          <button data-acao="renomear-receita" data-id="${r.id}" aria-label="Renomear ${escapar(r.nome)}" title="Renomear">✎</button>
-          <button data-acao="duplicar-receita" data-id="${r.id}" aria-label="Duplicar ${escapar(r.nome)}" title="Duplicar">⧉</button>
-          <button data-acao="apagar-receita" data-id="${r.id}" aria-label="Apagar ${escapar(r.nome)}" title="Apagar">🗑</button>
+          <button data-acao="menu-receita" data-id="${r.id}" aria-label="Ações de ${escapar(r.nome)}" title="Ações">⋮</button>
         </span>
       </div>`;
     })
@@ -899,6 +895,29 @@ function folhaReceitas() {
     <div class="folha-acoes">
       <button class="botao-principal" data-acao="abrir-backup">Backup</button>
       <button class="botao-secundario" data-acao="fechar-folha">Fechar</button>
+    </div>
+  `);
+}
+
+/**
+ * As ações de uma receita, escritas por extenso.
+ *
+ * Ocupa a mesma folha em vez de abrir uma segunda por cima: existe um `#folha`
+ * só e `abrirFolha` troca o conteúdo dele. "Voltar" reabre a lista — que é o
+ * mesmo caminho de volta que renomear e apagar já usavam.
+ */
+function folhaAcoesReceita(el) {
+  const receita = estado.receitas.find((r) => r.id === el.dataset.id);
+  if (!receita) return;
+  abrirFolha(`
+    <h2 class="folha-titulo">${escapar(receita.nome)}</h2>
+    <div class="lista-acoes">
+      <button data-acao="renomear-receita" data-id="${receita.id}">Renomear</button>
+      <button data-acao="duplicar-receita" data-id="${receita.id}">Duplicar</button>
+      <button class="perigo" data-acao="apagar-receita" data-id="${receita.id}">Apagar</button>
+    </div>
+    <div class="folha-acoes">
+      <button class="botao-secundario" data-acao="abrir-receitas">Voltar</button>
     </div>
   `);
 }
@@ -1204,6 +1223,7 @@ const ACOES = {
   'dialogo-nao': () => fecharDialogo(false),
 
   'abrir-receitas': folhaReceitas,
+  'menu-receita': folhaAcoesReceita,
   'abrir-backup': folhaBackup,
   'fechar-folha': fecharFolha,
   'nova-fornada': folhaFornada,
@@ -1348,6 +1368,10 @@ const ACOES = {
     estado.receitas.push(copia);
     estado.receitaAtivaId = copia.id;
     salvar();
+    // Fecha tudo, ao contrário de renomear e apagar, que voltam para a lista:
+    // duplicar já troca a receita ativa, e voltar para a lista deixaria a
+    // pessoa olhando uma lista enquanto a receita debaixo dela mudou. Quem
+    // duplica quer mexer na cópia.
     fecharFolha();
     render();
   },
