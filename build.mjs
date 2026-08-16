@@ -137,7 +137,7 @@ function desenharIcone(lado) {
 // Empacotamento dos módulos
 // ---------------------------------------------------------------------------
 
-const MODULOS = ['calc.js', 'campos.js', 'store.js', 'app.js'];
+const MODULOS = ['calc.js', 'campos.js', 'migrar.js', 'store.js', 'app.js'];
 
 function carregarModulo(nome) {
   const texto = fs.readFileSync(src(nome), 'utf8');

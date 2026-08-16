@@ -20,7 +20,7 @@ function agoraISO() {
   return new Date().toISOString();
 }
 
-function gerarId(prefixo = 'i') {
+export function gerarId(prefixo = 'i') {
   return `${prefixo}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
@@ -327,5 +327,3 @@ export function criarPersistencia(storage, chave = CHAVE_STORAGE) {
     },
   };
 }
-
-export { gerarId };

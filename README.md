@@ -3,12 +3,32 @@
 Calculadora de pão de fermentação natural, derivada da planilha `Tabela_de_pao.xlsx`.
 Roda no celular, offline, sem instalar nada de loja.
 
-Quatro abas sobre um motor de cálculo só:
+O objetivo — peso assado e número de pães — fica numa faixa fixa no topo, porque
+muda a cada produção e dimensiona todo o resto. Abaixo dele, quatro abas sobre um
+motor de cálculo só:
 
-- **🫧 Starter** — hidratação do starter-mãe, proporção de ativação, e quanto tirar do pote
-- **🍞 Pão** — percentuais de padeiro e a lista de pesagem em gramas
+- **🫧 Starter** — composição própria do pote, hidratação do mãe, proporção de ativação
+- **🍞 Pão** — composição e a lista de pesagem em gramas
 - **💰 Custos** — preços, energia, embalagem, custo por pão
 - **📓 Diário** — uma entrada por fornada, com o que mudou desde a anterior
+
+## Ingredientes
+
+Farinhas são um **catálogo**: nome, preço e duas porcentagens — uma no pão, outra
+no starter. A primeira da lista é a base e recebe o que sobrar para fechar 100%,
+então você declara só a farinha especial. Uma farinha acrescentada aparece nas
+três abas de uma vez.
+
+Extras se dividem em dois, porque se comportam de forma diferente:
+
+- **Líquidos** (azeite, mel, melado, leite) entram na massa e têm uma **fração de
+  água** — azeite 0%, melado 25%, mel 18%, leite 87%. A água que vem junto é
+  descontada da água pura, e a hidratação real reflete a verdade.
+- **Sólidos** (nozes, sementes) são informados **por pão** e somam no peso sem
+  alterar o equilíbrio farinha-água. O objetivo dimensiona a massa, então 40 g de
+  nozes deixam o pão 40 g mais pesado que o alvo — o resumo mostra a decomposição.
+
+Ingrediente zerado não aparece na lista de pesagem.
 
 ## Instalar no celular
 
@@ -35,12 +55,13 @@ dados do navegador apaga o diário.
 
 A planilha chuta 11% de perda de peso no forno. No diário, informe o peso real de
 um pão assado e o app resolve a perda verdadeira e grava na receita. É o que troca
-o chute por medição.
+o chute por medição. Extras sólidos são descontados dos dois lados da conta: eles
+não perdem água, e incluí-los faria a perda parecer menor do que é.
 
 ## Desenvolvimento
 
 ```sh
-npm test     # 45 testes do motor e do armazenamento
+npm test     # 77 testes do motor, da migração e do armazenamento
 npm run build
 ```
 
@@ -59,6 +80,7 @@ CORS quando a página abre via `file://`, que é justamente o caso de uso.
 ```
 src/calc.js       motor puro — sem DOM, sem estado, testável no Node
 src/campos.js     rótulo, aba, unidade e formatação de cada entrada
+src/migrar.js     conversão do formato antigo de campos fixos para o catálogo
 src/store.js      receitas, diário, diff, export/import, persistência
 src/app.js        interface
 src/styles.css    estilo
@@ -70,15 +92,17 @@ Excel — que normaliza para 15 dígitos significativos antes de arredondar. Sem
 isso a água sai 390 g em vez de 400 g, porque `(590+60)×0,7` vale
 `454,99999999999994` em ponto flutuante.
 
-Quatro comportamentos da planilha foram preservados de propósito, mesmo não sendo
-o ideal, porque são os números que já se conhece de cor:
+Comportamentos da planilha preservados de propósito, porque são os números que já
+se conhece de cor:
 
-1. **Extras** entra no custo, não no peso da massa
-2. A farinha de dentro do starter é cobrada ao preço da **farinha branca**
-3. A **água não tem custo**
-4. Cada ingrediente arredonda por conta própria, não o total
+1. A **água não tem custo**
+2. Cada ingrediente arredonda por conta própria, não o total
 
-Os dois primeiros aparecem como nota na interface, para não parecerem bug.
+Dois outros foram deliberadamente **corrigidos** nesta versão: extras sólidos
+agora entram no peso, e a farinha de dentro do starter passou a ser cobrada pelo
+preço da farinha dele em vez do da branca. Receitas salvas no formato antigo são
+convertidas ao abrir, e há teste provando que os números não mudam — a exceção
+combinada são os extras.
 
 O projeto e a referência completa de fórmulas estão em
 [`docs/superpowers/specs/`](docs/superpowers/specs/).

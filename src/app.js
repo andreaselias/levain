@@ -1,14 +1,16 @@
 /**
  * Interface: quatro abas sobre um motor de cálculo só.
  *
- * Regra de renderização: apenas o painel ativo existe no DOM. Enquanto o
- * usuário digita, nada é reconstruído — só os nós marcados com `data-saida`
- * recebem texto novo. É o que impede o campo de perder o foco a cada tecla.
+ * Regra de renderização: cada painel tem duas metades. As **saídas** são
+ * redesenhadas por inteiro a cada tecla — é o que permite um ingrediente
+ * aparecer e sumir da pesagem conforme o percentual sai do zero. As
+ * **entradas** só são construídas em render(), nunca durante a digitação, que
+ * é o que impede o campo de perder o foco.
  */
 
 import { calcular, calibrarPerda, ENTRADAS_PADRAO } from './calc.js';
-import { CAMPOS, CAMPO_POR_CHAVE, formatarEntrada, formatarValor, paraArmazenamento } from './campos.js';
-import { criarPersistencia, criarRegistro, diffDoRegistro, estadoInicial, exportar, importar, novaReceita, receitaAtiva, registrosDaReceita } from './store.js';
+import { CAMPOS, CAMPO_POR_CHAVE, MOLDE, formatarEntrada, formatarValor, paraArmazenamento } from './campos.js';
+import { criarPersistencia, criarRegistro, diffDoRegistro, estadoInicial, exportar, gerarId, importar, novaReceita, receitaAtiva, registrosDaReceita } from './store.js';
 
 const ABAS = [
   { id: 'starter', glifo: '🫧', rotulo: 'Starter' },
@@ -31,6 +33,7 @@ const persistencia = criarPersistencia(
 let estado = persistencia.carregar() ?? estadoInicial();
 let abaAtiva = 'pao';
 let filtroDiario = 'receita';
+let objetivoAberto = false;
 let temporizadorSalvar = null;
 
 // ---------------------------------------------------------------------------
@@ -45,29 +48,23 @@ function fmtNum(valor, casas) {
       new Intl.NumberFormat('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas })
     );
   }
-  return formatadores.get(casas).format(valor);
+  return formatadores.get(casas).format(Number.isFinite(valor) ? valor : 0);
 }
 
-function unidade(texto) {
-  return `<span class="unidade">${texto}</span>`;
-}
+const uni = (texto) => `<span class="unidade">${texto}</span>`;
+const g = (v) => `${fmtNum(v, 0)}${uni('g')}`;
+const g1 = (v) => `${fmtNum(v, 1)}${uni('g')}`;
+const pct = (v) => `${fmtNum(v * 100, 1)}${uni('%')}`;
+const brl = (v) => `${uni('R$')}${fmtNum(v, 2)}`;
+const cm = (v) => `${fmtNum(v, 1)}${uni('cm')}`;
 
-/** Converte o valor cru num pedaço de HTML já formatado, conforme o tipo. */
-function formatarSaida(valor, tipo) {
-  const n = Number.isFinite(valor) ? valor : 0;
-  switch (tipo) {
-    case 'g': return `${fmtNum(n, 0)}${unidade('g')}`;
-    case 'g1': return `${fmtNum(n, 1)}${unidade('g')}`;
-    case 'pct': return `${fmtNum(n * 100, 1)}${unidade('%')}`;
-    case 'brl': return `${unidade('R$')}${fmtNum(n, 2)}`;
-    case 'brl4': return `${unidade('R$')}${fmtNum(n, 4)}`;
-    case 'cm': return `${fmtNum(n, 1)}${unidade('cm')}`;
-    default: return fmtNum(n, 0);
-  }
-}
-
-function caminho(objeto, rota) {
-  return rota.split('.').reduce((acc, parte) => (acc == null ? acc : acc[parte]), objeto);
+function formatarMinutos(minutos) {
+  const total = Math.max(0, Math.round(minutos));
+  const horas = Math.floor(total / 60);
+  const resto = total % 60;
+  if (horas === 0) return `${resto}${uni('min')}`;
+  if (resto === 0) return `${horas}${uni('h')}`;
+  return `${horas}${uni('h')} ${resto}${uni('min')}`;
 }
 
 /** Aceita tanto "70,5" quanto "70.5"; ponto vira separador de milhar se houver vírgula. */
@@ -105,71 +102,225 @@ function salvar() {
   temporizadorSalvar = setTimeout(() => persistencia.salvar(estado), 300);
 }
 
+function marcarAlterada() {
+  receitaAtiva(estado).atualizadaEm = new Date().toISOString();
+}
+
 // ---------------------------------------------------------------------------
 // Blocos reutilizáveis
 // ---------------------------------------------------------------------------
 
-function linhaTicket(rotulo, rota, tipo, zeroSe) {
-  return `<div class="ticket-linha${zeroSe ? ' apagada' : ''}">
-    <span class="ticket-nome">${rotulo}</span>
+function linhaTicket(rotulo, valorHtml, detalhe) {
+  return `<div class="ticket-linha">
+    <span class="ticket-nome">${escapar(rotulo)}${detalhe ? `<span class="ticket-detalhe">${detalhe}</span>` : ''}</span>
     <span class="ticket-pontilhado"></span>
-    <span class="ticket-valor" data-saida="${rota}" data-fmt="${tipo}"></span>
+    <span class="ticket-valor">${valorHtml}</span>
   </div>`;
 }
 
-function metrica(rotulo, rota, tipo, destaque) {
+function metrica(rotulo, valorHtml, destaque) {
   return `<div class="metrica${destaque ? ' destaque' : ''}">
     <span class="rotulo">${rotulo}</span>
-    <span class="valor" data-saida="${rota}" data-fmt="${tipo}"></span>
+    <span class="valor">${valorHtml}</span>
   </div>`;
+}
+
+function blocoAvisos(resultado) {
+  if (!resultado.avisos.length) return '';
+  return resultado.avisos
+    .map((a) => `<div class="aviso"><span>⚠</span><span>${escapar(a)}</span></div>`)
+    .join('');
+}
+
+/** Grupo de controles [− valor unidade +] para um campo simples ou item de lista. */
+function controleNumerico(molde, valor, atributos, rotuloAria) {
+  const unidade = molde.unidade === '%' ? '%' : (molde.unidade ?? '').replace('R$/kg', '/kg').replace('R$', '').replace('g/pão', 'g');
+  return `<span class="campo-controle">
+    <button class="passo" data-acao="passo" ${atributos} data-sinal="-1" aria-label="Diminuir ${escapar(rotuloAria)}">−</button>
+    <input type="text" inputmode="decimal" ${atributos} value="${formatarEntrada(molde, valor)}" aria-label="${escapar(rotuloAria)}">
+    <span class="campo-unidade">${unidade}</span>
+    <button class="passo" data-acao="passo" ${atributos} data-sinal="1" aria-label="Aumentar ${escapar(rotuloAria)}">+</button>
+  </span>`;
 }
 
 function campoEntrada(chave, entradas) {
   const campo = CAMPO_POR_CHAVE[chave];
-  const valor = formatarEntrada(campo, entradas[chave]);
   return `<div class="campo">
     <span class="campo-texto">
       <span class="campo-rotulo">${campo.rotulo}</span>
       ${campo.dica ? `<span class="campo-dica">${campo.dica}</span>` : ''}
     </span>
-    <span class="campo-controle">
-      <button class="passo" data-acao="passo" data-campo-alvo="${chave}" data-sinal="-1" aria-label="Diminuir ${campo.rotulo}">−</button>
-      <input type="text" inputmode="decimal" data-campo="${chave}" value="${valor}" aria-label="${campo.rotulo}">
-      <span class="campo-unidade">${campo.unidade === '%' ? '%' : campo.unidade.replace('R$/kg', '/kg').replace('R$', '')}</span>
-      <button class="passo" data-acao="passo" data-campo-alvo="${chave}" data-sinal="1" aria-label="Aumentar ${campo.rotulo}">+</button>
-    </span>
+    ${controleNumerico(campo, entradas[chave], `data-campo="${chave}"`, campo.rotulo)}
   </div>`;
 }
 
-function grupoDeCampos(aba, grupo, entradas) {
+function grupoDeCampos(aba, grupo, entradas, extra = '') {
   const chaves = CAMPOS.filter((c) => c.aba === aba && c.grupo === grupo).map((c) => c.chave);
-  if (chaves.length === 0) return '';
+  if (chaves.length === 0 && !extra) return '';
   return `<section class="secao">
     <h2 class="secao-titulo">${grupo}</h2>
-    <div class="grupo">${chaves.map((k) => campoEntrada(k, entradas)).join('')}</div>
+    <div class="grupo">${chaves.map((k) => campoEntrada(k, entradas)).join('')}${extra}</div>
   </section>`;
 }
 
-function blocoAvisos() {
-  return `<div id="avisos"></div>`;
+/**
+ * Linha editável de um item de lista: nome, o valor principal e, quando houver,
+ * um valor secundário na linha de baixo.
+ */
+function itemDeLista(lista, item, indice, principal, secundarios = [], podeApagar = true) {
+  const alvo = (attr) => `data-lista="${lista}" data-id="${item.id}" data-attr="${attr}"`;
+  const ehBase = lista === 'farinhas' && indice === 0;
+
+  const controlePrincipal = ehBase
+    ? `<span class="valor-resto" data-resto="${principal.attr}">—</span>`
+    : controleNumerico(principal.molde, item[principal.attr], alvo(principal.attr), `${item.nome}, ${principal.rotulo}`);
+
+  return `<div class="item-lista${ehBase ? ' base' : ''}">
+    <div class="item-linha">
+      <input type="text" class="item-nome" ${alvo('nome')} value="${escapar(item.nome)}" aria-label="Nome do ingrediente" placeholder="Nome">
+      ${controlePrincipal}
+      ${podeApagar
+        ? `<button class="item-remover" data-acao="remover-item" data-lista="${lista}" data-id="${item.id}" aria-label="Remover ${escapar(item.nome)}">✕</button>`
+        : '<span class="item-remover vazio"></span>'}
+    </div>
+    ${secundarios
+      .map(
+        (s) => `<div class="item-linha secundaria">
+          <span class="item-rotulo-menor">${s.rotulo}</span>
+          ${controleNumerico(s.molde, item[s.attr], alvo(s.attr), `${item.nome}, ${s.rotulo}`)}
+        </div>`
+      )
+      .join('')}
+    ${ehBase ? '<p class="item-nota">Base da receita: recebe o que sobrar para fechar 100%.</p>' : ''}
+  </div>`;
+}
+
+function listaEditavel(titulo, lista, itens, principal, secundarios, acaoAdicionar, rotuloAdicionar, nota) {
+  const podeApagar = itens.length > 1 || lista !== 'farinhas';
+  return `<section class="secao">
+    <h2 class="secao-titulo">${titulo}</h2>
+    <div class="lista-itens">
+      ${itens.map((item, i) => itemDeLista(lista, item, i, principal, secundarios, podeApagar)).join('')}
+      ${itens.length === 0 ? `<p class="lista-vazia">Nenhum item.</p>` : ''}
+    </div>
+    <button class="botao-adicionar" data-acao="${acaoAdicionar}">+ ${rotuloAdicionar}</button>
+    ${nota ? `<p class="nota-rodape">${nota}</p>` : ''}
+  </section>`;
 }
 
 // ---------------------------------------------------------------------------
-// Painéis
+// Aba Pão
 // ---------------------------------------------------------------------------
 
-function painelStarter(entradas) {
+function saidasPao(r, entradas) {
+  const usados = r.pao.farinhas.filter((f) => f.gramas > 0);
+  const liquidos = r.pao.liquidos.filter((l) => l.gramas > 0);
+  const solidos = r.pao.solidos.filter((s) => s.gramas > 0);
+  const temSolidos = r.pao.solidosPorPao > 0;
+
+  const linhas = [
+    ...usados.map((f) => linhaTicket(f.nome, g(f.gramas))),
+    linhaTicket('Água', g(r.pao.agua)),
+    linhaTicket('Starter ativado', g(r.pao.starter)),
+    linhaTicket('Sal', g(r.pao.sal)),
+    ...liquidos.map((l) => linhaTicket(l.nome, g(l.gramas))),
+    ...solidos.map((s) =>
+      linhaTicket(s.nome, g(s.gramas), `${fmtNum(s.gramasPorPao, 0)} g por pão`)
+    ),
+  ].join('');
+
   return `
+    ${blocoAvisos(r)}
+    <section class="secao">
+      <h2 class="secao-titulo">Pesagem</h2>
+      <div class="ticket">
+        <div class="ticket-borda"></div>
+        ${linhas}
+        <div class="ticket-rodape">
+          <span class="rotulo">${temSolidos ? 'Peso total' : 'Peso total da massa'}</span>
+          <span class="valor">${g(r.pao.pesoTotal)}</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="secao">
+      <h2 class="secao-titulo">Resultado esperado</h2>
+      <div class="metricas">
+        ${metrica('Hidratação real', pct(r.pao.hidratacaoReal), true)}
+        ${metrica('Cru por pão', g(r.pao.pesoPorPao))}
+        ${metrica('Assado por pão', g1(r.pao.pesoAssado))}
+        ${metrica('Fornadas', fmtNum(r.pao.fornadas, 0))}
+        ${metrica('Tempo de forno', formatarMinutos(r.pao.tempoTotal))}
+      </div>
+      ${temSolidos
+        ? `<p class="nota-rodape">O objetivo dimensiona a massa: ${fmtNum(r.pao.pesoAssadoMassa, 0)} g de massa assada + ${fmtNum(r.pao.solidosPorPao, 0)} g de extras sólidos por pão.</p>`
+        : '<p class="nota-rodape">A hidratação real passa do valor pedido porque conta também a água que veio dentro do starter.</p>'}
+    </section>
+
+    <section class="secao">
+      <h2 class="secao-titulo">Fôrma estimada</h2>
+      <div class="metricas tres">
+        ${metrica('Comprimento', cm(r.pao.comprimento))}
+        ${metrica('Largura', cm(r.pao.largura))}
+        ${metrica('Altura', cm(r.pao.altura))}
+      </div>
+    </section>`;
+}
+
+function entradasPao(entradas) {
+  return `
+    ${listaEditavel(
+      'Farinhas',
+      'farinhas',
+      entradas.farinhas,
+      { attr: 'pct', molde: MOLDE.pct, rotulo: 'percentual' },
+      [],
+      'add-farinha',
+      'farinha',
+      'Percentuais sobre a farinha total. A primeira da lista é a base e recebe o resto.'
+    )}
+    ${grupoDeCampos('pao', 'Proporções', entradas)}
+    ${listaEditavel(
+      'Líquidos',
+      'liquidos',
+      entradas.liquidos,
+      { attr: 'pct', molde: MOLDE.pct, rotulo: 'percentual' },
+      [{ attr: 'fracaoAgua', molde: MOLDE.fracaoAgua, rotulo: 'Quanto é água' }],
+      'add-liquido',
+      'líquido',
+      'Entram na massa. A fração de água é descontada da água pura: azeite 0%, melado 25%, mel 18%, leite 87%.'
+    )}
+    ${listaEditavel(
+      'Extras sólidos',
+      'solidos',
+      entradas.solidos,
+      { attr: 'gramasPorPao', molde: MOLDE.gramasPorPao, rotulo: 'gramas por pão' },
+      [],
+      'add-solido',
+      'sólido',
+      'Somam no peso do pão sem alterar o equilíbrio farinha-água. A perda no forno não se aplica a eles.'
+    )}
+    ${grupoDeCampos('pao', 'Ajustes', entradas)}`;
+}
+
+// ---------------------------------------------------------------------------
+// Aba Starter
+// ---------------------------------------------------------------------------
+
+function saidasStarter(r) {
+  const composicao = r.starter.farinhas.filter((f) => f.gramas > 0.05);
+  return `
+    ${blocoAvisos(r)}
     <section class="secao">
       <h2 class="secao-titulo">Ativação para esta receita</h2>
       <div class="ticket">
         <div class="ticket-borda"></div>
-        ${linhaTicket('Starter-mãe do pote', 'starter.maeParaAtivar', 'g')}
-        ${linhaTicket('Farinha', 'starter.farinhaAtivar', 'g')}
-        ${linhaTicket('Água', 'starter.aguaAtivar', 'g')}
+        ${linhaTicket('Starter-mãe do pote', g(r.starter.maeParaAtivar))}
+        ${linhaTicket('Farinha', g(r.starter.farinhaAtivar))}
+        ${linhaTicket('Água', g(r.starter.aguaAtivar))}
         <div class="ticket-rodape">
           <span class="rotulo">Starter ativado</span>
-          <span class="valor" data-saida="starter.totalAtivado" data-fmt="g"></span>
+          <span class="valor">${g(r.starter.totalAtivado)}</span>
         </div>
       </div>
       <p class="nota-rodape">As quantidades saem da necessidade de starter da receita, arredondada para cima — por isso costuma sobrar um pouco.</p>
@@ -178,79 +329,51 @@ function painelStarter(entradas) {
     <section class="secao">
       <h2 class="secao-titulo">O que o starter carrega</h2>
       <div class="metricas">
-        ${metrica('Hidratação do ativado', 'starter.hidratacaoAtivado', 'pct', true)}
-        ${metrica('Sobra', 'starter.sobra', 'g')}
-        ${metrica('Farinha embutida', 'starter.farinhaNoStarter', 'g1')}
-        ${metrica('Água embutida', 'starter.aguaNoStarter', 'g1')}
+        ${metrica('Hidratação do ativado', pct(r.starter.hidratacaoAtivado), true)}
+        ${metrica('Sobra', g(r.starter.sobra))}
+        ${metrica('Farinha embutida', g1(r.starter.farinhaNoStarter))}
+        ${metrica('Água embutida', g1(r.starter.aguaNoStarter))}
       </div>
-      <p class="nota-rodape">A farinha e a água de dentro do starter são descontadas da receita — é por isso que mexer aqui muda os pesos da aba Pão.</p>
-    </section>
+      ${composicao.length
+        ? `<p class="nota-rodape">Dessa farinha: ${composicao
+            .map((f) => `${fmtNum(f.gramas, 1)} g de ${escapar(f.nome.toLowerCase())}`)
+            .join(', ')}.</p>`
+        : ''}
+    </section>`;
+}
 
-    ${blocoAvisos()}
+function entradasStarter(entradas) {
+  return `
+    ${listaEditavel(
+      'Composição do starter',
+      'farinhas',
+      entradas.farinhas,
+      { attr: 'pctStarter', molde: MOLDE.pct, rotulo: 'percentual no starter' },
+      [],
+      'add-farinha',
+      'farinha',
+      'De que farinha o seu pote é alimentado. É independente da composição do pão — dá para ter um starter de centeio num pão branco.'
+    )}
     ${grupoDeCampos('starter', 'Starter-mãe', entradas)}
-    ${grupoDeCampos('starter', 'Ativação', entradas)}
-  `;
+    ${grupoDeCampos('starter', 'Ativação', entradas)}`;
 }
 
-function painelPao(entradas) {
-  const zero = (chave) => !(Number(entradas[chave]) > 0);
+// ---------------------------------------------------------------------------
+// Aba Custos
+// ---------------------------------------------------------------------------
+
+function saidasCustos(r) {
   return `
-    <section class="secao">
-      <h2 class="secao-titulo">Pesagem</h2>
-      <div class="ticket">
-        <div class="ticket-borda"></div>
-        ${linhaTicket('Farinha branca', 'pao.farinhaBranca', 'g')}
-        ${linhaTicket('Farinha integral', 'pao.integral', 'g', zero('pctIntegral'))}
-        ${linhaTicket('Farinha de centeio', 'pao.centeio', 'g', zero('pctCenteio'))}
-        ${linhaTicket('Água', 'pao.agua', 'g')}
-        ${linhaTicket('Starter ativado', 'pao.starter', 'g')}
-        ${linhaTicket('Sal', 'pao.sal', 'g')}
-        ${linhaTicket('Melado', 'pao.melado', 'g', zero('pctMelado'))}
-        <div class="ticket-rodape">
-          <span class="rotulo">Peso total da massa</span>
-          <span class="valor" data-saida="pao.pesoTotal" data-fmt="g"></span>
-        </div>
-      </div>
-    </section>
-
-    <section class="secao">
-      <h2 class="secao-titulo">Resultado esperado</h2>
-      <div class="metricas">
-        ${metrica('Hidratação real', 'pao.hidratacaoReal', 'pct', true)}
-        ${metrica('Massa por pão', 'pao.pesoPorPao', 'g')}
-        ${metrica('Assado por pão', 'pao.pesoAssado', 'g1')}
-        ${metrica('Fornadas', 'pao.fornadas', 'int')}
-      </div>
-      <p class="nota-rodape">A hidratação real passa de 70% porque conta também a água que veio dentro do starter.</p>
-    </section>
-
-    <section class="secao">
-      <h2 class="secao-titulo">Fôrma estimada</h2>
-      <div class="metricas tres">
-        ${metrica('Comprimento', 'pao.comprimento', 'cm')}
-        ${metrica('Largura', 'pao.largura', 'cm')}
-        ${metrica('Altura', 'pao.altura', 'cm')}
-      </div>
-    </section>
-
-    ${blocoAvisos()}
-    ${grupoDeCampos('pao', 'Objetivo', entradas)}
-    ${grupoDeCampos('pao', 'Percentuais de padeiro', entradas)}
-    ${grupoDeCampos('pao', 'Ajustes', entradas)}
-  `;
-}
-
-function painelCustos(entradas) {
-  return `
+    ${blocoAvisos(r)}
     <section class="secao">
       <div class="heroi">
         <div>
           <span class="rotulo">Custo por pão embalado</span>
-          <span class="valor" data-saida="custos.porPaoEmbalado" data-fmt="brl"></span>
+          <span class="valor">${brl(r.custos.porPaoEmbalado)}</span>
         </div>
         <div class="lateral">
-          <div>pão só: <span data-saida="custos.porPao" data-fmt="brl"></span></div>
-          <div>fornada: <span data-saida="custos.producao" data-fmt="brl"></span></div>
+          <div>pão só: ${brl(r.custos.porPao)}</div>
+          <div>fornada: ${brl(r.custos.producao)}</div>
         </div>
       </div>
     </section>
@@ -258,21 +381,39 @@ function painelCustos(entradas) {
     <section class="secao">
       <h2 class="secao-titulo">De onde vem o custo</h2>
       <div class="metricas tres">
-        ${metrica('Ingredientes', 'custos.ingredientes', 'brl')}
-        ${metrica('Embalagem', 'custos.embalagemTotal', 'brl')}
-        ${metrica('Energia', 'custos.energia', 'brl')}
+        ${metrica('Ingredientes', brl(r.custos.ingredientes))}
+        ${metrica('Embalagem', brl(r.custos.embalagemTotal))}
+        ${metrica('Energia', brl(r.custos.energia))}
       </div>
-      <p class="nota-rodape">A farinha que vem dentro do starter é cobrada ao preço da branca, e a água não entra no custo — igual à planilha.</p>
-    </section>
-
-    ${blocoAvisos()}
-    ${grupoDeCampos('custos', 'Preço por quilo', entradas)}
-    ${grupoDeCampos('custos', 'Energia', entradas)}
-    ${grupoDeCampos('custos', 'Embalagem (por pão)', entradas)}
-  `;
+      <p class="nota-rodape">A farinha que vem dentro do starter é cobrada pelo preço da farinha dele. A água não entra no custo.</p>
+    </section>`;
 }
 
-// --- Diário ----------------------------------------------------------------
+function precosDaLista(lista, itens) {
+  return itens
+    .map(
+      (item) => `<div class="campo">
+        <span class="campo-texto"><span class="campo-rotulo">${escapar(item.nome)}</span></span>
+        ${controleNumerico(MOLDE.preco, item.preco, `data-lista="${lista}" data-id="${item.id}" data-attr="preco"`, `Preço de ${item.nome}`)}
+      </div>`
+    )
+    .join('');
+}
+
+function entradasCustos(entradas) {
+  const precos =
+    precosDaLista('farinhas', entradas.farinhas) +
+    precosDaLista('liquidos', entradas.liquidos) +
+    precosDaLista('solidos', entradas.solidos);
+  return `
+    ${grupoDeCampos('custos', 'Preço por quilo', entradas, precos)}
+    ${grupoDeCampos('custos', 'Energia', entradas)}
+    ${grupoDeCampos('custos', 'Embalagem (por pão)', entradas)}`;
+}
+
+// ---------------------------------------------------------------------------
+// Aba Diário
+// ---------------------------------------------------------------------------
 
 function pontos(valor) {
   let html = '<span class="pontos">';
@@ -282,10 +423,10 @@ function pontos(valor) {
 
 function blocoPesagem(registro) {
   if (!(Number(registro.pesoRealAssado) > 0)) return '';
-  const estimado = calcular(registro.snapshot).pao.pesoAssado;
-  const perda = calibrarPerda(calcular(registro.snapshot).pao.pesoPorPao, Number(registro.pesoRealAssado));
+  const r = calcular(registro.snapshot);
+  const perda = calibrarPerda(r.pao.massaPorPao, Number(registro.pesoRealAssado), r.pao.solidosPorPao);
   return `<div class="pesagem-real">
-    <span class="sep">estimado</span> ${fmtNum(estimado, 0)} g
+    <span class="sep">estimado</span> ${fmtNum(r.pao.pesoAssado, 0)} g
     <span class="sep">·</span>
     <span class="sep">real</span> <span class="real">${fmtNum(Number(registro.pesoRealAssado), 0)} g</span>
     ${perda === null ? '' : `<button class="calibrar" data-acao="calibrar" data-id="${registro.id}">calibrar perda → ${fmtNum(perda * 100, 1)}%</button>`}
@@ -293,12 +434,19 @@ function blocoPesagem(registro) {
 }
 
 function blocoRetrato(registro) {
-  const linhas = CAMPOS.map(
-    (c) => `<dt>${c.rotulo}</dt><dd>${formatarValor(c, registro.snapshot[c.chave])}</dd>`
-  ).join('');
+  const e = registro.snapshot;
+  const linhas = [];
+  for (const c of CAMPOS) linhas.push([c.rotulo, formatarValor(c, e[c.chave])]);
+  for (const f of e.farinhas ?? []) {
+    linhas.push([`${f.nome} — no pão`, formatarValor(MOLDE.pct, f.pct)]);
+    linhas.push([`${f.nome} — no starter`, formatarValor(MOLDE.pct, f.pctStarter)]);
+  }
+  for (const l of e.liquidos ?? []) linhas.push([l.nome, formatarValor(MOLDE.pct, l.pct)]);
+  for (const s of e.solidos ?? []) linhas.push([s.nome, formatarValor(MOLDE.gramasPorPao, s.gramasPorPao)]);
+
   return `<details class="retrato">
     <summary>Parâmetros desta fornada</summary>
-    <dl class="retrato-lista">${linhas}</dl>
+    <dl class="retrato-lista">${linhas.map(([k, v]) => `<dt>${escapar(k)}</dt><dd>${v}</dd>`).join('')}</dl>
   </details>`;
 }
 
@@ -327,20 +475,14 @@ function cartaoRegistro(registro, mostrarReceita) {
       <span class="registro-data">${dataLegivel(registro.quando)}</span>
       ${mostrarReceita && receita ? `<span class="registro-receita">${escapar(receita.nome)}</span>` : ''}
     </div>
-    ${
-      diffs.length
-        ? `<div class="diffs">${diffs
-            .map(
-              (d) =>
-                `<span class="diff">${escapar(d.rotulo)} <span class="de">${escapar(d.de)}</span> → <span class="para">${escapar(d.para)}</span></span>`
-            )
-            .join('')}</div>`
-        : `<p class="diff-vazio">${
-            ehAPrimeira
-              ? 'Primeira fornada registrada desta receita.'
-              : 'Sem alterações nos parâmetros desde a fornada anterior.'
-          }</p>`
-    }
+    ${diffs.length
+      ? `<div class="diffs">${diffs
+          .map(
+            (d) =>
+              `<span class="diff">${escapar(d.rotulo)} <span class="de">${escapar(d.de)}</span> → <span class="para">${escapar(d.para)}</span></span>`
+          )
+          .join('')}</div>`
+      : `<p class="diff-vazio">${ehAPrimeira ? 'Primeira fornada registrada desta receita.' : 'Sem alterações nos parâmetros desde a fornada anterior.'}</p>`}
     ${blocoPesagem(registro)}
     <p class="observacao">${escapar(registro.observacao)}</p>
     ${notas ? `<div class="notas-rapidas">${notas}</div>` : ''}
@@ -352,7 +494,7 @@ function cartaoRegistro(registro, mostrarReceita) {
   </article>`;
 }
 
-function painelDiario() {
+function saidasDiario() {
   const ativa = receitaAtiva(estado);
   const lista =
     filtroDiario === 'todas'
@@ -374,18 +516,15 @@ function painelDiario() {
     <section class="secao">
       <button class="botao-principal" data-acao="nova-fornada">Registrar fornada</button>
     </section>
-    <section class="secao">${corpo}</section>
-  `;
+    <section class="secao">${corpo}</section>`;
 }
 
 // ---------------------------------------------------------------------------
 // Renderização
 // ---------------------------------------------------------------------------
 
-function render() {
-  const ativa = receitaAtiva(estado);
-  const topo = document.getElementById('topo');
-  topo.innerHTML = `
+function cabecalho(ativa) {
+  return `
     <div class="topo-interno">
       <span class="topo-marca">Levain</span>
       <button class="seletor-receita" data-acao="abrir-receitas">
@@ -393,17 +532,34 @@ function render() {
         <span class="seta">▼</span>
       </button>
       <button class="botao-icone" data-acao="abrir-receitas" aria-label="Receitas e backup">☰</button>
+    </div>
+    <div class="faixa-objetivo">
+      <button class="objetivo-resumo" data-acao="alternar-objetivo" aria-expanded="${objetivoAberto}">
+        <span id="resumo-objetivo"></span>
+        <span class="seta">${objetivoAberto ? '⌃' : '⌄'}</span>
+      </button>
+      ${objetivoAberto
+        ? `<div class="objetivo-campos">
+             ${CAMPOS.filter((c) => c.aba === 'objetivo').map((c) => campoEntrada(c.chave, ativa.entradas)).join('')}
+           </div>`
+        : ''}
     </div>`;
+}
 
-  const painel = document.getElementById('painel');
-  painel.innerHTML =
+function render() {
+  const ativa = receitaAtiva(estado);
+  document.getElementById('topo').innerHTML = cabecalho(ativa);
+
+  const entradasHtml =
     abaAtiva === 'starter'
-      ? painelStarter(ativa.entradas)
+      ? entradasStarter(ativa.entradas)
       : abaAtiva === 'pao'
-        ? painelPao(ativa.entradas)
+        ? entradasPao(ativa.entradas)
         : abaAtiva === 'custos'
-          ? painelCustos(ativa.entradas)
-          : painelDiario();
+          ? entradasCustos(ativa.entradas)
+          : '';
+
+  document.getElementById('painel').innerHTML = `<div id="saidas"></div><div id="entradas">${entradasHtml}</div>`;
 
   document.querySelectorAll('.aba').forEach((b) => {
     b.setAttribute('aria-selected', String(b.dataset.aba === abaAtiva));
@@ -414,18 +570,29 @@ function render() {
 
 function atualizar() {
   const ativa = receitaAtiva(estado);
-  const resultado = calcular(ativa.entradas);
+  const r = calcular(ativa.entradas);
 
-  document.querySelectorAll('#painel [data-saida]').forEach((el) => {
-    el.innerHTML = formatarSaida(caminho(resultado, el.dataset.saida), el.dataset.fmt);
-  });
+  document.getElementById('saidas').innerHTML =
+    abaAtiva === 'starter'
+      ? saidasStarter(r)
+      : abaAtiva === 'pao'
+        ? saidasPao(r, ativa.entradas)
+        : abaAtiva === 'custos'
+          ? saidasCustos(r)
+          : saidasDiario();
 
-  const caixa = document.getElementById('avisos');
-  if (caixa) {
-    caixa.innerHTML = resultado.avisos
-      .map((a) => `<div class="aviso"><span>⚠</span><span>${escapar(a)}</span></div>`)
-      .join('');
+  const resumo = document.getElementById('resumo-objetivo');
+  if (resumo) {
+    const paes = ativa.entradas.numeroPaes;
+    resumo.textContent = `${fmtNum(ativa.entradas.pesoAssadoDesejado, 0)} g × ${fmtNum(paes, 0)} ${paes === 1 ? 'pão' : 'pães'}`;
   }
+
+  // O percentual da farinha base é calculado, não digitado.
+  document.querySelectorAll('[data-resto]').forEach((el) => {
+    const attr = el.dataset.resto;
+    const base = r.pao.farinhas[0];
+    el.textContent = base ? formatarValor(MOLDE.pct, attr === 'pctStarter' ? base.pctStarter : base.pct) : '—';
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -448,39 +615,35 @@ function fecharFolha() {
 function folhaReceitas() {
   const itens = estado.receitas
     .map((r) => {
-      const n = estado.registros.filter((g) => g.receitaId === r.id).length;
+      const n = estado.registros.filter((x) => x.receitaId === r.id).length;
       const atual = r.id === estado.receitaAtivaId;
-      return `<button class="item-receita" data-acao="trocar-receita" data-id="${r.id}" aria-current="${atual}">
-        <span class="marca">${atual ? '●' : '○'}</span>
-        <span class="nome">${escapar(r.nome)}</span>
-        <span class="contagem">${n} ${n === 1 ? 'fornada' : 'fornadas'}</span>
-      </button>`;
+      return `<div class="item-receita" aria-current="${atual}">
+        <button class="linha-receita" data-acao="trocar-receita" data-id="${r.id}">
+          <span class="marca">${atual ? '●' : '○'}</span>
+          <span class="nome">${escapar(r.nome)}</span>
+          <span class="contagem">${n} ${n === 1 ? 'fornada' : 'fornadas'}</span>
+        </button>
+        <span class="acoes-receita">
+          <button data-acao="renomear-receita" data-id="${r.id}" aria-label="Renomear ${escapar(r.nome)}" title="Renomear">✎</button>
+          <button data-acao="duplicar-receita" data-id="${r.id}" aria-label="Duplicar ${escapar(r.nome)}" title="Duplicar">⧉</button>
+          <button data-acao="apagar-receita" data-id="${r.id}" aria-label="Apagar ${escapar(r.nome)}" title="Apagar">🗑</button>
+        </span>
+      </div>`;
     })
     .join('');
 
   abrirFolha(`
     <h2 class="folha-titulo">Receitas</h2>
     <div class="lista-receitas">${itens}</div>
-    <div class="trio" style="margin-top:12px">
-      <button class="botao-secundario" data-acao="nova-receita">Nova</button>
-      <button class="botao-secundario" data-acao="renomear-receita">Renomear</button>
-      <button class="botao-secundario" data-acao="duplicar-receita">Duplicar</button>
+    <button class="botao-adicionar" data-acao="nova-receita">+ Nova receita</button>
+    <div class="folha-acoes">
+      <button class="botao-principal" data-acao="abrir-backup">Backup</button>
+      <button class="botao-secundario" data-acao="fechar-folha">Fechar</button>
     </div>
-    <div style="margin-top:9px">
-      <button class="botao-secundario" style="width:100%" data-acao="apagar-receita">Apagar receita atual</button>
-    </div>
-
-    <h2 class="folha-titulo" style="margin-top:28px">Backup</h2>
-    <p class="nota-rodape" style="margin-bottom:12px">O aplicativo guarda tudo só neste aparelho. Limpar os dados do navegador apaga o diário — exporte de vez em quando.</p>
-    <div class="folha-acoes" style="margin-top:0">
-      <button class="botao-principal" data-acao="exportar">Exportar tudo</button>
-      <button class="botao-secundario" data-acao="importar">Importar</button>
-    </div>
-    <input type="file" id="arquivo-importar" accept="application/json,.json" hidden>
   `);
 }
 
-function folhaNomeReceita(titulo, valorInicial, acao) {
+function folhaNomeReceita(titulo, valorInicial, acao, id) {
   abrirFolha(`
     <h2 class="folha-titulo">${titulo}</h2>
     <label class="campo-livre">
@@ -488,8 +651,8 @@ function folhaNomeReceita(titulo, valorInicial, acao) {
       <input type="text" id="nome-receita" value="${escapar(valorInicial)}" placeholder="Integral 500 g">
     </label>
     <div class="folha-acoes">
-      <button class="botao-principal" data-acao="${acao}">Salvar</button>
-      <button class="botao-secundario" data-acao="fechar-folha">Cancelar</button>
+      <button class="botao-principal" data-acao="${acao}" ${id ? `data-id="${id}"` : ''}>Salvar</button>
+      <button class="botao-secundario" data-acao="abrir-receitas">Cancelar</button>
     </div>
   `);
   const campo = document.getElementById('nome-receita');
@@ -497,10 +660,41 @@ function folhaNomeReceita(titulo, valorInicial, acao) {
   campo.select();
 }
 
-function folhaFornada() {
-  const ativa = receitaAtiva(estado);
-  const previsto = calcular(ativa.entradas).pao.pesoAssado;
+function folhaBackup() {
+  const json = exportar(estado);
+  const dentroDeIframe = window.self !== window.top;
+  abrirFolha(`
+    <h2 class="folha-titulo">Backup</h2>
+    <p class="nota-rodape" style="margin-bottom:14px">O aplicativo guarda tudo só neste aparelho. Limpar os dados do navegador apaga o diário.${
+      dentroDeIframe
+        ? ' Esta página está aberta dentro de outra, onde o navegador costuma bloquear download — se o botão não fizer nada, use copiar.'
+        : ''
+    }</p>
 
+    <div class="folha-acoes" style="margin-top:0">
+      <button class="botao-principal" data-acao="exportar">Baixar arquivo</button>
+      <button class="botao-secundario" data-acao="copiar">Copiar</button>
+    </div>
+    <label class="campo-livre" style="margin-top:14px">
+      <span>Ou selecione e copie daqui</span>
+      <textarea id="json-saida" readonly rows="5">${escapar(json)}</textarea>
+    </label>
+
+    <h2 class="folha-titulo" style="margin-top:26px">Restaurar</h2>
+    <div class="folha-acoes" style="margin-top:0">
+      <button class="botao-secundario" style="flex:1" data-acao="importar">Escolher arquivo…</button>
+    </div>
+    <label class="campo-livre" style="margin-top:14px">
+      <span>Ou cole aqui o conteúdo do backup</span>
+      <textarea id="json-entrada" rows="5" placeholder='{"app":"aplicativo-pao", …}'></textarea>
+    </label>
+    <button class="botao-principal" data-acao="importar-texto">Restaurar do texto</button>
+    <input type="file" id="arquivo-importar" accept="application/json,.json" hidden>
+  `);
+}
+
+function folhaFornada() {
+  const r = calcular(receitaAtiva(estado).entradas);
   abrirFolha(`
     <h2 class="folha-titulo">Registrar fornada</h2>
 
@@ -511,17 +705,17 @@ function folhaFornada() {
 
     <label class="campo-livre">
       <span>Observação</span>
-      <textarea id="f-obs" placeholder="O que você mudou, o que reparou, o que tentaria da próxima vez."></textarea>
+      <textarea id="f-obs" rows="4" placeholder="O que você mudou, o que reparou, o que tentaria da próxima vez."></textarea>
     </label>
 
     <label class="campo-livre">
-      <span>Peso real assado, por pão — estimado ${fmtNum(previsto, 0)} g</span>
+      <span>Peso real assado, por pão — estimado ${fmtNum(r.pao.pesoAssado, 0)} g</span>
       <input type="text" inputmode="decimal" id="f-peso" placeholder="pese um pão e anote">
     </label>
 
     <div class="escalas">
       ${ESCALAS.map(
-        (e) => `<div class="escala" data-escala="${e.chave}">
+        (e) => `<div class="escala">
           <span>${e.rotulo}</span>
           <span class="escala-botoes">
             ${[1, 2, 3, 4, 5]
@@ -549,6 +743,21 @@ function folhaFornada() {
 // Ações
 // ---------------------------------------------------------------------------
 
+function aplicarBackup(texto) {
+  const resultado = importar(texto);
+  if (!resultado.ok) {
+    alert(`Não deu para importar: ${resultado.erro}`);
+    return;
+  }
+  const n = resultado.estado.receitas.length;
+  const f = resultado.estado.registros.length;
+  if (!confirm(`Substituir tudo que está neste aparelho por ${n} receita(s) e ${f} fornada(s) do backup?`)) return;
+  estado = resultado.estado;
+  persistencia.salvar(estado);
+  fecharFolha();
+  render();
+}
+
 function salvarFornada() {
   const ativa = receitaAtiva(estado);
   const quandoCampo = document.getElementById('f-quando').value;
@@ -556,7 +765,6 @@ function salvarFornada() {
   document.querySelectorAll('#folha [data-acao="escala"][aria-pressed="true"]').forEach((b) => {
     notas[b.dataset.chave] = Number(b.dataset.nota);
   });
-
   const numeroOuNulo = (id) => {
     const n = paraNumero(document.getElementById(id).value);
     return Number.isFinite(n) ? n : null;
@@ -582,68 +790,128 @@ function salvarFornada() {
   render();
 }
 
-function calibrarPerdaForno(id) {
-  const registro = estado.registros.find((r) => r.id === id);
-  if (!registro) return;
-  const perda = calibrarPerda(calcular(registro.snapshot).pao.pesoPorPao, Number(registro.pesoRealAssado));
-  if (perda === null) return;
+function baixarBackup() {
+  try {
+    const blob = new Blob([exportar(estado)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `paes-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch {
+    alert('O navegador bloqueou o download. Copie o texto do backup e guarde num arquivo.');
+  }
+}
 
+async function copiarBackup(botao) {
+  const texto = exportar(estado);
+  const avisar = (msg) => {
+    botao.textContent = msg;
+    setTimeout(() => { botao.textContent = 'Copiar'; }, 1800);
+  };
+  try {
+    await navigator.clipboard.writeText(texto);
+    avisar('Copiado ✓');
+  } catch {
+    // Sem permissão de área de transferência: seleciona o texto para o usuário
+    // copiar na mão, que é o único caminho que sempre funciona.
+    const caixa = document.getElementById('json-saida');
+    caixa.focus();
+    caixa.select();
+    avisar('Selecionado');
+  }
+}
+
+function novoItem(lista) {
   const ativa = receitaAtiva(estado);
-  const atual = fmtNum(ativa.entradas.perdaForno * 100, 1);
-  const nova = fmtNum(perda * 100, 1);
-  if (!confirm(`Trocar a perda no forno de ${atual}% para ${nova}% na receita "${ativa.nome}"?`)) return;
-
-  ativa.entradas = { ...ativa.entradas, perdaForno: perda };
-  ativa.atualizadaEm = new Date().toISOString();
+  const modelos = {
+    farinhas: { nome: 'Nova farinha', preco: 0, pct: 0, pctStarter: 0 },
+    liquidos: { nome: 'Novo líquido', pct: 0, fracaoAgua: 0, preco: 0 },
+    solidos: { nome: 'Novo sólido', gramasPorPao: 0, preco: 0 },
+  };
+  ativa.entradas[lista] = [...ativa.entradas[lista], { id: gerarId(lista[0]), ...modelos[lista] }];
+  marcarAlterada();
   salvar();
   render();
 }
 
-function baixarBackup() {
-  const blob = new Blob([exportar(estado)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  const dia = new Date().toISOString().slice(0, 10);
-  a.href = url;
-  a.download = `paes-${dia}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+function itemPorId(lista, id) {
+  return receitaAtiva(estado).entradas[lista]?.find((x) => x.id === id) ?? null;
 }
 
-function lerBackup(arquivo) {
-  const leitor = new FileReader();
-  leitor.onload = () => {
-    const resultado = importar(String(leitor.result));
-    if (!resultado.ok) {
-      alert(`Não deu para importar: ${resultado.erro}`);
-      return;
-    }
-    const n = resultado.estado.receitas.length;
-    const g = resultado.estado.registros.length;
-    if (!confirm(`Substituir tudo que está neste aparelho por ${n} receita(s) e ${g} fornada(s) do arquivo?`)) return;
-    estado = resultado.estado;
-    persistencia.salvar(estado);
-    fecharFolha();
-    render();
-  };
-  leitor.readAsText(arquivo);
+function moldeDe(lista, attr) {
+  if (attr === 'preco') return MOLDE.preco;
+  if (attr === 'gramasPorPao') return MOLDE.gramasPorPao;
+  if (attr === 'fracaoAgua') return MOLDE.fracaoAgua;
+  return MOLDE.pct;
+}
+
+function aplicarEntrada(chave, valorExibido) {
+  const campo = CAMPO_POR_CHAVE[chave];
+  const ativa = receitaAtiva(estado);
+  ativa.entradas = { ...ativa.entradas, [chave]: paraArmazenamento(campo, valorExibido) };
+  marcarAlterada();
+  atualizar();
+  salvar();
+}
+
+function aplicarItem(lista, id, attr, valorExibido) {
+  const item = itemPorId(lista, id);
+  if (!item) return;
+  item[attr] = paraArmazenamento(moldeDe(lista, attr), valorExibido);
+  marcarAlterada();
+  atualizar();
+  salvar();
 }
 
 const ACOES = {
   'abrir-receitas': folhaReceitas,
+  'abrir-backup': folhaBackup,
   'fechar-folha': fecharFolha,
   'nova-fornada': folhaFornada,
   'salvar-fornada': salvarFornada,
   exportar: baixarBackup,
+  copiar: copiarBackup,
 
   importar() {
     document.getElementById('arquivo-importar').click();
   },
 
+  'importar-texto'() {
+    const texto = document.getElementById('json-entrada').value.trim();
+    if (!texto) {
+      alert('Cole o conteúdo do backup na caixa antes de restaurar.');
+      return;
+    }
+    aplicarBackup(texto);
+  },
+
+  'alternar-objetivo'() {
+    objetivoAberto = !objetivoAberto;
+    render();
+  },
+
   filtro(el) {
     filtroDiario = el.dataset.valor;
+    render();
+  },
+
+  'add-farinha': () => novoItem('farinhas'),
+  'add-liquido': () => novoItem('liquidos'),
+  'add-solido': () => novoItem('solidos'),
+
+  'remover-item'(el) {
+    const { lista, id } = el.dataset;
+    const item = itemPorId(lista, id);
+    if (!item) return;
+    if (!confirm(`Remover "${item.nome}" da receita?`)) return;
+    const ativa = receitaAtiva(estado);
+    ativa.entradas[lista] = ativa.entradas[lista].filter((x) => x.id !== id);
+    marcarAlterada();
+    salvar();
     render();
   },
 
@@ -670,22 +938,25 @@ const ACOES = {
     render();
   },
 
-  'renomear-receita'() {
-    folhaNomeReceita('Renomear receita', receitaAtiva(estado).nome, 'confirmar-renomear');
+  'renomear-receita'(el) {
+    const receita = estado.receitas.find((r) => r.id === el.dataset.id);
+    if (receita) folhaNomeReceita('Renomear receita', receita.nome, 'confirmar-renomear', receita.id);
   },
 
-  'confirmar-renomear'() {
+  'confirmar-renomear'(el) {
     const nome = document.getElementById('nome-receita').value.trim();
-    if (!nome) return;
-    receitaAtiva(estado).nome = nome;
+    const receita = estado.receitas.find((r) => r.id === el.dataset.id);
+    if (!nome || !receita) return;
+    receita.nome = nome;
     salvar();
-    fecharFolha();
+    folhaReceitas();
     render();
   },
 
-  'duplicar-receita'() {
-    const atual = receitaAtiva(estado);
-    const copia = novaReceita(`${atual.nome} (cópia)`, { entradas: atual.entradas });
+  'duplicar-receita'(el) {
+    const origem = estado.receitas.find((r) => r.id === el.dataset.id);
+    if (!origem) return;
+    const copia = novaReceita(`${origem.nome} (cópia)`, { entradas: origem.entradas });
     estado.receitas.push(copia);
     estado.receitaAtivaId = copia.id;
     salvar();
@@ -693,21 +964,23 @@ const ACOES = {
     render();
   },
 
-  'apagar-receita'() {
+  'apagar-receita'(el) {
     if (estado.receitas.length === 1) {
       alert('Esta é a única receita. Crie outra antes de apagar esta.');
       return;
     }
-    const atual = receitaAtiva(estado);
-    const n = estado.registros.filter((r) => r.receitaId === atual.id).length;
-    const aviso = n ? ` Isso também apaga ${n} fornada(s) do diário.` : '';
-    if (!confirm(`Apagar a receita "${atual.nome}"?${aviso}`)) return;
+    const receita = estado.receitas.find((r) => r.id === el.dataset.id);
+    if (!receita) return;
+    const n = estado.registros.filter((r) => r.receitaId === receita.id).length;
+    if (!confirm(`Apagar a receita "${receita.nome}"?${n ? ` Isso também apaga ${n} fornada(s) do diário.` : ''}`)) return;
 
-    estado.receitas = estado.receitas.filter((r) => r.id !== atual.id);
-    estado.registros = estado.registros.filter((r) => r.receitaId !== atual.id);
-    estado.receitaAtivaId = estado.receitas[0].id;
+    estado.receitas = estado.receitas.filter((r) => r.id !== receita.id);
+    estado.registros = estado.registros.filter((r) => r.receitaId !== receita.id);
+    if (!estado.receitas.some((r) => r.id === estado.receitaAtivaId)) {
+      estado.receitaAtivaId = estado.receitas[0].id;
+    }
     salvar();
-    fecharFolha();
+    folhaReceitas();
     render();
   },
 
@@ -719,40 +992,46 @@ const ACOES = {
   },
 
   calibrar(el) {
-    calibrarPerdaForno(el.dataset.id);
+    const registro = estado.registros.find((r) => r.id === el.dataset.id);
+    if (!registro) return;
+    const r = calcular(registro.snapshot);
+    const perda = calibrarPerda(r.pao.massaPorPao, Number(registro.pesoRealAssado), r.pao.solidosPorPao);
+    if (perda === null) return;
+
+    const ativa = receitaAtiva(estado);
+    const atual = fmtNum(ativa.entradas.perdaForno * 100, 1);
+    if (!confirm(`Trocar a perda no forno de ${atual}% para ${fmtNum(perda * 100, 1)}% na receita "${ativa.nome}"?`)) return;
+    ativa.entradas = { ...ativa.entradas, perdaForno: perda };
+    marcarAlterada();
+    salvar();
+    render();
   },
 
   escala(el) {
     const jaMarcado = el.getAttribute('aria-pressed') === 'true';
-    el.closest('.escala-botoes')
-      .querySelectorAll('button')
-      .forEach((b) => b.setAttribute('aria-pressed', 'false'));
+    el.closest('.escala-botoes').querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', 'false'));
     el.setAttribute('aria-pressed', String(!jaMarcado));
   },
 
   passo(el) {
-    const chave = el.dataset.campoAlvo;
-    const campo = CAMPO_POR_CHAVE[chave];
-    const entrada = document.querySelector(`[data-campo="${chave}"]`);
-    const atual = paraNumero(entrada.value);
-    const base = Number.isFinite(atual) ? atual : 0;
-    const proximo = Math.max(0, base + Number(el.dataset.sinal) * (campo.passo ?? 1));
-    // Passos fracionários acumulam ruído binário; a casa decimal do campo corta.
-    const limpo = Number(proximo.toFixed(campo.casas ?? 0));
+    const { campo: chaveCampo, lista, id, attr, sinal } = el.dataset;
+    const molde = chaveCampo ? CAMPO_POR_CHAVE[chaveCampo] : moldeDe(lista, attr);
+    const seletor = chaveCampo
+      ? `input[data-campo="${chaveCampo}"]`
+      : `input[data-lista="${lista}"][data-id="${id}"][data-attr="${attr}"]`;
+    const entrada = document.querySelector(seletor);
+    if (!entrada) return;
 
-    entrada.value = formatarEntrada(campo, paraArmazenamento(campo, limpo));
-    aplicarEntrada(chave, limpo);
+    const atual = paraNumero(entrada.value);
+    const proximo = Math.max(0, (Number.isFinite(atual) ? atual : 0) + Number(sinal) * (molde.passo ?? 1));
+    // Passos fracionários acumulam ruído binário; a casa decimal do campo corta.
+    const limpo = Number(proximo.toFixed(molde.casas ?? 0));
+
+    entrada.value = formatarEntrada(molde, paraArmazenamento(molde, limpo));
+    if (chaveCampo) aplicarEntrada(chaveCampo, limpo);
+    else aplicarItem(lista, id, attr, limpo);
   },
 };
-
-function aplicarEntrada(chave, valorExibido) {
-  const campo = CAMPO_POR_CHAVE[chave];
-  const ativa = receitaAtiva(estado);
-  ativa.entradas = { ...ativa.entradas, [chave]: paraArmazenamento(campo, valorExibido) };
-  ativa.atualizadaEm = new Date().toISOString();
-  atualizar();
-  salvar();
-}
 
 // ---------------------------------------------------------------------------
 // Ligação com o DOM
@@ -787,15 +1066,41 @@ function montar() {
   });
 
   document.addEventListener('input', (evento) => {
-    const entrada = evento.target.closest('[data-campo]');
-    if (entrada) {
-      const valor = paraNumero(entrada.value);
+    const alvo = evento.target;
+
+    if (alvo.matches?.('[data-campo]')) {
+      const valor = paraNumero(alvo.value);
       // Estados intermediários como "70," não devem zerar a receita.
-      if (Number.isFinite(valor)) aplicarEntrada(entrada.dataset.campo, valor);
+      if (Number.isFinite(valor)) aplicarEntrada(alvo.dataset.campo, valor);
       return;
     }
-    const arquivo = evento.target.closest('#arquivo-importar');
-    if (arquivo && arquivo.files?.[0]) lerBackup(arquivo.files[0]);
+
+    if (alvo.matches?.('[data-lista][data-attr]')) {
+      const { lista, id, attr } = alvo.dataset;
+      if (attr === 'nome') {
+        const item = itemPorId(lista, id);
+        if (item) {
+          item.nome = alvo.value;
+          marcarAlterada();
+          atualizar();
+          salvar();
+        }
+        return;
+      }
+      const valor = paraNumero(alvo.value);
+      if (Number.isFinite(valor)) aplicarItem(lista, id, attr, valor);
+    }
+  });
+
+  // Input de arquivo dispara `change`, não `input` — escutar o evento errado
+  // fazia a importação nunca acontecer.
+  document.addEventListener('change', (evento) => {
+    const arquivo = evento.target.closest?.('#arquivo-importar');
+    if (!arquivo || !arquivo.files?.[0]) return;
+    const leitor = new FileReader();
+    leitor.onload = () => aplicarBackup(String(leitor.result));
+    leitor.onerror = () => alert('Não deu para ler o arquivo.');
+    leitor.readAsText(arquivo.files[0]);
   });
 
   render();

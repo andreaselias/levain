@@ -262,6 +262,47 @@ button {
   color: var(--tinta);
 }
 
+/* --- Faixa do objetivo ---------------------------------------------------- */
+/* O objetivo muda a cada produção e manda em todo o resto, então fica visível
+   em qualquer aba em vez de escondido atrás de navegação. */
+
+.faixa-objetivo {
+  max-width: 680px;
+  margin: 8px auto 0;
+}
+
+.objetivo-resumo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 0 2px;
+  font-family: var(--fonte-numero);
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--crosta);
+  text-align: left;
+}
+
+.objetivo-resumo .seta {
+  color: var(--tinta-fraca);
+  font-size: 0.8rem;
+}
+
+.objetivo-campos {
+  margin-top: 8px;
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  background: var(--papel-2);
+  overflow: hidden;
+  animation: surgir 0.2s ease;
+}
+
+.objetivo-campos .campo:last-child {
+  border-bottom: none;
+}
+
 /* --- Barra de abas ------------------------------------------------------- */
 
 .abas {
@@ -677,6 +718,126 @@ button {
   color: var(--tinta-fraca);
   min-width: 26px;
   padding-right: 2px;
+}
+
+/* --- Listas editáveis de ingredientes ------------------------------------ */
+
+.lista-itens {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.item-lista {
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  background: var(--papel-2);
+  padding: 9px 11px;
+}
+
+.item-lista.base {
+  border-left: 3px solid var(--crosta);
+}
+
+.item-linha {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.item-linha.secundaria {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--linha);
+}
+
+.item-nome {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  padding: 4px 0;
+  font-size: 0.95rem;
+  border-bottom: 1px solid transparent;
+}
+
+.item-nome:focus {
+  outline: none;
+  border-bottom-color: var(--crosta);
+}
+
+.item-rotulo-menor {
+  flex: 1;
+  font-size: 0.76rem;
+  color: var(--tinta-fraca);
+}
+
+.valor-resto {
+  font-family: var(--fonte-numero);
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--tinta-suave);
+  padding: 0 6px;
+}
+
+.item-remover {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  color: var(--tinta-fraca);
+}
+
+.item-remover:active {
+  background: color-mix(in srgb, var(--alerta) 14%, transparent);
+  color: var(--alerta);
+}
+
+.item-remover.vazio {
+  pointer-events: none;
+}
+
+.item-nota {
+  margin: 7px 0 0;
+  font-size: 0.72rem;
+  color: var(--tinta-fraca);
+}
+
+.lista-vazia {
+  margin: 0;
+  padding: 12px 2px;
+  font-size: 0.82rem;
+  color: var(--tinta-fraca);
+  font-style: italic;
+}
+
+.botao-adicionar {
+  width: 100%;
+  margin-top: 8px;
+  padding: 11px;
+  border: 1px dashed var(--linha-forte);
+  border-radius: var(--raio);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.botao-adicionar:active {
+  border-color: var(--crosta);
+  color: var(--crosta);
+}
+
+.ticket-detalhe {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--tinta-fraca);
+  margin-top: 1px;
 }
 
 /* --- Avisos e notas ------------------------------------------------------ */
@@ -1161,14 +1322,12 @@ details.retrato[open] summary::before {
 
 .item-receita {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 13px 14px;
+  align-items: stretch;
+  gap: 2px;
   border: 1px solid var(--linha);
   border-radius: var(--raio);
   background: var(--papel-2);
-  text-align: left;
+  overflow: hidden;
 }
 
 .item-receita[aria-current="true"] {
@@ -1176,18 +1335,57 @@ details.retrato[open] summary::before {
   background: color-mix(in srgb, var(--crosta) 8%, var(--papel-2));
 }
 
-.item-receita .nome {
+.linha-receita {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 12px;
+  text-align: left;
+}
+
+.linha-receita .nome {
+  flex: 1;
+  min-width: 0;
   font-family: var(--fonte-titulo);
   font-size: 1.02rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.item-receita .marca {
+.linha-receita .marca {
   color: var(--crosta);
+  flex: none;
 }
 
-.item-receita .contagem {
+.linha-receita .contagem {
+  flex: none;
   font-size: 0.68rem;
   color: var(--tinta-fraca);
   letter-spacing: 0.05em;
+}
+
+.acoes-receita {
+  display: flex;
+  align-items: center;
+  flex: none;
+  padding-right: 6px;
+}
+
+.acoes-receita button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 0.85rem;
+  color: var(--tinta-fraca);
+  transition: background 0.14s, color 0.14s;
+}
+
+.acoes-receita button:active {
+  background: var(--papel-3);
+  color: var(--crosta);
 }
