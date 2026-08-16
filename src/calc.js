@@ -9,6 +9,23 @@
  * referência de fórmulas e os valores que servem de critério de aceitação.
  */
 
+/**
+ * Proporções de cada formato, com a largura valendo 1.
+ *
+ * `preenchimento` é quanto do retângulo envolvente a massa de fato ocupa —
+ * junta a folga da fôrma com o fato de um pão não ser um tijolo. Por isso é
+ * alto na fôrma retangular, onde a massa encosta na parede, e baixo nos
+ * formatos livres, que são arredondados e crescem sem parede que os contenha.
+ */
+export const FORMATOS = [
+  { chave: 'batard', rotulo: 'Batard', razaoC: 2.2, razaoA: 0.85, preenchimento: 0.55 },
+  { chave: 'boule', rotulo: 'Boule', razaoC: 1, razaoA: 0.7, preenchimento: 0.6 },
+  { chave: 'baguete', rotulo: 'Baguete / filão', razaoC: 6, razaoA: 0.9, preenchimento: 0.55 },
+  { chave: 'retangular', rotulo: 'Fôrma retangular', razaoC: 3.2, razaoA: 1, preenchimento: 0.8 },
+];
+
+export const FORMATO_POR_CHAVE = Object.fromEntries(FORMATOS.map((f) => [f.chave, f]));
+
 export const ENTRADAS_PADRAO = {
   // Objetivo — muda a cada produção e dimensiona todo o resto
   pesoAssadoDesejado: 500,
@@ -53,6 +70,11 @@ export const ENTRADAS_PADRAO = {
   // Ajustes
   fatorArredondamento: 10,
   perdaForno: 0.11,
+  // Quanto o pão cresce, em cm³ por grama de pão assado. É o que mais varia
+  // com a receita — centeio pesado fica em 2,0-2,4, branco bem fermentado
+  // passa de 3,5 — e o diário calibra a partir de um pão medido de verdade.
+  volumeEspecifico: 2.7,
+  formato: 'batard',
   paesPorFornada: 2,
   tempoPreAquecimento: 45,
   tempoCozimento: 40,
@@ -78,6 +100,13 @@ export const ENTRADAS_PADRAO = {
 
 /** Campos que são listas — tratados à parte da cópia de escalares. */
 export const LISTAS = ['farinhas', 'composicaoPao', 'composicaoStarter', 'liquidos', 'solidos'];
+
+/**
+ * Campos escalares que guardam texto, não número. Existem para serem pulados
+ * pelos laços que coagem tudo com `num()` — sem isso, 'boule' vira o padrão
+ * numérico silenciosamente.
+ */
+export const TEXTOS = ['formato'];
 
 /**
  * O Excel normaliza para 15 dígitos significativos antes de arredondar. Sem
@@ -152,9 +181,12 @@ export function calcular(entradas) {
 
   const e = {};
   for (const [chave, padrao] of Object.entries(ENTRADAS_PADRAO)) {
-    if (LISTAS.includes(chave)) continue;
+    if (LISTAS.includes(chave) || TEXTOS.includes(chave)) continue;
     e[chave] = num(bruto[chave], padrao);
   }
+  // Formato desconhecido cai no padrão: o resto da conta lê as razões da tabela
+  // e não tem como seguir sem elas.
+  e.formato = Object.hasOwn(FORMATO_POR_CHAVE, bruto.formato) ? bruto.formato : ENTRADAS_PADRAO.formato;
 
   const farinhas = comoLista(bruto.farinhas ?? ENTRADAS_PADRAO.farinhas).map((f, i) => ({
     id: f.id ?? `f${i}`,
@@ -486,6 +518,7 @@ export function calcular(entradas) {
       hidratacaoReal: fin(hidratacaoReal),
       pesoAssadoMassa: fin(pesoAssadoMassa),
       pesoAssado: fin(pesoAssado),
+      formato: e.formato,
       largura: fin(largura),
       comprimento: fin(comprimento),
       altura: fin(altura),

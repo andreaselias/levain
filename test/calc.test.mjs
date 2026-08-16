@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calcular, ENTRADAS_PADRAO } from '../src/calc.js';
+import { calcular, ENTRADAS_PADRAO, FORMATOS } from '../src/calc.js';
 
 const TOL = 1e-6;
 
@@ -652,4 +652,31 @@ test('lista de farinhas vazia gera aviso em vez de dividir por zero', () => {
   const r = calcular({ ...ENTRADAS_PADRAO, farinhas: [] });
   todosFinitos(r);
   assert.ok(r.avisos.length > 0, 'deveria avisar');
+});
+
+// ---------------------------------------------------------------------------
+// Formato da fôrma
+// ---------------------------------------------------------------------------
+
+test('formato sobrevive à normalização e cai no padrão quando é lixo', () => {
+  assert.equal(calcular({ ...ENTRADAS_PADRAO, formato: 'boule' }).pao.formato, 'boule');
+  assert.equal(calcular({ ...ENTRADAS_PADRAO, formato: 'inventado' }).pao.formato, 'batard');
+  assert.equal(calcular({ ...ENTRADAS_PADRAO, formato: 42 }).pao.formato, 'batard');
+  assert.equal(calcular({ ...ENTRADAS_PADRAO, formato: undefined }).pao.formato, 'batard');
+  // Chave herdada de Object.prototype: a busca por índice acha o método e
+  // aprovaria 'constructor' como se fosse formato.
+  assert.equal(calcular({ ...ENTRADAS_PADRAO, formato: 'constructor' }).pao.formato, 'batard');
+  assert.equal(calcular({ ...ENTRADAS_PADRAO, formato: 'toString' }).pao.formato, 'batard');
+});
+
+test('a tabela de formatos tem os quatro formatos, com proporções positivas', () => {
+  assert.deepEqual(
+    FORMATOS.map((f) => f.chave),
+    ['batard', 'boule', 'baguete', 'retangular']
+  );
+  for (const f of FORMATOS) {
+    assert.ok(f.razaoC > 0 && f.razaoA > 0, `${f.chave}: razões positivas`);
+    assert.ok(f.preenchimento > 0 && f.preenchimento <= 1, `${f.chave}: preenchimento entre 0 e 1`);
+    assert.ok(f.rotulo.length > 0, `${f.chave}: tem rótulo`);
+  }
 });
