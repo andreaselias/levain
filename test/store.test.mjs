@@ -417,3 +417,16 @@ test('salvar com storage indisponível não estoura', () => {
   assert.equal(p.salvar(estadoInicial({ id: 'r1', agora: T0 })), false);
   assert.equal(p.carregar(), null);
 });
+
+test('campo de opções é formatado pelo rótulo, não pelo número', () => {
+  const campo = CAMPO_POR_CHAVE.formato;
+  assert.equal(campo.tipo, 'opcoes');
+  assert.equal(formatarValor(campo, 'batard'), 'Batard');
+  assert.equal(formatarValor(campo, 'retangular'), 'Fôrma retangular');
+  assert.equal(formatarValor(campo, 'inventado'), '—', 'opção desconhecida');
+  assert.equal(formatarValor(campo, null), '—', 'ausente');
+});
+
+test('o volume específico é formatado com a unidade', () => {
+  assert.equal(formatarValor(CAMPO_POR_CHAVE.volumeEspecifico, 2.7), '2,7 cm³/g');
+});

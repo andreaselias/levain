@@ -10,7 +10,17 @@
  *
  * `fator` converte entre o valor guardado e o exibido: percentuais são
  * guardados como fração (0,7) e mostrados como número (70).
+ *
+ * Um campo pode trocar os atributos numéricos por `tipo: 'opcoes'` e
+ * `opcoes: [{ valor, rotulo }]` — é o caso de um campo que escolhe entre
+ * alternativas nomeadas em vez de medir uma grandeza. `formatarValor` lê esse
+ * formato sozinho, mas isso não vale para os outros dois usos: o diff do
+ * diário e o desenho do formulário precisam cada um da sua própria
+ * ramificação para `tipo === 'opcoes'`, porque a tabela não os carrega do
+ * mesmo jeito que carrega um campo numérico.
  */
+
+import { FORMATOS } from './calc.js';
 
 export const CAMPOS = [
   // --- Objetivo: fica na faixa fixa do cabeçalho, não numa aba -------------
@@ -24,6 +34,8 @@ export const CAMPOS = [
 
   { chave: 'fatorArredondamento', rotulo: 'Fator de arredondamento', aba: 'pao', grupo: 'Ajustes', unidade: 'g', passo: 1, dica: 'Arredonda cada ingrediente para múltiplos deste valor. Zero desliga o arredondamento.' },
   { chave: 'perdaForno', rotulo: 'Perda estimada no forno', aba: 'pao', grupo: 'Ajustes', unidade: '%', fator: 100, passo: 0.5, casas: 1, dica: 'Percentual de peso que a massa perde no forno. O diário calibra este valor a partir de pães pesados de verdade.' },
+  { chave: 'volumeEspecifico', rotulo: 'Volume específico', aba: 'pao', grupo: 'Ajustes', unidade: 'cm³/g', passo: 0.1, casas: 1, dica: 'Quanto o pão cresce por grama. Centeio pesado 2,0–2,4; misto 2,6–3,0; branco bem fermentado 3,2–3,8. O diário calibra este valor a partir da altura de um pão medido de verdade.' },
+  { chave: 'formato', rotulo: 'Formato', aba: 'pao', grupo: 'Ajustes', tipo: 'opcoes', opcoes: FORMATOS.map((f) => ({ valor: f.chave, rotulo: f.rotulo })), dica: 'Define as proporções da fôrma estimada e a folga em volta do pão.' },
   { chave: 'paesPorFornada', rotulo: 'Pães por fornada', aba: 'pao', grupo: 'Ajustes', unidade: '', passo: 1, casas: 0, dica: 'Quantos pães cabem no forno de uma vez. Define o número de fornadas, e com ele o tempo e o gasto de energia.' },
   { chave: 'tempoPreAquecimento', rotulo: 'Pré-aquecimento', aba: 'pao', grupo: 'Ajustes', unidade: 'min', passo: 5, casas: 0 },
   { chave: 'tempoCozimento', rotulo: 'Cozimento', aba: 'pao', grupo: 'Ajustes', unidade: 'min', passo: 5, casas: 0 },
@@ -107,6 +119,11 @@ export function formatarEntrada(campo, valor) {
 
 /** Valor guardado → texto legível com unidade, para o diff e os retratos. */
 export function formatarValor(campo, valor) {
+  // Precisa vir antes da guarda numérica: 'boule' não é finito e cairia no
+  // travessão, apagando a troca de formato do diff do diário.
+  if (campo.tipo === 'opcoes') {
+    return campo.opcoes?.find((o) => o.valor === valor)?.rotulo ?? '—';
+  }
   if (valor === null || valor === undefined || !Number.isFinite(Number(valor))) return '—';
   const texto = formatarEntrada(campo, valor);
   if (!campo.unidade) return texto;
