@@ -66,7 +66,9 @@ const brl = (v) => `${moeda()}${fmtNum(v, 2)}`;
 const cm = (v) => `${fmtNum(v, 1)}${uni('cm')}`;
 
 /** Inteiro quando o valor é redondo; uma casa quando a divisão deixou resto. */
-const gAuto = (v) => (Math.abs(v - Math.round(v)) < 0.05 ? g(v) : g1(v));
+const redondo = (v) => Math.abs(v - Math.round(v)) < 0.05;
+const gAuto = (v) => (redondo(v) ? g(v) : g1(v));
+const horas = (v) => fmtNum(v, redondo(v) ? 0 : 1);
 
 /** "90%" enxuto, para a legenda de uma linha do ticket. */
 const pctCurto = (v) => `${fmtNum(v * 100, Number.isInteger(v * 100) ? 0 : 1)}% do pote`;
@@ -608,9 +610,9 @@ function cartaoRegistro(registro, mostrarReceita) {
 
   const proc = registro.processo ?? {};
   const partesProcesso = [
-    Number(proc.fermentacaoH) > 0 ? `${fmtNum(Number(proc.fermentacaoH), 1)} h em massa` : '',
-    Number(proc.geladeiraH) > 0 ? `${fmtNum(Number(proc.geladeiraH), 1)} h de geladeira` : '',
-    Number(proc.temperaturaC) > 0 ? `${fmtNum(Number(proc.temperaturaC), 0)} °C ambiente` : '',
+    Number(proc.fermentacaoH) > 0 ? `${horas(Number(proc.fermentacaoH))} h de fermentação` : '',
+    Number(proc.geladeiraH) > 0 ? `${horas(Number(proc.geladeiraH))} h de geladeira` : '',
+    Number(proc.temperaturaC) > 0 ? `${fmtNum(Number(proc.temperaturaC), 0)} °C na cozinha` : '',
   ].filter(Boolean);
 
   return `<article class="registro">
@@ -965,10 +967,16 @@ function folhaFornada() {
     </div>
 
     <div class="trio">
-      <label class="campo-livre"><span>Massa (h)</span><input type="text" inputmode="decimal" id="f-fermentacao"></label>
+      <label class="campo-livre"><span>Fermentação (h)</span><input type="text" inputmode="decimal" id="f-fermentacao"></label>
       <label class="campo-livre"><span>Geladeira (h)</span><input type="text" inputmode="decimal" id="f-geladeira"></label>
       <label class="campo-livre"><span>Ambiente (°C)</span><input type="text" inputmode="decimal" id="f-temp"></label>
     </div>
+    <p class="nota-rodape" style="margin-top:-4px">
+      <strong>Fermentação</strong> é o tempo em massa, da mistura até dividir e modelar.
+      <strong>Geladeira</strong> é o retardo a frio depois de modelado.
+      <strong>Ambiente</strong> é a temperatura da cozinha — é ela que faz a mesma
+      receita levar 4 h no verão e 8 h no inverno. Deixe em branco o que não usou.
+    </p>
 
     <div class="folha-acoes">
       <button class="botao-principal" data-acao="salvar-fornada">Salvar fornada</button>

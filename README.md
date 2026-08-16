@@ -58,6 +58,17 @@ Os dados ficam no `localStorage` do aparelho. Nada sai dali — não há servido
 conta nem sincronização. **Exporte de vez em quando** (☰ → Backup): limpar os
 dados do navegador apaga o diário.
 
+### O que cada campo de processo significa
+
+No registro de fornada, os três campos de tempo e temperatura são o que a
+planilha nunca cobriu mas muda o resultado tanto quanto a hidratação:
+
+| Campo | O que é |
+|---|---|
+| **Fermentação (h)** | O tempo em massa — da mistura até dividir e modelar, com a massa ainda inteira numa tigela só |
+| **Geladeira (h)** | O retardo a frio, com os pães já modelados, antes de ir ao forno |
+| **Ambiente (°C)** | A temperatura da cozinha, que é o que faz a mesma receita levar 4 h no verão e 8 h no inverno |
+
 ### Calibrar a perda no forno
 
 A planilha chuta 11% de perda de peso no forno. No diário, informe o peso real de
