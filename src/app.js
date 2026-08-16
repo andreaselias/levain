@@ -488,59 +488,55 @@ function saidasCustos(r, entradas) {
  * o alerta de "sem preço" enquanto se digita, sem reconstruir o formulário —
  * o que apagaria o campo debaixo do dedo.
  */
-function linhaDePreco(id, nome, controle, emUso, semPreco) {
-  return `<div class="campo${emUso ? '' : ' nao-usado'}${emUso && semPreco ? ' precisa-preco' : ''}" data-preco-de="${id}">
-    <span class="campo-texto">
-      <span class="campo-rotulo">${escapar(nome)}</span>
-      ${emUso ? '' : '<span class="campo-dica">fora desta receita</span>'}
-    </span>
+function linhaDePreco(id, nome, controle, semPreco) {
+  return `<div class="campo${semPreco ? ' precisa-preco' : ''}" data-preco-de="${id}">
+    <span class="campo-texto"><span class="campo-rotulo">${escapar(nome)}</span></span>
     ${controle}
   </div>`;
 }
 
-function precoDeItem(lista, item, emUso, semPreco) {
+function precoDeItem(lista, item, semPreco) {
   const controle = controleNumerico(
     MOLDE.preco,
     item.preco,
     `data-lista="${lista}" data-id="${item.id}" data-attr="preco"`,
     `Preço de ${item.nome}`
   );
-  return linhaDePreco(item.id, item.nome, controle, emUso, semPreco);
+  return linhaDePreco(item.id, item.nome, controle, semPreco);
 }
 
 function entradasCustos(entradas, r) {
-  const emUso = new Set(r.custos.itens.map((i) => i.id));
   const semPreco = new Set(r.custos.itens.filter((i) => !(i.preco > 0)).map((i) => i.id));
+
+  // Só o que pertence a esta receita. Uma farinha que está no catálogo mas fora
+  // das duas composições não custa nada aqui, e listar o preço dela seria pedir
+  // atenção para um número que não entra em conta nenhuma. Ela continua
+  // guardada, com o preço, no seletor "+ farinha".
+  const naReceita = new Set([
+    ...entradas.composicaoPao.map((c) => c.farinhaId),
+    ...entradas.composicaoStarter.map((c) => c.farinhaId),
+  ]);
 
   const campoSal = CAMPO_POR_CHAVE.precoSal;
   const linhas = [
-    {
-      id: 'sal',
-      html: linhaDePreco(
-        'sal',
-        campoSal.rotulo,
-        controleNumerico(campoSal, entradas.precoSal, 'data-campo="precoSal"', campoSal.rotulo),
-        emUso.has('sal'),
-        semPreco.has('sal')
-      ),
-    },
-    ...entradas.farinhas.map((f) => ({ id: f.id, html: precoDeItem('farinhas', f, emUso.has(f.id), semPreco.has(f.id)) })),
-    ...entradas.liquidos.map((l) => ({ id: l.id, html: precoDeItem('liquidos', l, emUso.has(l.id), semPreco.has(l.id)) })),
-    ...entradas.solidos.map((s) => ({ id: s.id, html: precoDeItem('solidos', s, emUso.has(s.id), semPreco.has(s.id)) })),
+    // Farinhas primeiro, sal depois: é a ordem da pesagem e a do próprio ticket.
+    ...entradas.farinhas
+      .filter((f) => naReceita.has(f.id))
+      .map((f) => precoDeItem('farinhas', f, semPreco.has(f.id))),
+    linhaDePreco(
+      'sal',
+      campoSal.rotulo,
+      controleNumerico(campoSal, entradas.precoSal, 'data-campo="precoSal"', campoSal.rotulo),
+      semPreco.has('sal')
+    ),
+    ...entradas.liquidos.map((l) => precoDeItem('liquidos', l, semPreco.has(l.id))),
+    ...entradas.solidos.map((s) => precoDeItem('solidos', s, semPreco.has(s.id))),
   ];
-
-  // Em uso primeiro: são os que mexem na conta agora. O resto continua
-  // editável, só que fora do caminho.
-  const usados = linhas.filter((l) => emUso.has(l.id));
-  const guardados = linhas.filter((l) => !emUso.has(l.id));
 
   return `
     <section class="secao">
       <h2 class="secao-titulo">Preço por quilo</h2>
-      <div class="grupo">${usados.map((l) => l.html).join('')}</div>
-      ${guardados.length
-        ? `<div class="grupo grupo-guardado">${guardados.map((l) => l.html).join('')}</div>`
-        : ''}
+      <div class="grupo">${linhas.join('')}</div>
     </section>
     ${grupoDeCampos('custos', 'Energia', entradas)}
     ${grupoDeCampos('custos', 'Embalagem (por pão)', entradas)}`;

@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="description" content="Calculadora de pão de fermentação natural: starter, receita, custos e diário de fornadas. Funciona offline.">
 <title>Levain — calculadora de pão</title>
 <meta name="theme-color" content="#e5e2d6" media="(prefers-color-scheme: light)">
@@ -151,6 +151,9 @@ body {
   line-height: 1.45;
   overscroll-behavior-y: none;
   -webkit-font-smoothing: antialiased;
+  /* Desliga o zoom por toque duplo — que num app de botões é sempre acidente —
+     sem tirar a rolagem nem a pinça de quem precisa aproximar para enxergar. */
+  touch-action: manipulation;
 }
 
 /* Grão de papel: SVG embutido, nada é buscado na rede. */
@@ -806,21 +809,6 @@ button {
   padding-right: 2px;
 }
 
-/* Ingrediente que existe no catálogo mas está fora desta receita: continua
-   editável, só que recuado do caminho. */
-.grupo-guardado {
-  margin-top: 8px;
-  border-style: dashed;
-}
-
-.campo.nao-usado .campo-rotulo {
-  color: var(--tinta-suave);
-}
-
-.campo.nao-usado .campo-controle {
-  opacity: 0.62;
-}
-
 /* Está na receita e não tem preço: a conta está mentindo até isto ser
    preenchido, então o campo precisa puxar o olho. */
 .campo.precisa-preco .campo-controle {
@@ -871,7 +859,9 @@ button {
   border: none;
   background: none;
   padding: 4px 0;
-  font-size: 0.95rem;
+  /* 16px não é escolha estética: abaixo disso o Safari do iPhone dá zoom
+     sozinho ao focar o campo, e a página fica torta. */
+  font-size: 1rem;
   border-bottom: 1px solid transparent;
 }
 
@@ -1463,7 +1453,8 @@ details.retrato[open] summary::before {
   background: var(--papel-2);
   border: 1px solid var(--linha);
   border-radius: var(--raio);
-  font-size: 0.95rem;
+  /* Ver .item-nome: menos de 16px faz o iPhone dar zoom ao focar. */
+  font-size: 1rem;
 }
 
 .campo-livre textarea {
@@ -2491,6 +2482,10 @@ function criarRegistro(receita, dados = {}, opcoes = {}) {
     id: opcoes.id ?? gerarId('g'),
     receitaId: receita.id,
     quando: dados.quando ?? agora,
+    // `quando` é editável e o campo de data/hora só tem precisão de minuto, então
+    // duas fornadas seguidas empatam. `criadoEm` guarda o instante real e serve
+    // de desempate — sem ele a ordem, e com ela a direção do diff, viram sorteio.
+    criadoEm: agora,
     observacao: dados.observacao ?? '',
     snapshot: clonarEntradas(receita.entradas),
     pesoRealAssado: dados.pesoRealAssado ?? null,
@@ -2504,11 +2499,15 @@ function criarRegistro(receita, dados = {}, opcoes = {}) {
   };
 }
 
-/** Do mais recente para o mais antigo. */
+/** Do mais recente para o mais antigo, desempatando pela ordem de criação. */
 function registrosDaReceita(estado, receitaId) {
-  return (estado.registros ?? [])
-    .filter((r) => r.receitaId === receitaId)
-    .sort((a, b) => (a.quando < b.quando ? 1 : a.quando > b.quando ? -1 : 0));
+  const maisRecentePrimeiro = (a, b) => {
+    if (a.quando !== b.quando) return a.quando < b.quando ? 1 : -1;
+    const criadoA = a.criadoEm ?? a.quando;
+    const criadoB = b.criadoEm ?? b.quando;
+    return criadoA < criadoB ? 1 : criadoA > criadoB ? -1 : 0;
+  };
+  return (estado.registros ?? []).filter((r) => r.receitaId === receitaId).sort(maisRecentePrimeiro);
 }
 
 /**
@@ -2698,6 +2697,7 @@ function normalizarRegistro(bruto) {
     id: String(bruto.id ?? gerarId('g')),
     receitaId: String(bruto.receitaId),
     quando: bruto.quando ?? agoraISO(),
+    criadoEm: bruto.criadoEm ?? bruto.quando ?? agoraISO(),
     observacao: String(bruto.observacao ?? ''),
     snapshot: clonarEntradas(bruto.snapshot),
     pesoRealAssado: bruto.pesoRealAssado ?? null,
@@ -3273,59 +3273,55 @@ function saidasCustos(r, entradas) {
  * o alerta de "sem preço" enquanto se digita, sem reconstruir o formulário —
  * o que apagaria o campo debaixo do dedo.
  */
-function linhaDePreco(id, nome, controle, emUso, semPreco) {
-  return `<div class="campo${emUso ? '' : ' nao-usado'}${emUso && semPreco ? ' precisa-preco' : ''}" data-preco-de="${id}">
-    <span class="campo-texto">
-      <span class="campo-rotulo">${escapar(nome)}</span>
-      ${emUso ? '' : '<span class="campo-dica">fora desta receita</span>'}
-    </span>
+function linhaDePreco(id, nome, controle, semPreco) {
+  return `<div class="campo${semPreco ? ' precisa-preco' : ''}" data-preco-de="${id}">
+    <span class="campo-texto"><span class="campo-rotulo">${escapar(nome)}</span></span>
     ${controle}
   </div>`;
 }
 
-function precoDeItem(lista, item, emUso, semPreco) {
+function precoDeItem(lista, item, semPreco) {
   const controle = controleNumerico(
     MOLDE.preco,
     item.preco,
     `data-lista="${lista}" data-id="${item.id}" data-attr="preco"`,
     `Preço de ${item.nome}`
   );
-  return linhaDePreco(item.id, item.nome, controle, emUso, semPreco);
+  return linhaDePreco(item.id, item.nome, controle, semPreco);
 }
 
 function entradasCustos(entradas, r) {
-  const emUso = new Set(r.custos.itens.map((i) => i.id));
   const semPreco = new Set(r.custos.itens.filter((i) => !(i.preco > 0)).map((i) => i.id));
+
+  // Só o que pertence a esta receita. Uma farinha que está no catálogo mas fora
+  // das duas composições não custa nada aqui, e listar o preço dela seria pedir
+  // atenção para um número que não entra em conta nenhuma. Ela continua
+  // guardada, com o preço, no seletor "+ farinha".
+  const naReceita = new Set([
+    ...entradas.composicaoPao.map((c) => c.farinhaId),
+    ...entradas.composicaoStarter.map((c) => c.farinhaId),
+  ]);
 
   const campoSal = CAMPO_POR_CHAVE.precoSal;
   const linhas = [
-    {
-      id: 'sal',
-      html: linhaDePreco(
-        'sal',
-        campoSal.rotulo,
-        controleNumerico(campoSal, entradas.precoSal, 'data-campo="precoSal"', campoSal.rotulo),
-        emUso.has('sal'),
-        semPreco.has('sal')
-      ),
-    },
-    ...entradas.farinhas.map((f) => ({ id: f.id, html: precoDeItem('farinhas', f, emUso.has(f.id), semPreco.has(f.id)) })),
-    ...entradas.liquidos.map((l) => ({ id: l.id, html: precoDeItem('liquidos', l, emUso.has(l.id), semPreco.has(l.id)) })),
-    ...entradas.solidos.map((s) => ({ id: s.id, html: precoDeItem('solidos', s, emUso.has(s.id), semPreco.has(s.id)) })),
+    // Farinhas primeiro, sal depois: é a ordem da pesagem e a do próprio ticket.
+    ...entradas.farinhas
+      .filter((f) => naReceita.has(f.id))
+      .map((f) => precoDeItem('farinhas', f, semPreco.has(f.id))),
+    linhaDePreco(
+      'sal',
+      campoSal.rotulo,
+      controleNumerico(campoSal, entradas.precoSal, 'data-campo="precoSal"', campoSal.rotulo),
+      semPreco.has('sal')
+    ),
+    ...entradas.liquidos.map((l) => precoDeItem('liquidos', l, semPreco.has(l.id))),
+    ...entradas.solidos.map((s) => precoDeItem('solidos', s, semPreco.has(s.id))),
   ];
-
-  // Em uso primeiro: são os que mexem na conta agora. O resto continua
-  // editável, só que fora do caminho.
-  const usados = linhas.filter((l) => emUso.has(l.id));
-  const guardados = linhas.filter((l) => !emUso.has(l.id));
 
   return `
     <section class="secao">
       <h2 class="secao-titulo">Preço por quilo</h2>
-      <div class="grupo">${usados.map((l) => l.html).join('')}</div>
-      ${guardados.length
-        ? `<div class="grupo grupo-guardado">${guardados.map((l) => l.html).join('')}</div>`
-        : ''}
+      <div class="grupo">${linhas.join('')}</div>
     </section>
     ${grupoDeCampos('custos', 'Energia', entradas)}
     ${grupoDeCampos('custos', 'Embalagem (por pão)', entradas)}`;

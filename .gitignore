@@ -3,4 +3,5 @@ node_modules/
 .idea/
 *.iml
 .playwright-mcp/
-*.png
+# Capturas de teste ficam na raiz; as do README moram em docs/imagens/
+/*.png

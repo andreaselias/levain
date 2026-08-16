@@ -81,6 +81,10 @@ export function criarRegistro(receita, dados = {}, opcoes = {}) {
     id: opcoes.id ?? gerarId('g'),
     receitaId: receita.id,
     quando: dados.quando ?? agora,
+    // `quando` é editável e o campo de data/hora só tem precisão de minuto, então
+    // duas fornadas seguidas empatam. `criadoEm` guarda o instante real e serve
+    // de desempate — sem ele a ordem, e com ela a direção do diff, viram sorteio.
+    criadoEm: agora,
     observacao: dados.observacao ?? '',
     snapshot: clonarEntradas(receita.entradas),
     pesoRealAssado: dados.pesoRealAssado ?? null,
@@ -94,11 +98,15 @@ export function criarRegistro(receita, dados = {}, opcoes = {}) {
   };
 }
 
-/** Do mais recente para o mais antigo. */
+/** Do mais recente para o mais antigo, desempatando pela ordem de criação. */
 export function registrosDaReceita(estado, receitaId) {
-  return (estado.registros ?? [])
-    .filter((r) => r.receitaId === receitaId)
-    .sort((a, b) => (a.quando < b.quando ? 1 : a.quando > b.quando ? -1 : 0));
+  const maisRecentePrimeiro = (a, b) => {
+    if (a.quando !== b.quando) return a.quando < b.quando ? 1 : -1;
+    const criadoA = a.criadoEm ?? a.quando;
+    const criadoB = b.criadoEm ?? b.quando;
+    return criadoA < criadoB ? 1 : criadoA > criadoB ? -1 : 0;
+  };
+  return (estado.registros ?? []).filter((r) => r.receitaId === receitaId).sort(maisRecentePrimeiro);
 }
 
 /**
@@ -288,6 +296,7 @@ function normalizarRegistro(bruto) {
     id: String(bruto.id ?? gerarId('g')),
     receitaId: String(bruto.receitaId),
     quando: bruto.quando ?? agoraISO(),
+    criadoEm: bruto.criadoEm ?? bruto.quando ?? agoraISO(),
     observacao: String(bruto.observacao ?? ''),
     snapshot: clonarEntradas(bruto.snapshot),
     pesoRealAssado: bruto.pesoRealAssado ?? null,

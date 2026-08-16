@@ -134,6 +134,9 @@ body {
   line-height: 1.45;
   overscroll-behavior-y: none;
   -webkit-font-smoothing: antialiased;
+  /* Desliga o zoom por toque duplo — que num app de botões é sempre acidente —
+     sem tirar a rolagem nem a pinça de quem precisa aproximar para enxergar. */
+  touch-action: manipulation;
 }
 
 /* Grão de papel: SVG embutido, nada é buscado na rede. */
@@ -789,21 +792,6 @@ button {
   padding-right: 2px;
 }
 
-/* Ingrediente que existe no catálogo mas está fora desta receita: continua
-   editável, só que recuado do caminho. */
-.grupo-guardado {
-  margin-top: 8px;
-  border-style: dashed;
-}
-
-.campo.nao-usado .campo-rotulo {
-  color: var(--tinta-suave);
-}
-
-.campo.nao-usado .campo-controle {
-  opacity: 0.62;
-}
-
 /* Está na receita e não tem preço: a conta está mentindo até isto ser
    preenchido, então o campo precisa puxar o olho. */
 .campo.precisa-preco .campo-controle {
@@ -854,7 +842,9 @@ button {
   border: none;
   background: none;
   padding: 4px 0;
-  font-size: 0.95rem;
+  /* 16px não é escolha estética: abaixo disso o Safari do iPhone dá zoom
+     sozinho ao focar o campo, e a página fica torta. */
+  font-size: 1rem;
   border-bottom: 1px solid transparent;
 }
 
@@ -1446,7 +1436,8 @@ details.retrato[open] summary::before {
   background: var(--papel-2);
   border: 1px solid var(--linha);
   border-radius: var(--raio);
-  font-size: 0.95rem;
+  /* Ver .item-nome: menos de 16px faz o iPhone dar zoom ao focar. */
+  font-size: 1rem;
 }
 
 .campo-livre textarea {

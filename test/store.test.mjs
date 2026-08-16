@@ -240,6 +240,43 @@ test('registros de uma receita vêm do mais recente para o mais antigo', () => {
   assert.deepEqual(registrosDaReceita(estado, 'r1').map((r) => r.id), ['c', 'b', 'a']);
 });
 
+test('duas fornadas no mesmo minuto mantêm a ordem em que foram criadas', () => {
+  // O campo de data/hora tem precisão de minuto, então duas fornadas
+  // registradas em seguida ficam com o mesmo `quando`. Sem desempate, a ordem
+  // e — pior — a direção do diff viram sorteio.
+  const estado = estadoInicial({ id: 'r1', agora: T0 });
+  const receita = estado.receitas[0];
+  const mesmoMinuto = '2026-08-16T01:53:00.000Z';
+
+  const primeira = criarRegistro(receita, { quando: mesmoMinuto }, { id: 'a', agora: '2026-08-16T01:53:04.100Z' });
+  receita.entradas = { ...receita.entradas, hidratacao: 0.75 };
+  const segunda = criarRegistro(receita, { quando: mesmoMinuto }, { id: 'b', agora: '2026-08-16T01:53:41.900Z' });
+  estado.registros = [primeira, segunda];
+
+  assert.deepEqual(
+    registrosDaReceita(estado, 'r1').map((r) => r.id),
+    ['b', 'a'],
+    'a mais recente primeiro, mesmo com o mesmo carimbo de minuto'
+  );
+
+  assert.deepEqual(diffDoRegistro(estado, primeira), [], 'a primeira não tem anterior');
+  const d = diffDoRegistro(estado, segunda);
+  assert.equal(d.length, 1, 'o diff pertence à segunda, não à primeira');
+  assert.equal(d[0].de, '70%');
+  assert.equal(d[0].para, '75%');
+});
+
+test('a data escrita pelo usuário manda mais que a ordem de criação', () => {
+  const estado = estadoInicial({ id: 'r1', agora: T0 });
+  const receita = estado.receitas[0];
+  // Registrada depois, mas datada de antes — alguém anotando a fornada de ontem
+  const deHoje = criarRegistro(receita, { quando: T2 }, { id: 'hoje', agora: '2026-08-15T09:00:00.000Z' });
+  const deOntem = criarRegistro(receita, { quando: T1 }, { id: 'ontem', agora: '2026-08-15T09:05:00.000Z' });
+  estado.registros = [deHoje, deOntem];
+
+  assert.deepEqual(registrosDaReceita(estado, 'r1').map((r) => r.id), ['hoje', 'ontem']);
+});
+
 test('registros de outras receitas não se misturam', () => {
   const estado = estadoInicial({ id: 'r1', agora: T0 });
   const outra = novaReceita('Outra', { id: 'r2', agora: T0 });

@@ -14,6 +14,21 @@ motor de cálculo só:
 - **💰 Custos** — preços, energia, embalagem, custo por pão
 - **📓 Diário** — uma entrada por fornada, com o que mudou desde a anterior
 
+<table>
+  <tr>
+    <td width="25%"><img src="docs/imagens/pao.jpg" alt="Aba Pão: lista de pesagem com farinha branca 530 g, integral 60 g, água 400 g, starter 120 g e sal 10 g" width="100%"></td>
+    <td width="25%"><img src="docs/imagens/starter.jpg" alt="Aba Starter: ativação repartida entre farinha branca e integral, com a hidratação do starter ativado" width="100%"></td>
+    <td width="25%"><img src="docs/imagens/custos.jpg" alt="Aba Custos: custo por pão embalado em destaque e a decomposição item a item" width="100%"></td>
+    <td width="25%"><img src="docs/imagens/diario.jpg" alt="Aba Diário: duas fornadas, com o diff de hidratação 70% para 75% e as notas de manuseio" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><b>Pão</b><br>a lista de pesagem</sub></td>
+    <td align="center"><sub><b>Starter</b><br>o que pesar para alimentar</sub></td>
+    <td align="center"><sub><b>Custos</b><br>de onde vem cada centavo</sub></td>
+    <td align="center"><sub><b>Diário</b><br>o que mudou e o que saiu</sub></td>
+  </tr>
+</table>
+
 ## Ingredientes
 
 Farinhas ficam num **catálogo** com nome e preço. Quanto entra na massa e quanto
