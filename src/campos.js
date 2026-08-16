@@ -47,6 +47,31 @@ export const CAMPOS = [
 export const CAMPO_POR_CHAVE = Object.fromEntries(CAMPOS.map((c) => [c.chave, c]));
 
 /**
+ * Notas de 1 a 5 de cada fornada.
+ *
+ * Vêm em dois grupos porque são observadas em momentos diferentes e têm
+ * naturezas diferentes. As de manuseio são feitas com a mão na massa e são
+ * **descritivas**: pegajosidade 5 não é boa nem ruim, é só grudenta — daí os
+ * extremos escritos, para o número não sugerir julgamento onde não há. As de
+ * resultado são julgadas depois de assar, e aí 5 é melhor que 1.
+ */
+export const ESCALAS = [
+  { chave: 'pegajosidade', rotulo: 'Pegajosidade', grupo: 'Manuseio e shaping', extremos: ['seca', 'grudenta'] },
+  { chave: 'formaNoShaping', rotulo: 'Manteve a forma', grupo: 'Manuseio e shaping', extremos: ['espalhou', 'firme'] },
+  { chave: 'crescimento', rotulo: 'Crescimento', grupo: 'Depois de assado' },
+  { chave: 'miolo', rotulo: 'Abertura do miolo', grupo: 'Depois de assado' },
+  { chave: 'casca', rotulo: 'Casca', grupo: 'Depois de assado' },
+  { chave: 'acidez', rotulo: 'Acidez', grupo: 'Depois de assado' },
+];
+
+export const GRUPOS_DE_ESCALA = [...new Set(ESCALAS.map((e) => e.grupo))];
+
+/** Todas as notas em branco. Uma escala nova entra aqui sozinha. */
+export function notasEmBranco() {
+  return Object.fromEntries(ESCALAS.map((e) => [e.chave, null]));
+}
+
+/**
  * Moldes de formatação para os atributos dos itens de lista. Não são campos de
  * formulário — servem para formatar valores no diff e nos retratos.
  */

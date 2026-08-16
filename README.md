@@ -58,6 +58,23 @@ Os dados ficam no `localStorage` do aparelho. Nada sai dali — não há servido
 conta nem sincronização. **Exporte de vez em quando** (☰ → Backup): limpar os
 dados do navegador apaga o diário.
 
+### As notas de 1 a 5
+
+Vêm em dois grupos, porque são observadas em momentos diferentes e têm naturezas
+diferentes:
+
+- **Manuseio e shaping** — *pegajosidade* (seca → grudenta) e *manteve a forma*
+  (espalhou → firme). São feitas com a mão na massa e são **descritivas**:
+  pegajosidade 5 não é boa nem ruim, é só grudenta. Por isso os extremos vêm
+  escritos, para o número não sugerir julgamento onde não há. É o sinal que
+  aparece primeiro quando se mexe na hidratação.
+- **Depois de assado** — *crescimento*, *abertura do miolo*, *casca* e *acidez*.
+  Aqui 5 é melhor que 1.
+
+No cartão do diário, as escalas descritivas mostram a palavra do extremo ao lado
+dos pontinhos quando a nota está numa das pontas — sem isso, `●●●●●` não diz
+qual ponta é qual para quem reler daqui a meses.
+
 ### O que cada campo de processo significa
 
 No registro de fornada, os três campos de tempo e temperatura são o que a

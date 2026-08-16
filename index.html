@@ -1135,6 +1135,11 @@ button {
   gap: 5px;
 }
 
+.nota-item em {
+  font-style: normal;
+  color: var(--crosta);
+}
+
 .pontos {
   display: flex;
   gap: 2px;
@@ -1476,8 +1481,15 @@ details.retrato[open] summary::before {
 
 .escalas {
   display: grid;
-  gap: 9px;
-  margin-bottom: 14px;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.escalas-titulo {
+  font-size: 0.68rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--tinta-fraca);
 }
 
 .escala {
@@ -1486,9 +1498,28 @@ details.retrato[open] summary::before {
   gap: 10px;
 }
 
-.escala > span {
+.escala-texto {
   flex: 1;
+  min-width: 0;
+}
+
+.escala-nome {
+  display: block;
   font-size: 0.85rem;
+}
+
+/* Escala descritiva não tem "melhor" nem "pior": os extremos escritos evitam
+   que o 5 seja lido como nota alta. */
+.escala-extremos {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--tinta-fraca);
+  margin-top: 1px;
+}
+
+.escala-extremos .seta {
+  color: var(--crosta);
+  padding: 0 1px;
 }
 
 .escala-botoes {
@@ -2175,6 +2206,31 @@ const CAMPOS = [
 const CAMPO_POR_CHAVE = Object.fromEntries(CAMPOS.map((c) => [c.chave, c]));
 
 /**
+ * Notas de 1 a 5 de cada fornada.
+ *
+ * Vêm em dois grupos porque são observadas em momentos diferentes e têm
+ * naturezas diferentes. As de manuseio são feitas com a mão na massa e são
+ * **descritivas**: pegajosidade 5 não é boa nem ruim, é só grudenta — daí os
+ * extremos escritos, para o número não sugerir julgamento onde não há. As de
+ * resultado são julgadas depois de assar, e aí 5 é melhor que 1.
+ */
+const ESCALAS = [
+  { chave: 'pegajosidade', rotulo: 'Pegajosidade', grupo: 'Manuseio e shaping', extremos: ['seca', 'grudenta'] },
+  { chave: 'formaNoShaping', rotulo: 'Manteve a forma', grupo: 'Manuseio e shaping', extremos: ['espalhou', 'firme'] },
+  { chave: 'crescimento', rotulo: 'Crescimento', grupo: 'Depois de assado' },
+  { chave: 'miolo', rotulo: 'Abertura do miolo', grupo: 'Depois de assado' },
+  { chave: 'casca', rotulo: 'Casca', grupo: 'Depois de assado' },
+  { chave: 'acidez', rotulo: 'Acidez', grupo: 'Depois de assado' },
+];
+
+const GRUPOS_DE_ESCALA = [...new Set(ESCALAS.map((e) => e.grupo))];
+
+/** Todas as notas em branco. Uma escala nova entra aqui sozinha. */
+function notasEmBranco() {
+  return Object.fromEntries(ESCALAS.map((e) => [e.chave, null]));
+}
+
+/**
  * Moldes de formatação para os atributos dos itens de lista. Não são campos de
  * formulário — servem para formatar valores no diff e nos retratos.
  */
@@ -2438,7 +2494,7 @@ function criarRegistro(receita, dados = {}, opcoes = {}) {
     observacao: dados.observacao ?? '',
     snapshot: clonarEntradas(receita.entradas),
     pesoRealAssado: dados.pesoRealAssado ?? null,
-    notas: { crescimento: null, miolo: null, casca: null, acidez: null, ...(dados.notas ?? {}) },
+    notas: { ...notasEmBranco(), ...(dados.notas ?? {}) },
     processo: {
       fermentacaoH: null,
       geladeiraH: null,
@@ -2645,7 +2701,7 @@ function normalizarRegistro(bruto) {
     observacao: String(bruto.observacao ?? ''),
     snapshot: clonarEntradas(bruto.snapshot),
     pesoRealAssado: bruto.pesoRealAssado ?? null,
-    notas: { crescimento: null, miolo: null, casca: null, acidez: null, ...(bruto.notas ?? {}) },
+    notas: { ...notasEmBranco(), ...(bruto.notas ?? {}) },
     processo: {
       fermentacaoH: null,
       geladeiraH: null,
@@ -2746,13 +2802,6 @@ const ABAS = [
   { id: 'pao', glifo: '🍞', rotulo: 'Pão' },
   { id: 'custos', glifo: '💰', rotulo: 'Custos' },
   { id: 'diario', glifo: '📓', rotulo: 'Diário' },
-];
-
-const ESCALAS = [
-  { chave: 'crescimento', rotulo: 'Crescimento' },
-  { chave: 'miolo', rotulo: 'Abertura do miolo' },
-  { chave: 'casca', rotulo: 'Casca' },
-  { chave: 'acidez', rotulo: 'Acidez' },
 ];
 
 const persistencia = criarPersistencia(
@@ -3333,8 +3382,20 @@ function cartaoRegistro(registro, mostrarReceita) {
   const daReceita = registrosDaReceita(estado, registro.receitaId);
   const ehAPrimeira = daReceita.length > 0 && daReceita[daReceita.length - 1].id === registro.id;
 
+  // Numa escala descritiva, cinco pontinhos não dizem qual ponta é qual. A
+  // palavra do extremo resolve isso para quem reler o diário daqui a meses.
+  const palavraDoExtremo = (escala, nota) => {
+    if (!escala.extremos) return '';
+    if (nota <= 2) return `<em>${escapar(escala.extremos[0])}</em>`;
+    if (nota >= 4) return `<em>${escapar(escala.extremos[1])}</em>`;
+    return '';
+  };
+
   const notas = ESCALAS.filter((e) => Number(registro.notas?.[e.chave]) > 0)
-    .map((e) => `<span class="nota-item">${e.rotulo} ${pontos(Number(registro.notas[e.chave]))}</span>`)
+    .map((e) => {
+      const nota = Number(registro.notas[e.chave]);
+      return `<span class="nota-item">${e.rotulo} ${pontos(nota)} ${palavraDoExtremo(e, nota)}</span>`;
+    })
     .join('');
 
   const proc = registro.processo ?? {};
@@ -3682,18 +3743,26 @@ function folhaFornada() {
       <input type="text" inputmode="decimal" id="f-peso" placeholder="pese um pão e anote">
     </label>
 
-    <div class="escalas">
-      ${ESCALAS.map(
-        (e) => `<div class="escala">
-          <span>${e.rotulo}</span>
-          <span class="escala-botoes">
-            ${[1, 2, 3, 4, 5]
-              .map((n) => `<button type="button" data-acao="escala" data-chave="${e.chave}" data-nota="${n}" aria-pressed="false">${n}</button>`)
-              .join('')}
-          </span>
-        </div>`
-      ).join('')}
-    </div>
+    ${GRUPOS_DE_ESCALA.map(
+      (grupo) => `<div class="escalas">
+        <span class="escalas-titulo">${grupo}</span>
+        ${ESCALAS.filter((e) => e.grupo === grupo)
+          .map(
+            (e) => `<div class="escala">
+              <span class="escala-texto">
+                <span class="escala-nome">${e.rotulo}</span>
+                ${e.extremos ? `<span class="escala-extremos">${escapar(e.extremos[0])} <span class="seta">→</span> ${escapar(e.extremos[1])}</span>` : ''}
+              </span>
+              <span class="escala-botoes">
+                ${[1, 2, 3, 4, 5]
+                  .map((n) => `<button type="button" data-acao="escala" data-chave="${e.chave}" data-nota="${n}" aria-pressed="false">${n}</button>`)
+                  .join('')}
+              </span>
+            </div>`
+          )
+          .join('')}
+      </div>`
+    ).join('')}
 
     <div class="trio">
       <label class="campo-livre"><span>Fermentação (h)</span><input type="text" inputmode="decimal" id="f-fermentacao"></label>

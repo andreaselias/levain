@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ENTRADAS_PADRAO } from '../src/calc.js';
-import { formatarValor, CAMPO_POR_CHAVE } from '../src/campos.js';
+import { formatarValor, CAMPO_POR_CHAVE, ESCALAS } from '../src/campos.js';
 import {
   estadoInicial,
   novaReceita,
@@ -188,6 +188,45 @@ test('registro congela um retrato das entradas, listas inclusive', () => {
   assert.equal(reg.snapshot.hidratacao, 0.7);
   assert.equal(reg.snapshot.composicaoPao[1].pct, 0.1, 'a lista também tem que estar congelada');
   assert.equal(reg.observacao, 'miolo fechado');
+});
+
+test('registro novo nasce com todas as notas em branco, inclusive as de manuseio', () => {
+  const reg = criarRegistro(novaReceita('R', { id: 'r1', agora: T0 }), {}, { id: 'g1', agora: T1 });
+  for (const e of ESCALAS) {
+    assert.equal(reg.notas[e.chave], null, `${e.chave} deveria existir em branco`);
+  }
+  assert.ok('pegajosidade' in reg.notas, 'pegajosidade');
+  assert.ok('formaNoShaping' in reg.notas, 'manteve a forma');
+});
+
+test('registro antigo ganha as escalas novas em branco sem perder as que tinha', () => {
+  const backup = {
+    app: 'aplicativo-pao',
+    versao: 3,
+    receitas: [{ id: 'r1', nome: 'A', criadaEm: T0, atualizadaEm: T0, entradas: {} }],
+    registros: [
+      { id: 'g1', receitaId: 'r1', quando: T1, observacao: '', snapshot: {}, notas: { crescimento: 4, casca: 2 } },
+    ],
+    receitaAtivaId: 'r1',
+  };
+  const r = importar(JSON.stringify(backup));
+  assert.equal(r.ok, true, r.erro);
+  const notas = r.estado.registros[0].notas;
+  assert.equal(notas.crescimento, 4, 'o que já existia fica');
+  assert.equal(notas.casca, 2, 'o que já existia fica');
+  assert.equal(notas.pegajosidade, null, 'a escala nova entra em branco');
+  assert.equal(notas.formaNoShaping, null, 'a escala nova entra em branco');
+});
+
+test('as escalas de manuseio trazem os extremos escritos; as de resultado não', () => {
+  const manuseio = ESCALAS.filter((e) => e.grupo === 'Manuseio e shaping');
+  assert.ok(manuseio.length >= 2, 'existe um grupo de manuseio');
+  for (const e of manuseio) {
+    assert.equal(e.extremos?.length, 2, `${e.chave} precisa dos dois extremos, porque a escala é descritiva`);
+  }
+  for (const e of ESCALAS.filter((x) => x.grupo === 'Depois de assado')) {
+    assert.equal(e.extremos, undefined, `${e.chave} é escala de qualidade: 5 é melhor que 1, sem ambiguidade`);
+  }
 });
 
 test('registros de uma receita vêm do mais recente para o mais antigo', () => {

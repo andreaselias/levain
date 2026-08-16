@@ -1118,6 +1118,11 @@ button {
   gap: 5px;
 }
 
+.nota-item em {
+  font-style: normal;
+  color: var(--crosta);
+}
+
 .pontos {
   display: flex;
   gap: 2px;
@@ -1459,8 +1464,15 @@ details.retrato[open] summary::before {
 
 .escalas {
   display: grid;
-  gap: 9px;
-  margin-bottom: 14px;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.escalas-titulo {
+  font-size: 0.68rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--tinta-fraca);
 }
 
 .escala {
@@ -1469,9 +1481,28 @@ details.retrato[open] summary::before {
   gap: 10px;
 }
 
-.escala > span {
+.escala-texto {
   flex: 1;
+  min-width: 0;
+}
+
+.escala-nome {
+  display: block;
   font-size: 0.85rem;
+}
+
+/* Escala descritiva não tem "melhor" nem "pior": os extremos escritos evitam
+   que o 5 seja lido como nota alta. */
+.escala-extremos {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--tinta-fraca);
+  margin-top: 1px;
+}
+
+.escala-extremos .seta {
+  color: var(--crosta);
+  padding: 0 1px;
 }
 
 .escala-botoes {

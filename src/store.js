@@ -7,7 +7,7 @@
  */
 
 import { ENTRADAS_PADRAO, LISTAS } from './calc.js';
-import { CAMPOS, MOLDE, formatarValor } from './campos.js';
+import { CAMPOS, MOLDE, formatarValor, notasEmBranco } from './campos.js';
 import { migrarEntradas, migrarEstado, VERSAO_ESTADO } from './migrar.js';
 
 export const CHAVE_STORAGE = 'aplicativo-pao';
@@ -84,7 +84,7 @@ export function criarRegistro(receita, dados = {}, opcoes = {}) {
     observacao: dados.observacao ?? '',
     snapshot: clonarEntradas(receita.entradas),
     pesoRealAssado: dados.pesoRealAssado ?? null,
-    notas: { crescimento: null, miolo: null, casca: null, acidez: null, ...(dados.notas ?? {}) },
+    notas: { ...notasEmBranco(), ...(dados.notas ?? {}) },
     processo: {
       fermentacaoH: null,
       geladeiraH: null,
@@ -291,7 +291,7 @@ function normalizarRegistro(bruto) {
     observacao: String(bruto.observacao ?? ''),
     snapshot: clonarEntradas(bruto.snapshot),
     pesoRealAssado: bruto.pesoRealAssado ?? null,
-    notas: { crescimento: null, miolo: null, casca: null, acidez: null, ...(bruto.notas ?? {}) },
+    notas: { ...notasEmBranco(), ...(bruto.notas ?? {}) },
     processo: {
       fermentacaoH: null,
       geladeiraH: null,

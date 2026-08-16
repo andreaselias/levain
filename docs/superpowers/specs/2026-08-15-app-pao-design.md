@@ -570,3 +570,35 @@ somar 32,4 + 13,5 + 8,1 e obter 86,99999999999999.
 arredondados: fechar esse laço criaria dependência circular, já que a hidratação
 do starter dimensiona o próprio starter. O arredondamento é aproximação de
 balança, não redefinição da fórmula.
+
+---
+
+# Notas de manuseio
+
+Data: 2026-08-16
+
+As quatro escalas existentes — crescimento, miolo, casca, acidez — são todas
+julgadas depois de assar. Faltava o que se observa com a mão na massa, que é o
+primeiro sinal a aparecer quando se mexe na hidratação.
+
+Duas escalas novas, num grupo à parte:
+
+| Escala | Extremos |
+|---|---|
+| Pegajosidade | seca → grudenta |
+| Manteve a forma | espalhou → firme |
+
+A separação em grupos não é organização por organização. As escalas de manuseio
+são **descritivas**: pegajosidade 5 não é boa nem ruim. As de resultado são de
+**qualidade**: 5 é melhor que 1. Misturá-las na mesma lista faria o 5 parecer
+nota alta em todas. Por isso só as descritivas trazem os extremos escritos, e há
+um teste que trava essa distinção.
+
+No cartão, escala descritiva ganha a palavra do extremo ao lado dos pontinhos
+quando a nota está numa das pontas: `Pegajosidade ●●●●● grudenta`. Sem isso os
+pontinhos não dizem qual ponta é qual meses depois.
+
+`ESCALAS` sai de app.js e vai para campos.js, junto com `notasEmBranco()`. O
+store passava a lista de escalas escrita à mão em dois lugares; agora deriva
+dela, e acrescentar uma escala é uma linha só. Registro antigo ganha as escalas
+novas em branco ao ser carregado, sem perder as notas que já tinha.

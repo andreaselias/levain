@@ -9,7 +9,7 @@
  */
 
 import { calcular, calibrarPerda, ENTRADAS_PADRAO } from './calc.js';
-import { CAMPOS, CAMPO_POR_CHAVE, MOLDE, formatarEntrada, formatarValor, paraArmazenamento } from './campos.js';
+import { CAMPOS, CAMPO_POR_CHAVE, ESCALAS, GRUPOS_DE_ESCALA, MOLDE, formatarEntrada, formatarValor, paraArmazenamento } from './campos.js';
 import { criarPersistencia, criarRegistro, diffDoRegistro, estadoInicial, exportar, gerarId, importar, novaReceita, receitaAtiva, registrosDaReceita } from './store.js';
 
 const ABAS = [
@@ -17,13 +17,6 @@ const ABAS = [
   { id: 'pao', glifo: '🍞', rotulo: 'Pão' },
   { id: 'custos', glifo: '💰', rotulo: 'Custos' },
   { id: 'diario', glifo: '📓', rotulo: 'Diário' },
-];
-
-const ESCALAS = [
-  { chave: 'crescimento', rotulo: 'Crescimento' },
-  { chave: 'miolo', rotulo: 'Abertura do miolo' },
-  { chave: 'casca', rotulo: 'Casca' },
-  { chave: 'acidez', rotulo: 'Acidez' },
 ];
 
 const persistencia = criarPersistencia(
@@ -604,8 +597,20 @@ function cartaoRegistro(registro, mostrarReceita) {
   const daReceita = registrosDaReceita(estado, registro.receitaId);
   const ehAPrimeira = daReceita.length > 0 && daReceita[daReceita.length - 1].id === registro.id;
 
+  // Numa escala descritiva, cinco pontinhos não dizem qual ponta é qual. A
+  // palavra do extremo resolve isso para quem reler o diário daqui a meses.
+  const palavraDoExtremo = (escala, nota) => {
+    if (!escala.extremos) return '';
+    if (nota <= 2) return `<em>${escapar(escala.extremos[0])}</em>`;
+    if (nota >= 4) return `<em>${escapar(escala.extremos[1])}</em>`;
+    return '';
+  };
+
   const notas = ESCALAS.filter((e) => Number(registro.notas?.[e.chave]) > 0)
-    .map((e) => `<span class="nota-item">${e.rotulo} ${pontos(Number(registro.notas[e.chave]))}</span>`)
+    .map((e) => {
+      const nota = Number(registro.notas[e.chave]);
+      return `<span class="nota-item">${e.rotulo} ${pontos(nota)} ${palavraDoExtremo(e, nota)}</span>`;
+    })
     .join('');
 
   const proc = registro.processo ?? {};
@@ -953,18 +958,26 @@ function folhaFornada() {
       <input type="text" inputmode="decimal" id="f-peso" placeholder="pese um pão e anote">
     </label>
 
-    <div class="escalas">
-      ${ESCALAS.map(
-        (e) => `<div class="escala">
-          <span>${e.rotulo}</span>
-          <span class="escala-botoes">
-            ${[1, 2, 3, 4, 5]
-              .map((n) => `<button type="button" data-acao="escala" data-chave="${e.chave}" data-nota="${n}" aria-pressed="false">${n}</button>`)
-              .join('')}
-          </span>
-        </div>`
-      ).join('')}
-    </div>
+    ${GRUPOS_DE_ESCALA.map(
+      (grupo) => `<div class="escalas">
+        <span class="escalas-titulo">${grupo}</span>
+        ${ESCALAS.filter((e) => e.grupo === grupo)
+          .map(
+            (e) => `<div class="escala">
+              <span class="escala-texto">
+                <span class="escala-nome">${e.rotulo}</span>
+                ${e.extremos ? `<span class="escala-extremos">${escapar(e.extremos[0])} <span class="seta">→</span> ${escapar(e.extremos[1])}</span>` : ''}
+              </span>
+              <span class="escala-botoes">
+                ${[1, 2, 3, 4, 5]
+                  .map((n) => `<button type="button" data-acao="escala" data-chave="${e.chave}" data-nota="${n}" aria-pressed="false">${n}</button>`)
+                  .join('')}
+              </span>
+            </div>`
+          )
+          .join('')}
+      </div>`
+    ).join('')}
 
     <div class="trio">
       <label class="campo-livre"><span>Fermentação (h)</span><input type="text" inputmode="decimal" id="f-fermentacao"></label>
