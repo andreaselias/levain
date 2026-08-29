@@ -410,14 +410,14 @@ function saidasStarter(r) {
           <span class="valor">${g(r.starter.totalAtivado)}</span>
         </div>
       </div>
-      <p class="nota-rodape">As quantidades saem da necessidade de starter da receita, arredondada para cima — por isso costuma sobrar um pouco.</p>
+      <p class="nota-rodape">O ativado cobre a massa e ainda repõe a mãe que sai do pote, para o starter não encolher a cada fornada. Como tudo arredonda para cima, costuma sobrar um pouco além disso.</p>
     </section>
 
     <section class="secao">
       <h2 class="secao-titulo">O que o starter carrega</h2>
       <div class="metricas">
         ${metrica('Hidratação do ativado', pct(r.starter.hidratacaoAtivado), true)}
-        ${metrica('Sobra', g(r.starter.sobra))}
+        ${metrica('Volta ao pote', g(r.starter.sobra))}
         ${metrica('Farinha embutida', gAuto(r.starter.farinhaNoStarter))}
         ${metrica('Água embutida', gAuto(r.starter.aguaNoStarter))}
       </div>

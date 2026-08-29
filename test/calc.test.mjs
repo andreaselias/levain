@@ -123,14 +123,17 @@ test('custos reproduzem a planilha', () => {
   perto(custos.embalagemTotal, 4.22, 'embalagem');
 });
 
-test('ativação do starter reproduz a planilha', () => {
+// A planilha dimensionava a ativação só pela necessidade da massa: 18/54/54,
+// 126 ativados, 6 de sobra. Aqui o ativado também repõe a mãe que sai do pote,
+// e por isso estes números divergem dela de propósito.
+test('ativação do starter cobre a massa e repõe o pote', () => {
   const { starter } = calcular(ENTRADAS_PADRAO);
   perto(starter.hidratacaoAtivado, 1, 'hidratação do ativado');
-  assert.equal(starter.maeParaAtivar, 18, 'starter-mãe');
-  assert.equal(starter.farinhaAtivar, 54, 'farinha');
-  assert.equal(starter.aguaAtivar, 54, 'água');
-  assert.equal(starter.totalAtivado, 126, 'total ativado');
-  assert.equal(starter.sobra, 6, 'sobra');
+  assert.equal(starter.maeParaAtivar, 20, 'starter-mãe');
+  assert.equal(starter.farinhaAtivar, 60, 'farinha');
+  assert.equal(starter.aguaAtivar, 60, 'água');
+  assert.equal(starter.totalAtivado, 140, 'total ativado');
+  assert.equal(starter.sobra, 20, 'volta ao pote os mesmos 20 g que saíram');
   perto(starter.farinhaNoStarter, 60, 'farinha embutida');
   perto(starter.aguaNoStarter, 60, 'água embutida');
 });
@@ -319,14 +322,14 @@ test('a farinha da ativação é repartida pela composição do pote', () => {
   const r = calcular(
     comFarinhas([
       { nome: 'Branca', preco: 4.46 },
-      { nome: 'Integral', preco: 11, pct: 0.1, pctStarter: 0.1 },
+      { nome: 'Integral', preco: 11, pct: 0.1, pctStarter: 0.12 },
     ])
   );
-  // São 54 g de farinha para alimentar, num pote 90/10 → 48,6 e 5,4 na conta
-  // exata, mas ninguém pesa isso: arredonda para 49 e 5, que somam 54.
-  perto(r.starter.farinhaAtivar, 54, 'total a pesar');
-  assert.equal(gramas(r.starter.farinhasAtivar, 'Branca'), 49, 'branca a pesar');
-  assert.equal(gramas(r.starter.farinhasAtivar, 'Integral'), 5, 'integral a pesar');
+  // São 60 g de farinha para alimentar, num pote 88/12 → 52,8 e 7,2 na conta
+  // exata, mas ninguém pesa isso: arredonda para 53 e 7, que somam 60.
+  perto(r.starter.farinhaAtivar, 60, 'total a pesar');
+  assert.equal(gramas(r.starter.farinhasAtivar, 'Branca'), 53, 'branca a pesar');
+  assert.equal(gramas(r.starter.farinhasAtivar, 'Integral'), 7, 'integral a pesar');
 });
 
 test('pote de uma farinha só dá uma linha, com o total inteiro', () => {
@@ -396,6 +399,23 @@ test('o total ativado e a sobra usam os valores já arredondados', () => {
   perto(r.starter.sobra, Math.max(r.starter.totalAtivado - r.pao.starter, 0), 'sobra coerente');
 });
 
+// ---------------------------------------------------------------------------
+// Reposição do pote: ativar só o que a massa pede encolhe o starter a cada
+// fornada. O que fica depois da massa tem que dar para repor a mãe que saiu.
+// ---------------------------------------------------------------------------
+
+test('o ativado repõe a mãe que saiu do pote', () => {
+  for (const { nome, entradas } of CENARIOS_DE_ATIVACAO) {
+    // Sem passo de balança: o arredondamento é outro assunto, já testado acima.
+    const r = calcular({ ...ENTRADAS_PADRAO, arredondamentoAtivacao: 0, ...entradas });
+    const volta = r.starter.totalAtivado - r.pao.starter;
+    assert.ok(
+      volta >= r.starter.maeParaAtivar - TOL,
+      `${nome}: saíram ${r.starter.maeParaAtivar} g do pote e voltam só ${volta} g`
+    );
+  }
+});
+
 test('o passo de arredondamento é configurável', () => {
   const meioGrama = calcular({ ...TRES_FARINHAS(0.25, 0.15), arredondamentoAtivacao: 0.5 });
   for (const f of meioGrama.starter.farinhasAtivar) {
@@ -412,20 +432,20 @@ test('o passo de arredondamento é configurável', () => {
 
 test('passo zero significa não arredondar', () => {
   const r = calcular({
-    ...comFarinhas([{ nome: 'Branca' }, { nome: 'Integral', pctStarter: 0.1 }]),
+    ...comFarinhas([{ nome: 'Branca' }, { nome: 'Integral', pctStarter: 0.12 }]),
     arredondamentoAtivacao: 0,
   });
-  perto(gramas(r.starter.farinhasAtivar, 'Branca'), 48.6, 'volta a fração exata');
-  perto(gramas(r.starter.farinhasAtivar, 'Integral'), 5.4, 'volta a fração exata');
+  perto(gramas(r.starter.farinhasAtivar, 'Branca'), 52.8, 'volta a fração exata');
+  perto(gramas(r.starter.farinhasAtivar, 'Integral'), 7.2, 'volta a fração exata');
 });
 
-test('arredondar a ativação não mexe nos valores da planilha', () => {
+test('arredondar a ativação não mexe nos valores da configuração padrão', () => {
   const { starter } = calcular(ENTRADAS_PADRAO);
-  assert.equal(starter.maeParaAtivar, 18);
-  assert.equal(starter.farinhaAtivar, 54);
-  assert.equal(starter.aguaAtivar, 54);
-  assert.equal(starter.totalAtivado, 126);
-  assert.equal(starter.sobra, 6);
+  assert.equal(starter.maeParaAtivar, 20);
+  assert.equal(starter.farinhaAtivar, 60);
+  assert.equal(starter.aguaAtivar, 60);
+  assert.equal(starter.totalAtivado, 140);
+  assert.equal(starter.sobra, 20);
 });
 
 test('a composição do starter não altera os pesos da massa', () => {
@@ -676,6 +696,19 @@ test('proporção de starter zero na ativação zera a ativação com aviso', ()
   todosFinitos(r);
   assert.equal(r.starter.maeParaAtivar, 0);
   assert.ok(r.avisos.length > 0);
+});
+
+test('ativação sem farinha nem água avisa que o pote não se repõe', () => {
+  const r = calcular({ ...ENTRADAS_PADRAO, propAtivacaoFarinha: 0, propAtivacaoAgua: 0 });
+  todosFinitos(r);
+  // Mãe pura direto na massa: dá para fazer o pão, mas não sobra nada para o
+  // pote, e a conta da reposição dividiria por zero.
+  assert.equal(r.starter.maeParaAtivar, r.pao.starter, 'a mãe pura é o próprio ativado');
+  assert.equal(r.starter.sobra, 0, 'não sobra nada para o pote');
+  assert.ok(
+    r.avisos.some((a) => /rep(õe|or)/i.test(a)),
+    `esperava aviso sobre a reposição, vieram ${JSON.stringify(r.avisos)}`
+  );
 });
 
 test('percentuais que zeram o denominador são rejeitados com aviso', () => {

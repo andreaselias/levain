@@ -377,8 +377,22 @@ export function calcular(entradas) {
   let maeParaAtivar = 0;
   let farinhaAtivar = 0;
   let aguaAtivar = 0;
+  const alimento = rFl + rWa;
   if (rSt > 0 && somaProp > 0) {
-    maeParaAtivar = roundUp((starter * rSt) / somaProp);
+    if (alimento <= 0) {
+      // Mãe pura, sem alimentar: o pote não tem de onde se repor, e a conta da
+      // reposição dividiria por zero. Vale a mãe inteira indo para a massa.
+      avisos.push(
+        'Sem farinha nem água na ativação, o pote não se repõe: a mãe vai inteira para a massa.'
+      );
+      maeParaAtivar = roundUp(starter);
+    } else {
+      // O ativado cobre a massa e ainda repõe a mãe que saiu do pote — sem isso
+      // o pote encolhe a cada fornada. Quer-se `totalAtivado = starter + mae`;
+      // como o ativado é `mae * somaProp / rSt`, isolar a mãe tira o `rSt` do
+      // denominador e sobra o que se alimenta: farinha mais água.
+      maeParaAtivar = roundUp((starter * rSt) / alimento);
+    }
     farinhaAtivar = snapAtivacao((maeParaAtivar * rFl) / rSt);
     aguaAtivar = snapAtivacao((maeParaAtivar * rWa) / rSt);
   }
