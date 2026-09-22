@@ -796,7 +796,11 @@ document.querySelector('[data-acao="passo"][data-campo="propIncremento"][data-si
 document.querySelector('input[data-campo="propIncremento"]').value;
 ```
 
-Expected hoje: `"6,1"` — o 5,55 foi lido do texto já truncado para 5,6. Esperado depois: `"6,05"`.
+Expected hoje: `"6,05"` — e depois também. Este roteiro **não** demonstra o
+defeito: com `casas: 2` o campo já exibe `5,55` inteiro, e os dois caminhos
+concordam. Ver a correção no fim deste plano; para ver a divergência, use
+`pctSal` guardado em `0,01375` com um clique de `−`, que dá `1,28` pelo texto
+contra `1,27` pelo guardado.
 
 - [ ] **Step 2: Ler o valor guardado em vez do texto**
 

@@ -4625,10 +4625,17 @@ const ACOES = {
     const entrada = document.querySelector(seletor);
     if (!entrada) return;
 
-    // O texto do campo já vem cortado por `casas`; partir dele regrava o valor
-    // truncado e come a precisão de quem digitou 5,55 ou veio da migração. O
-    // valor guardado é a fonte, e o texto só o substitui quando não há nada
-    // guardado ainda.
+    // O valor de partida do botão não deve depender de quanta precisão a
+    // última renderização por acaso preservou. Hoje os dois caminhos quase
+    // sempre concordam: todo par `passo`/`casas` do projeto cai na mesma grade
+    // decimal, e nessa condição arredondar antes de somar dá no mesmo. Eles
+    // divergem na fronteira de arredondamento — `pctSal` guardado em 0,01375
+    // exibe 1,38 e um clique de menos dá 1,28 pelo texto contra 1,27 pelo
+    // guardado — e passariam a divergir sempre no dia em que alguém puser um
+    // campo cujo `passo` não caia na grade do seu `casas`.
+    //
+    // O texto só entra quando não há valor guardado, o que na prática é
+    // backup corrompido: o campo aparece vazio e o clique o devolve à grade.
     const guardado = chaveCampo
       ? receitaAtiva(estado).entradas[chaveCampo]
       : itemPorId(lista, id)?.[attr];
