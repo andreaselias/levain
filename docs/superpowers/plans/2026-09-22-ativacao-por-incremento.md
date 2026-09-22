@@ -935,6 +935,26 @@ arredondamento fracionário.** Com `propIncremento: 10/3` cai em 60/60 exatos �
 mas a proporção 3:5:5 que havia antes também caía, então não é regressão
 introduzida aqui. Defeito pré-existente do teste, não da mudança.
 
+**O botão de passo: o defeito é outro, e menor, do que este plano afirmava.** A
+Task 6 foi escrita dizendo que um valor migrado como `5,55` ou `10/3` perde
+precisão ao primeiro clique no `+`. Medido na implementação: não perde. Os dois
+caminhos — ler o texto exibido ou ler o valor guardado — dão resultado idêntico
+para `5,55`, `10/3` e `0,7368…`. A razão é que todo par `passo`/`casas` do
+projeto está alinhado na mesma grade decimal (`passo 0,5` contra 2 casas,
+`passo 5` contra 1 casa), e nessa condição `round(round(x,n) + passo, n)` é
+igual a `round(x + passo, n)`.
+
+A divergência existe, mas só na fronteira de arredondamento, em 0,26% de 100
+mil combinações varridas. Exemplo concreto: `pctSal` guardado em `0,01375`
+exibe `1,38`; um clique de `−` dá `1,28` partindo do texto e `1,27` partindo do
+guardado.
+
+O conserto fica, por um motivo diferente do que o plano deu: o valor de partida
+do botão não deve depender de quanta precisão a última renderização por acaso
+preservou. Isso é verdade quer a grade decimal mascare o efeito hoje ou não, e
+deixa de ser verdade assim que alguém acrescentar um campo cujo `passo` não caia
+na grade do seu `casas`.
+
 **A migração tem uma exceção combinada: oito receitas mudam de número.** A
 conversão é exata em 98.552 das 98.560 combinações varridas (razões 1-4 : 1-8 :
 1-8, pote de 50% a 200%, starter de 10% a 35%, passo de balança de 0,1 a 25 g).

@@ -221,6 +221,18 @@ chega truncado ao botão, que grava o truncado de volta. Hoje é raro; com valor
 migrados como `5,55` ou `97,71%` passa a ser comum. Entra no escopo porque a
 migração é que cria a exposição.
 
+> **Correção, posterior à implementação:** o parágrafo acima está errado no
+> mecanismo, e os exemplos que ele escolhe não demonstram defeito nenhum.
+> Medido: `5,55`, `10/3` e `0,7368…` dão exatamente o mesmo resultado com e sem
+> o conserto. Todo par `passo`/`casas` do projeto está alinhado na mesma grade
+> decimal, e arredondar um passo alinhado comuta com arredondar antes de somar.
+> A divergência real aparece só na fronteira de arredondamento — `pctSal`
+> guardado em `0,01375` exibe `1,38` e um clique de `−` dá `1,28` pelo texto
+> contra `1,27` pelo valor guardado — em 0,26% de 100 mil combinações varridas.
+> O conserto continua certo, por outra razão: o valor de partida do botão não
+> deve depender de quanta precisão a última renderização por acaso preservou.
+> Ver o registro no plano.
+
 Correção: ler o valor guardado — `paraExibicao(molde, entradas[chave])` para
 campo simples, o atributo do item para lista — e só cair no texto do campo se
 não houver valor guardado.
