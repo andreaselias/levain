@@ -10,7 +10,7 @@
 
 import { calcular, calibrarPerda, calibrarVolumeEspecifico, ENTRADAS_PADRAO } from './calc.js';
 import { CAMPOS, CAMPO_POR_CHAVE, ESCALAS, GRUPOS_DE_ESCALA, MOLDE, formatarEntrada, formatarValor, paraArmazenamento } from './campos.js';
-import { criarPersistencia, criarRegistro, diffDoRegistro, estadoInicial, exportar, gerarId, importar, novaReceita, receitaAtiva, receitaDoRegistro, registrosDaReceita } from './store.js';
+import { criarPersistencia, criarRegistro, diffDoRegistro, estadoInicial, exportar, gerarId, importar, mesmoNumero, novaReceita, receitaAtiva, receitaDoRegistro, registrosDaReceita } from './store.js';
 
 const ABAS = [
   { id: 'starter', glifo: '🫧', rotulo: 'Starter' },
@@ -426,9 +426,9 @@ function saidasStarter(r, entradas) {
             .map((f) => `${gAuto(f.gramas)} de ${escapar(f.nome.toLowerCase())}`)
             .join(', ')}.</p>`
         : ''}
-      ${entradas.hidratacaoAtivado !== entradas.hidratacaoMae
-        ? `<p class="nota-rodape">A sobra volta para o pote com a hidratação do ativado, diferente da que o pote tem. A cada fornada o pote caminha nessa direção — para ele ficar parado, iguale as duas.</p>`
-        : ''}
+      ${mesmoNumero(entradas.hidratacaoAtivado, entradas.hidratacaoMae)
+        ? ''
+        : `<p class="nota-rodape">A sobra volta para o pote com a hidratação do ativado, diferente da que o pote tem. A cada fornada o pote caminha nessa direção — para ele ficar parado, iguale as duas.</p>`}
     </section>`;
 }
 

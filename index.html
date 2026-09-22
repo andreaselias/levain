@@ -2863,6 +2863,17 @@ function igual(a, b) {
   return Math.abs(x - y) <= TOLERANCIA_DIFF;
 }
 
+/**
+ * A comparação tolerante também serve fora do diff: qualquer tela que decida
+ * mostrar algo com base em "estes dois números são o mesmo" precisa da mesma
+ * régua, senão 0,8499999999999999 e 0,85 passam a ser coisas diferentes.
+ *
+ * `export { igual as mesmoNumero }` seria o re-export direto, mas o
+ * empacotador só reconhece `export const|function|let|class` de uma linha só
+ * — por isso o alias vira uma constante, não uma sintaxe de re-export.
+ */
+const mesmoNumero = igual;
+
 function diffDeLista(anterior, atual, definicao, mudancas) {
   const antes = Array.isArray(anterior[definicao.chave]) ? anterior[definicao.chave] : [];
   const depois = Array.isArray(atual[definicao.chave]) ? atual[definicao.chave] : [];
@@ -3545,9 +3556,9 @@ function saidasStarter(r, entradas) {
             .map((f) => `${gAuto(f.gramas)} de ${escapar(f.nome.toLowerCase())}`)
             .join(', ')}.</p>`
         : ''}
-      ${entradas.hidratacaoAtivado !== entradas.hidratacaoMae
-        ? `<p class="nota-rodape">A sobra volta para o pote com a hidratação do ativado, diferente da que o pote tem. A cada fornada o pote caminha nessa direção — para ele ficar parado, iguale as duas.</p>`
-        : ''}
+      ${mesmoNumero(entradas.hidratacaoAtivado, entradas.hidratacaoMae)
+        ? ''
+        : `<p class="nota-rodape">A sobra volta para o pote com a hidratação do ativado, diferente da que o pote tem. A cada fornada o pote caminha nessa direção — para ele ficar parado, iguale as duas.</p>`}
     </section>`;
 }
 
