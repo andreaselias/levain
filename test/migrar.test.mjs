@@ -373,9 +373,9 @@ test('v3 com proporção de starter zerada cai no padrão sem NaN', () => {
   assert.ok(Number.isFinite(r.pao.agua), 'a conta sobrevive');
 });
 
-// Antes, v1 e v2 caíam em `escalares`, que só copia chaves presentes no padrão:
-// uma receita antiga com proporção 1:4:4 perdia o 4:4 e virava o 3:3 do padrão
-// em silêncio. A conversão tem que valer nos três formatos.
+// `escalares` só copia chave que existe no padrão, e as três proporções de
+// ativação saíram dele nesta mudança. Sem o conversor em `deV1`, uma receita
+// v1 com 1:4:4 viraria o 1:3:3 do padrão sem dizer nada.
 test('v1 com proporções fora do padrão também converte', () => {
   const migrada = migrarEntradas({
     ...V1,

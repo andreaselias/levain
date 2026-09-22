@@ -394,9 +394,9 @@ function saidasStarter(r, entradas) {
   // arredondamento aparece sozinha na métrica de hidratação real, ao lado.
   //
   // As duas guardas dizem o que a nota afirma: que alguma coisa volta para o
-  // pote, e que ela volta diferente. Sem incremento a mãe volta inteira e nada
-  // deriva; sem sobra não volta nada, e uma receita sem starter nenhum não tem
-  // pote para derivar.
+  // pote, e que ela volta diferente. Sem incremento a mãe vai inteira para a
+  // massa e nada deriva; sem sobra não volta nada, e uma receita sem starter
+  // nenhum não tem pote para derivar.
   const poteDeriva =
     entradas.propIncremento > 0 &&
     r.starter.sobra > 0 &&
@@ -1497,12 +1497,14 @@ const ACOES = {
 
     // O valor de partida do botão não deve depender de quanta precisão a
     // última renderização por acaso preservou. Hoje os dois caminhos quase
-    // sempre concordam: todo par `passo`/`casas` do projeto cai na mesma grade
-    // decimal, e nessa condição arredondar antes de somar dá no mesmo. Eles
-    // divergem na fronteira de arredondamento — `pctSal` guardado em 0,01375
-    // exibe 1,38 e um clique de menos dá 1,28 pelo texto contra 1,27 pelo
-    // guardado — e passariam a divergir sempre no dia em que alguém puser um
-    // campo cujo `passo` não caia na grade do seu `casas`.
+    // sempre concordam porque o valor guardado quase sempre já está na grade
+    // que o campo exibe — ler o texto ou ler o guardado dá o mesmo número.
+    // Divergem quando o guardado foge dessa grade e cai numa fronteira exata
+    // de arredondamento — `pctSal` tem `passo`/`casas` alinhados e mesmo assim
+    // guardado em 0,01375 exibe 1,38, e um clique de menos dá 1,28 pelo texto
+    // contra 1,27 pelo guardado — e passariam a divergir com frequência no dia
+    // em que alguém puser um campo cujo `passo` não caia na grade do seu
+    // `casas`.
     //
     // O texto só entra quando não há valor guardado, o que na prática é
     // backup corrompido: o campo aparece vazio e o clique o devolve à grade.

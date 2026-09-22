@@ -9,7 +9,7 @@ O objetivo — peso assado e número de pães — fica numa faixa fixa no topo, 
 muda a cada produção e dimensiona todo o resto. Abaixo dele, quatro abas sobre um
 motor de cálculo só:
 
-- **🫧 Starter** — composição própria do pote, hidratação do mãe, proporção de ativação
+- **🫧 Starter** — composição própria do pote, hidratação do mãe, incremento e hidratação do ativado
 - **🍞 Pão** — composição e a lista de pesagem em gramas
 - **💰 Custos** — preços, energia, embalagem, custo por pão
 - **📓 Diário** — uma entrada por fornada, com o que mudou desde a anterior
@@ -165,8 +165,9 @@ se conhece de cor:
 Dois outros foram deliberadamente **corrigidos** nesta versão: extras sólidos
 agora entram no peso, e a farinha de dentro do starter passou a ser cobrada pelo
 preço da farinha dele em vez do da branca. Receitas salvas no formato antigo são
-convertidas ao abrir, e há teste provando que os números não mudam — a exceção
-combinada são os extras.
+convertidas ao abrir, e há teste provando que os números não mudam — com duas
+exceções: os extras, e oito receitas que caem bem na fronteira de arredondamento
+da ativação e mudam de número, listadas e congeladas em teste.
 
 O projeto e a referência completa de fórmulas estão em
 [`docs/superpowers/specs/`](docs/superpowers/specs/).

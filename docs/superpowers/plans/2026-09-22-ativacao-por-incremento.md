@@ -943,21 +943,27 @@ introduzida aqui. Defeito pré-existente do teste, não da mudança.
 Task 6 foi escrita dizendo que um valor migrado como `5,55` ou `10/3` perde
 precisão ao primeiro clique no `+`. Medido na implementação: não perde. Os dois
 caminhos — ler o texto exibido ou ler o valor guardado — dão resultado idêntico
-para `5,55`, `10/3` e `0,7368…`. A razão é que todo par `passo`/`casas` do
-projeto está alinhado na mesma grade decimal (`passo 0,5` contra 2 casas,
-`passo 5` contra 1 casa), e nessa condição `round(round(x,n) + passo, n)` é
-igual a `round(x + passo, n)`.
+para `5,55`, `10/3` e `0,7368…`. A razão é que o valor guardado quase sempre já
+está na grade que o campo exibe — ler o texto ou ler o guardado dá o mesmo
+número. (Não é, como uma rodada anterior desta correção chegou a afirmar, que
+todo par `passo`/`casas` do projeto caia na mesma grade decimal e que nessa
+condição `round(round(x,n) + passo, n)` seja sempre igual a `round(x + passo,
+n)` — essa identidade é falsa, e o contraexemplo mora neste próprio projeto:
+`pctSal` tem `passo`/`casas` alinhados e diverge assim mesmo, ver abaixo.)
 
-A divergência existe, mas só na fronteira de arredondamento, em 0,26% de 100
-mil combinações varridas. Exemplo concreto: `pctSal` guardado em `0,01375`
+A divergência existe, mas só numa fronteira exata de arredondamento — o valor
+guardado precisa estar fora da grade que o campo exibe *e* cair bem em cima de
+um empate. A taxa medida depende inteiramente da grade varrida: 0,96% das
+combinações a uma casa além de `casas`, 0,16% a duas casas além, 0,02% a três,
+e 0,00% num sweep contínuo. Exemplo concreto: `pctSal` guardado em `0,01375`
 exibe `1,38`; um clique de `−` dá `1,28` partindo do texto e `1,27` partindo do
 guardado.
 
 O conserto fica, por um motivo diferente do que o plano deu: o valor de partida
 do botão não deve depender de quanta precisão a última renderização por acaso
-preservou. Isso é verdade quer a grade decimal mascare o efeito hoje ou não, e
-deixa de ser verdade assim que alguém acrescentar um campo cujo `passo` não caia
-na grade do seu `casas`.
+preservou. Isso é verdade quer o valor guardado esteja na grade hoje ou não, e
+fica mais importante assim que alguém acrescentar um campo cujo `passo` não
+caia na grade do seu `casas`.
 
 **A migração tem uma exceção combinada: oito receitas mudam de número.** A
 conversão é exata em 98.552 das 98.560 combinações varridas (razões 1-4 : 1-8 :
@@ -978,10 +984,11 @@ quem quer um resultado produz esse resultado.
 
 A fórmula da hidratação usa fração única — `(rWa·dMae + rSt·hMae) / (rFl·dMae +
 rSt)` — e não a forma com divisões aninhadas. São a mesma álgebra, mas a
-aninhada arredonda no meio e erra o último bit em 38% das razões; a fração
-única bate com o valor exato em racionais. Isso levou as divergências de 11
-para 8, que é o piso: verificado contra aritmética exata, nenhuma fórmula que
-calcule a hidratação verdadeira faz melhor.
+aninhada arredonda no meio e erra o último bit em 37,72% dos pares razão ×
+hidratação do pote varridos (zero em 256 no pote padrão); a fração única bate
+com o valor exato em racionais. Isso levou as divergências de 11 para 8, que é
+o piso: verificado contra aritmética exata, nenhuma fórmula que calcule a
+hidratação verdadeira faz melhor.
 
 Zero não é alcançável. O resíduo nasce do cancelamento em
 `totalExato/divisorAlvo − farinhaDaMae` dentro de `calc.js`, não da conversão.

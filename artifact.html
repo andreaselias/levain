@@ -2503,10 +2503,14 @@ function formatarValor(campo, valor) {
  *   v1  campos fixos de ingrediente (pctIntegral, pctCenteio, pctMelado, extras)
  *   v2  catálogo de farinhas com pct e pctStarter embutidos no próprio item
  *   v3  catálogo só de nome e preço, com duas listas de composição separadas
+ *   v4  ativação por incremento (propIncremento + hidratacaoAtivado) em vez
+ *       das três proporções separadas
  *
  * Roda ao carregar o estado do aparelho. O critério é conservador: quem já
- * usava o app não pode ver número mudar. A única exceção é combinada — em v1
- * os extras não entravam no peso, e agora entram.
+ * usava o app não pode ver número mudar. Há duas exceções, e nenhuma das duas
+ * é silenciosa: em v1 os extras não entravam no peso, e agora entram; e oito
+ * receitas na fronteira de arredondamento da ativação mudam de número, listadas
+ * e congeladas em teste.
  */
 
 
@@ -2567,8 +2571,9 @@ function converterAtivacao(v) {
     propIncremento: (rFl + rWa) / rSt,
     // Fração única de propósito: a forma com divisões aninhadas
     // `(rWa + rSt·hMae/dMae) / (rFl + rSt/dMae)` é a mesma álgebra, mas
-    // arredonda no meio do caminho e erra o último bit em 38% das razões.
-    // Esta chega ao piso: bate com o valor exato em racionais.
+    // arredonda no meio do caminho e erra o último bit em 37,72% dos pares
+    // razão × hidratação do pote varridos. Esta chega ao piso: bate com o
+    // valor exato em racionais.
     hidratacaoAtivado: (rWa * divisorMae + rSt * hMae) / (rFl * divisorMae + rSt),
   };
 }
@@ -2584,7 +2589,7 @@ function escalares(v) {
   return saida;
 }
 
-/** v1 → v3: os três campos fixos de farinha viram catálogo e composição. */
+/** v1 → v4: os três campos fixos de farinha viram catálogo e composição. */
 function deV1(v) {
   const saida = escalares(v);
 
@@ -2626,7 +2631,7 @@ function deV1(v) {
   return saida;
 }
 
-/** v2 → v3: separa a participação, que vinha grudada no item do catálogo. */
+/** v2 → v4: separa a participação, que vinha grudada no item do catálogo. */
 function deV2(v) {
   const saida = escalares(v);
   const farinhas = v.farinhas.map((f, i) => ({
@@ -3516,9 +3521,9 @@ function saidasStarter(r, entradas) {
   // arredondamento aparece sozinha na métrica de hidratação real, ao lado.
   //
   // As duas guardas dizem o que a nota afirma: que alguma coisa volta para o
-  // pote, e que ela volta diferente. Sem incremento a mãe volta inteira e nada
-  // deriva; sem sobra não volta nada, e uma receita sem starter nenhum não tem
-  // pote para derivar.
+  // pote, e que ela volta diferente. Sem incremento a mãe vai inteira para a
+  // massa e nada deriva; sem sobra não volta nada, e uma receita sem starter
+  // nenhum não tem pote para derivar.
   const poteDeriva =
     entradas.propIncremento > 0 &&
     r.starter.sobra > 0 &&
@@ -4619,12 +4624,14 @@ const ACOES = {
 
     // O valor de partida do botão não deve depender de quanta precisão a
     // última renderização por acaso preservou. Hoje os dois caminhos quase
-    // sempre concordam: todo par `passo`/`casas` do projeto cai na mesma grade
-    // decimal, e nessa condição arredondar antes de somar dá no mesmo. Eles
-    // divergem na fronteira de arredondamento — `pctSal` guardado em 0,01375
-    // exibe 1,38 e um clique de menos dá 1,28 pelo texto contra 1,27 pelo
-    // guardado — e passariam a divergir sempre no dia em que alguém puser um
-    // campo cujo `passo` não caia na grade do seu `casas`.
+    // sempre concordam porque o valor guardado quase sempre já está na grade
+    // que o campo exibe — ler o texto ou ler o guardado dá o mesmo número.
+    // Divergem quando o guardado foge dessa grade e cai numa fronteira exata
+    // de arredondamento — `pctSal` tem `passo`/`casas` alinhados e mesmo assim
+    // guardado em 0,01375 exibe 1,38, e um clique de menos dá 1,28 pelo texto
+    // contra 1,27 pelo guardado — e passariam a divergir com frequência no dia
+    // em que alguém puser um campo cujo `passo` não caia na grade do seu
+    // `casas`.
     //
     // O texto só entra quando não há valor guardado, o que na prática é
     // backup corrompido: o campo aparece vazio e o clique o devolve à grade.

@@ -4,10 +4,14 @@
  *   v1  campos fixos de ingrediente (pctIntegral, pctCenteio, pctMelado, extras)
  *   v2  catálogo de farinhas com pct e pctStarter embutidos no próprio item
  *   v3  catálogo só de nome e preço, com duas listas de composição separadas
+ *   v4  ativação por incremento (propIncremento + hidratacaoAtivado) em vez
+ *       das três proporções separadas
  *
  * Roda ao carregar o estado do aparelho. O critério é conservador: quem já
- * usava o app não pode ver número mudar. A única exceção é combinada — em v1
- * os extras não entravam no peso, e agora entram.
+ * usava o app não pode ver número mudar. Há duas exceções, e nenhuma das duas
+ * é silenciosa: em v1 os extras não entravam no peso, e agora entram; e oito
+ * receitas na fronteira de arredondamento da ativação mudam de número, listadas
+ * e congeladas em teste.
  */
 
 import { ENTRADAS_PADRAO, LISTAS, TEXTOS } from './calc.js';
@@ -68,8 +72,9 @@ function converterAtivacao(v) {
     propIncremento: (rFl + rWa) / rSt,
     // Fração única de propósito: a forma com divisões aninhadas
     // `(rWa + rSt·hMae/dMae) / (rFl + rSt/dMae)` é a mesma álgebra, mas
-    // arredonda no meio do caminho e erra o último bit em 38% das razões.
-    // Esta chega ao piso: bate com o valor exato em racionais.
+    // arredonda no meio do caminho e erra o último bit em 37,72% dos pares
+    // razão × hidratação do pote varridos. Esta chega ao piso: bate com o
+    // valor exato em racionais.
     hidratacaoAtivado: (rWa * divisorMae + rSt * hMae) / (rFl * divisorMae + rSt),
   };
 }
@@ -85,7 +90,7 @@ function escalares(v) {
   return saida;
 }
 
-/** v1 → v3: os três campos fixos de farinha viram catálogo e composição. */
+/** v1 → v4: os três campos fixos de farinha viram catálogo e composição. */
 function deV1(v) {
   const saida = escalares(v);
 
@@ -127,7 +132,7 @@ function deV1(v) {
   return saida;
 }
 
-/** v2 → v3: separa a participação, que vinha grudada no item do catálogo. */
+/** v2 → v4: separa a participação, que vinha grudada no item do catálogo. */
 function deV2(v) {
   const saida = escalares(v);
   const farinhas = v.farinhas.map((f, i) => ({
