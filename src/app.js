@@ -398,7 +398,7 @@ function saidasStarter(r, entradas) {
   // massa e nada deriva; sem sobra não volta nada, e uma receita sem starter
   // nenhum não tem pote para derivar.
   const poteDeriva =
-    entradas.propIncremento > 0 &&
+    entradas.propAlimento > 0 &&
     r.starter.sobra > 0 &&
     !mesmoNumero(entradas.hidratacaoAtivado, entradas.hidratacaoMae);
   // A farinha que se pesa para alimentar o pote, nomeada uma a uma: num pote

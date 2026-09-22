@@ -6,6 +6,9 @@
  *   v3  catálogo só de nome e preço, com duas listas de composição separadas
  *   v4  ativação por incremento (propIncremento + hidratacaoAtivado) em vez
  *       das três proporções separadas
+ *   v5  o incremento vira alimentação na notação clássica do padeiro
+ *       (propAlimento): o campo guarda 1:x:x, não mais o total de partes —
+ *       propIncremento ÷ 2
  *
  * Roda ao carregar o estado do aparelho. O critério é conservador: quem já
  * usava o app não pode ver número mudar. Há duas exceções, e nenhuma das duas
@@ -16,7 +19,7 @@
 
 import { ENTRADAS_PADRAO, LISTAS, TEXTOS } from './calc.js';
 
-export const VERSAO_ESTADO = 4;
+export const VERSAO_ESTADO = 5;
 
 function num(valor, padrao) {
   const n = typeof valor === 'number' ? valor : Number(valor);
@@ -38,17 +41,21 @@ const CAMPOS_MORTOS = [
   'propAtivacaoStarter',
   'propAtivacaoFarinha',
   'propAtivacaoAgua',
+  // v4: o incremento (total de partes) virou propAlimento (notação clássica)
+  'propIncremento',
 ];
 
 /**
  * v3 guardava a ativação como três proporções — starter, farinha, água — e
- * derivava a hidratação do ativado delas. v4 inverte: diz-se quanto alimento
- * entra por parte de starter e que hidratação se quer no ativado pronto.
+ * derivava a hidratação do ativado delas. As versões seguintes invertem:
+ * diz-se a alimentação na notação clássica do padeiro, 1:x:x
+ * (`propAlimento`), e a hidratação que se quer no ativado pronto.
  *
- * A troca é bijetiva, então a conversão é exata: `p` junta farinha e água numa
- * razão só contra o starter, e a hidratação é a própria fórmula que `calc.js`
- * usava para derivá-la. Vale para v1 e v2 também — os três formatos guardavam
- * essas mesmas chaves.
+ * A troca é bijetiva, então a conversão é exata: a razão farinha+água contra o
+ * starter dá o total de alimento; dividir por dois desfaz o fato de esse total
+ * contar farinha e água em separado — 1:3:3 tem que voltar como 3, não 6. A
+ * hidratação é a própria fórmula que `calc.js` usava para derivá-la. Vale para
+ * v1 e v2 também — os três formatos guardavam essas mesmas chaves.
  */
 function converterAtivacao(v) {
   const rSt = num(v.propAtivacaoStarter, 1);
@@ -64,12 +71,12 @@ function converterAtivacao(v) {
   // é exatamente zerar lá. Não troque um pelo outro sem refazer essa conta.
   if (!(rSt > 0) || !(divisorMae > 0) || farinhaDaProporcao === 0) {
     return {
-      propIncremento: ENTRADAS_PADRAO.propIncremento,
+      propAlimento: ENTRADAS_PADRAO.propAlimento,
       hidratacaoAtivado: ENTRADAS_PADRAO.hidratacaoAtivado,
     };
   }
   return {
-    propIncremento: (rFl + rWa) / rSt,
+    propAlimento: (rFl + rWa) / (2 * rSt),
     // Fração única de propósito: a forma com divisões aninhadas
     // `(rWa + rSt·hMae/dMae) / (rFl + rSt/dMae)` é a mesma álgebra, mas
     // arredonda no meio do caminho e erra o último bit em 37,72% dos pares
@@ -90,7 +97,7 @@ function escalares(v) {
   return saida;
 }
 
-/** v1 → v4: os três campos fixos de farinha viram catálogo e composição. */
+/** v1 → v5: os três campos fixos de farinha viram catálogo e composição. */
 function deV1(v) {
   const saida = escalares(v);
 
@@ -132,7 +139,7 @@ function deV1(v) {
   return saida;
 }
 
-/** v2 → v4: separa a participação, que vinha grudada no item do catálogo. */
+/** v2 → v5: separa a participação, que vinha grudada no item do catálogo. */
 function deV2(v) {
   const saida = escalares(v);
   const farinhas = v.farinhas.map((f, i) => ({
@@ -162,13 +169,25 @@ function deV2(v) {
 }
 
 /**
- * v3 → v4: troca as proporções de ativação e preserva todo o resto como veio.
+ * v3 → v5: troca as proporções de ativação e preserva todo o resto como veio.
  * O spread cru, em vez de `escalares`, é de propósito: retrato de diário pode
  * ser parcial, e remontá-lo pelo padrão apagaria a distinção entre "campo que
  * a fornada não tinha" e "campo que ela tinha igual ao padrão".
  */
 function deV3(v) {
   const saida = { ...v, ...converterAtivacao(v) };
+  for (const morto of CAMPOS_MORTOS) delete saida[morto];
+  return saida;
+}
+
+/**
+ * v4 → v5: só troca o nome e a escala do campo de ativação — propIncremento
+ * guardava o total de partes de alimento (farinha + água); propAlimento
+ * guarda a notação clássica do padeiro, 1:x:x, que é a metade exata disso.
+ * O resto da receita não muda de forma nenhuma.
+ */
+function deV4(v) {
+  const saida = { ...v, propAlimento: num(v.propIncremento, ENTRADAS_PADRAO.propAlimento * 2) / 2 };
   for (const morto of CAMPOS_MORTOS) delete saida[morto];
   return saida;
 }
@@ -184,7 +203,11 @@ function temProporcoesAntigas(v) {
 
 export function migrarEntradas(entradas) {
   const v = entradas && typeof entradas === 'object' ? entradas : {};
-  if (Array.isArray(v.composicaoPao)) return temProporcoesAntigas(v) ? deV3(v) : v;
+  if (Array.isArray(v.composicaoPao)) {
+    if (temProporcoesAntigas(v)) return deV3(v);
+    if (Object.hasOwn(v, 'propIncremento')) return deV4(v);
+    return v;
+  }
   if (Array.isArray(v.farinhas)) return deV2(v);
   return deV1(v);
 }

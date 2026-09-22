@@ -249,7 +249,7 @@ test('migrarEstado converte receitas e os retratos guardados no diário', () => 
   assert.ok(Array.isArray(novo.receitas[0].entradas.farinhas), 'receita migrada');
   assert.ok(Array.isArray(novo.registros[0].snapshot.farinhas), 'retrato do diário migrado');
   assert.equal(novo.registros[0].observacao, 'oi', 'o resto do registro fica intacto');
-  assert.equal(novo.versao, 4);
+  assert.equal(novo.versao, 5);
 });
 
 test('migrarEstado não estraga um estado que já está em v2', () => {
@@ -288,7 +288,7 @@ test('migração preserva o formato já escolhido, sem virar número', () => {
  * de `ENTRADAS_PADRAO` de propósito — escrita à mão, ela apodrece em silêncio
  * assim que um padrão qualquer mudar.
  */
-const { propIncremento, hidratacaoAtivado, ...RESTO_PADRAO } = ENTRADAS_PADRAO;
+const { propAlimento, hidratacaoAtivado, ...RESTO_PADRAO } = ENTRADAS_PADRAO;
 const ENTRADAS_V3_BASE = {
   ...RESTO_PADRAO,
   propAtivacaoStarter: 1,
@@ -342,7 +342,7 @@ test('a migração v3 → v4 não muda um grama', () => {
     assert.ok(!('propAtivacaoFarinha' in migrada), `${rotulo}: proporção antiga apagada`);
     assert.ok(!('propAtivacaoStarter' in migrada), `${rotulo}: proporção antiga apagada`);
     assert.ok(!('propAtivacaoAgua' in migrada), `${rotulo}: proporção antiga apagada`);
-    perto(migrada.propIncremento, ouro.p, `${rotulo}: incremento`);
+    perto(migrada.propAlimento, ouro.p / 2, `${rotulo}: alimentação`);
     perto(migrada.hidratacaoAtivado, ouro.hAlvo, `${rotulo}: hidratação do ativado`);
 
     // E o que importa de verdade: o ticket e a massa saem iguais aos do motor
@@ -367,7 +367,7 @@ test('migrar duas vezes dá o mesmo que migrar uma', () => {
 
 test('v3 com proporção de starter zerada cai no padrão sem NaN', () => {
   const migrada = migrarEntradas(v3({ propAtivacaoStarter: 0, propAtivacaoFarinha: 3, propAtivacaoAgua: 3 }));
-  assert.ok(Number.isFinite(migrada.propIncremento), 'incremento finito');
+  assert.ok(Number.isFinite(migrada.propAlimento), 'alimentação finita');
   assert.ok(Number.isFinite(migrada.hidratacaoAtivado), 'hidratação finita');
   const r = calcular(migrada);
   assert.ok(Number.isFinite(r.pao.agua), 'a conta sobrevive');
@@ -383,7 +383,7 @@ test('v1 com proporções fora do padrão também converte', () => {
     propAtivacaoFarinha: 4,
     propAtivacaoAgua: 4,
   });
-  perto(migrada.propIncremento, 8, 'v1 converte o incremento');
+  perto(migrada.propAlimento, 4, 'v1 converte a alimentação');
   // 1:4:4 com a mãe a 100% dá (4 + 0,5) / (4 + 0,5) = 1.
   perto(migrada.hidratacaoAtivado, 1, 'v1 converte a hidratação');
   assert.ok(!('propAtivacaoAgua' in migrada), 'a chave antiga não sobrevive');
@@ -399,7 +399,7 @@ test('v2 com proporções fora do padrão também converte', () => {
     propAtivacaoFarinha: 4,
     propAtivacaoAgua: 4,
   });
-  perto(migrada.propIncremento, 8, 'v2 converte o incremento');
+  perto(migrada.propAlimento, 4, 'v2 converte a alimentação');
   perto(migrada.hidratacaoAtivado, 1, 'v2 converte a hidratação');
   assert.ok(!('propAtivacaoAgua' in migrada), 'a chave antiga não sobrevive');
 });
@@ -473,14 +473,15 @@ test('a migração muda de número só nas divergências já conhecidas', () => 
               if (massaBase === null) {
                 massaBase = massa;
 
-                // O motor antigo nunca guardava `propIncremento`/`hidratacaoAtivado`;
+                // O motor antigo nunca guardava `propAlimento`/`hidratacaoAtivado`;
                 // derivava a hidratação do ativado direto das três proporções,
                 // pela fórmula com divisões aninhadas (a mesma que
                 // `converterAtivacao` rejeitou por arredondar no meio). Como a
                 // massa só enxerga as proporções através de `hidratacaoAtivado`
-                // (`propIncremento` é a mesma fórmula nos dois motores), calcular
-                // com esse `hidratacaoAtivado` antigo reproduz exatamente a massa
-                // que o motor antigo produzia — sem reviver o motor antigo.
+                // (`propAlimento` é a mesma fórmula, a menos do fator 2, nos
+                // dois motores), calcular com esse `hidratacaoAtivado` antigo
+                // reproduz exatamente a massa que o motor antigo produzia —
+                // sem reviver o motor antigo.
                 const divisorMaeAntigo = 1 + hMae;
                 const hActAntigo = (rWa + (rSt * hMae) / divisorMaeAntigo) / (rFl + rSt / divisorMaeAntigo);
                 const rAntigo = calcular({ ...migrado, hidratacaoAtivado: hActAntigo });

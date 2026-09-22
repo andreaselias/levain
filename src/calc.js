@@ -81,9 +81,10 @@ export const ENTRADAS_PADRAO = {
 
   // Starter
   hidratacaoMae: 1,
-  // Partes de alimento por parte de mãe: 10 g de mãe com 6 pedem 60 g de
-  // farinha mais água. Equivale à proporção 1 : 3 : 3 que havia antes.
-  propIncremento: 6,
+  // Alimentação do pote na notação clássica do padeiro, 1:x:x — 3 é o 1:3:3
+  // de sempre. O total pesado é o dobro disto (farinha e água contam
+  // separado): 10 g de mãe com 3 pedem 60 g de farinha mais água ao todo.
+  propAlimento: 3,
   // Hidratação do ativado PRONTO, já contando a água que veio dentro da mãe.
   // É entrada, não resultado: o incremento é repartido para chegar nela.
   hidratacaoAtivado: 1,
@@ -263,7 +264,10 @@ export function calcular(entradas) {
   // Precisa vir antes da farinha: a hidratação do starter entra no denominador.
   // Ela não é mais derivada das proporções — é o que o usuário pediu, e o
   // incremento é que se ajusta para entregá-la.
-  const p = e.propIncremento;
+  // `propAlimento` guarda a notação do padeiro (1:x:x); a conta quer o total
+  // de farinha + água, que é o dobro porque o campo conta as duas partes
+  // juntas como se fossem uma.
+  const p = 2 * e.propAlimento;
   const divisorMae = 1 + e.hidratacaoMae;
   const hAct = e.hidratacaoAtivado;
   const divisorAlvo = 1 + hAct;
@@ -390,7 +394,7 @@ export function calcular(entradas) {
   if (p <= 0) {
     // Sem alimento o pote não se repõe, e `starter / p` dividiria por zero.
     // Vale a mãe inteira indo para a massa.
-    avisos.push('Sem incremento, o pote não se repõe: a mãe vai inteira para a massa.');
+    avisos.push('Sem alimentação, o pote não se repõe: a mãe vai inteira para a massa.');
     maeParaAtivar = roundUp(starter);
   } else if (divisorMae > 0 && divisorAlvo > 0) {
     // O ativado cobre a massa e ainda repõe a mãe que saiu do pote — sem isso
@@ -418,7 +422,7 @@ export function calcular(entradas) {
       const minimo = e.hidratacaoMae / (1 + p * divisorMae);
       const maximo = e.hidratacaoMae + p * divisorMae;
       avisos.push(
-        `Com o pote a ${pctTexto(e.hidratacaoMae)} e incremento ${numTexto(p)}, a hidratação do ativado só alcança de ${pctTexto(minimo)} a ${pctTexto(maximo)}. Os números da massa só fecham depois de o alvo voltar para dentro dessa faixa.`
+        `Com o pote a ${pctTexto(e.hidratacaoMae)} e alimentação ${numTexto(e.propAlimento)}, a hidratação do ativado só alcança de ${pctTexto(minimo)} a ${pctTexto(maximo)}. Os números da massa só fecham depois de o alvo voltar para dentro dessa faixa.`
       );
       const incremento = maeParaAtivar * p;
       if (aguaAtivar < 0) {
