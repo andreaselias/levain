@@ -503,3 +503,35 @@ test('a migração muda de número só nas divergências já conhecidas', () => 
   assert.deepEqual(massaMudou, [], 'o passo da balança não pode mover a massa');
   assert.deepEqual(massaDivergiuDoAntigo, [], 'a massa não pode divergir do motor antigo');
 });
+
+// ---------------------------------------------------------------------------
+// v4 → v5: o total de partes de alimento vira a notação do padeiro
+// ---------------------------------------------------------------------------
+
+// v4 guardava `propIncremento`, o total de partes de alimento por parte de mãe:
+// a alimentação 1:3:3 se escrevia 6. v5 guarda o número que o padeiro escreve,
+// que é a metade exata. Sem a divisão, uma receita v4 passaria a alimentar o
+// pote com o dobro — e em silêncio, porque o ticket continua fechando sozinho.
+test('v4 vira v5 dividindo a alimentação por dois', () => {
+  const v4 = (propIncremento, extra = {}) => {
+    const { propAlimento, ...resto } = { ...ENTRADAS_PADRAO, ...extra };
+    return { ...resto, propIncremento };
+  };
+
+  const padrao = migrarEntradas(v4(6));
+  perto(padrao.propAlimento, 3, 'o 1:3:3 de v4 vira 3');
+  assert.ok(!('propIncremento' in padrao), 'a chave de v4 não sobrevive');
+  const r = calcular(padrao);
+  assert.equal(r.starter.maeParaAtivar, 20, 'starter-mãe');
+  assert.equal(r.starter.farinhaAtivar, 60, 'farinha');
+  assert.equal(r.starter.aguaAtivar, 60, 'água');
+
+  // Valor fora do padrão: é onde o dobro passaria despercebido, porque não há
+  // número redondo para estranhar.
+  const fino = migrarEntradas(v4(5.475, { hidratacaoAtivado: 0.85 }));
+  perto(fino.propAlimento, 2.7375, 'metade exata de 5,475');
+  const rf = calcular(fino);
+  assert.equal(rf.starter.maeParaAtivar, 22, 'starter-mãe da receita fina');
+  assert.equal(rf.starter.farinhaAtivar, 66, 'farinha da receita fina');
+  assert.equal(rf.starter.aguaAtivar, 54, 'água da receita fina');
+});

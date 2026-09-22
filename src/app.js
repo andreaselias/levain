@@ -394,7 +394,7 @@ function saidasStarter(r, entradas) {
   // arredondamento aparece sozinha na métrica de hidratação real, ao lado.
   //
   // As duas guardas dizem o que a nota afirma: que alguma coisa volta para o
-  // pote, e que ela volta diferente. Sem incremento a mãe vai inteira para a
+  // pote, e que ela volta diferente. Sem alimentação a mãe vai inteira para a
   // massa e nada deriva; sem sobra não volta nada, e uma receita sem starter
   // nenhum não tem pote para derivar.
   const poteDeriva =

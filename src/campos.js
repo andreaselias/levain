@@ -43,7 +43,7 @@ export const CAMPOS = [
   // --- Starter -------------------------------------------------------------
   { chave: 'hidratacaoMae', rotulo: 'Hidratação do starter-mãe', aba: 'starter', grupo: 'Starter-mãe', unidade: '%', fator: 100, passo: 5, casas: 0, dica: '100% significa partes iguais de água e farinha no pote.' },
   { chave: 'propAlimento', rotulo: 'Alimentação do pote', aba: 'starter', grupo: 'Ativação', unidade: '', passo: 0.5, casas: 2, dica: 'Partes de alimento por parte de mãe, na conta de 1:3:3 — ponha 3. São seis partes no total, repartidas entre farinha e água pela hidratação do ativado.' },
-  { chave: 'hidratacaoAtivado', rotulo: 'Hidratação do ativado', aba: 'starter', grupo: 'Ativação', unidade: '%', fator: 100, passo: 5, casas: 1, dica: 'Hidratação do ativado pronto, já contando a água que veio dentro da mãe. O incremento se reparte para chegar nela.' },
+  { chave: 'hidratacaoAtivado', rotulo: 'Hidratação do ativado', aba: 'starter', grupo: 'Ativação', unidade: '%', fator: 100, passo: 5, casas: 1, dica: 'Hidratação do ativado pronto, já contando a água que veio dentro da mãe. A alimentação se reparte entre farinha e água para chegar nela.' },
   { chave: 'arredondamentoAtivacao', rotulo: 'Passo da balança', aba: 'starter', grupo: 'Ativação', unidade: 'g', passo: 0.5, casas: 1, dica: 'Arredonda o que você pesa para alimentar o pote. As partes continuam somando o total exato. Zero desliga.' },
 
   // --- Custos --------------------------------------------------------------
