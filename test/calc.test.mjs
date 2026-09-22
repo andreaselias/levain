@@ -138,9 +138,9 @@ test('ativação do starter cobre a massa e repõe o pote', () => {
   perto(starter.aguaNoStarter, 60, 'água embutida');
 });
 
-// A promessa do campo `propIncremento` é literal: p partes de alimento por
-// parte de mãe. Sem o passo da balança para mascarar, farinha e água do
-// incremento têm que somar exatamente isso.
+// A promessa do total interno é literal: p partes de alimento por parte de
+// mãe, sendo p o dobro do que `propAlimento` guarda. Sem o passo da balança
+// para mascarar, farinha e água do incremento têm que somar exatamente isso.
 //
 // Só isso: a soma fecha em `mae × p` seja qual for o divisor do alvo, então
 // este teste NÃO guarda a ligação com `hidratacaoAtivado` — quem guarda é o
@@ -149,13 +149,27 @@ test('o incremento soma exatamente p vezes a mãe', () => {
   for (const p of [1, 3, 6, 0.5, 12]) {
     const r = calcular({
       ...ENTRADAS_PADRAO,
-      propIncremento: p,
+      propAlimento: p / 2,
       arredondamentoAtivacao: 0,
     });
     perto(
       r.starter.farinhaAtivar + r.starter.aguaAtivar,
       r.starter.maeParaAtivar * p,
       `incremento com p=${p}`
+    );
+  }
+});
+
+// O campo é o número que o padeiro escreve: 3 para a alimentação 1:3:3. A
+// conta por dentro usa o total, que é o dobro — se os dois se separarem, o
+// pote passa a ser alimentado com metade ou o dobro do que se pediu.
+test('a alimentação é contada na notação 1:x:x', () => {
+  for (const [campo, totalEsperado] of [[1, 2], [2, 4], [3, 6], [5, 10]]) {
+    const r = calcular({ ...ENTRADAS_PADRAO, propAlimento: campo, arredondamentoAtivacao: 0 });
+    perto(
+      r.starter.farinhaAtivar + r.starter.aguaAtivar,
+      r.starter.maeParaAtivar * totalEsperado,
+      `alimentação ${campo} tem que dar ${totalEsperado} partes de alimento`
     );
   }
 });
@@ -192,7 +206,7 @@ test('hidratação inalcançável zera a parcela negativa e avisa', () => {
   const r = calcular({
     ...ENTRADAS_PADRAO,
     hidratacaoMae: 2,
-    propIncremento: 0.5,
+    propAlimento: 0.25,
     hidratacaoAtivado: 0.4,
     arredondamentoAtivacao: 0,
   });
@@ -217,7 +231,7 @@ test('hidratação inalcançável zera a parcela negativa e avisa', () => {
 test('hidratação altíssima zera a farinha e avisa', () => {
   const r = calcular({
     ...ENTRADAS_PADRAO,
-    propIncremento: 0.5,
+    propAlimento: 0.25,
     hidratacaoAtivado: 30,
     arredondamentoAtivacao: 0,
   });
@@ -239,7 +253,7 @@ test('o recorte da guarda sobrevive ao passo da balança', () => {
   const r = calcular({
     ...ENTRADAS_PADRAO,
     hidratacaoMae: 0.5,
-    propIncremento: 0.3,
+    propAlimento: 0.15,
     hidratacaoAtivado: 0.02,
     arredondamentoAtivacao: 1,
   });
@@ -278,21 +292,21 @@ test('o aviso da faixa diz os números certos', () => {
   const r = calcular({ ...ENTRADAS_PADRAO, hidratacaoAtivado: 0.05 });
   const aviso = r.avisos.find((a) => /alcança/i.test(a));
   assert.ok(aviso, `esperava o aviso da faixa, vieram ${JSON.stringify(r.avisos)}`);
-  // Pote a 100% e incremento 6: mínimo 1/13 = 7,7%, máximo 13 = 1300%.
+  // Pote a 100% e alimentação 3 (total 6): mínimo 1/13 = 7,7%, máximo 13 = 1300%.
   assert.match(aviso, /pote a 100,0%/, 'a hidratação do pote');
-  assert.match(aviso, /incremento 6\b/, 'o incremento, sem casas sobrando');
+  assert.match(aviso, /alimentação 3\b/, 'a alimentação, sem casas sobrando');
   assert.match(aviso, /de 7,7% a 1300,0%/, 'a faixa, na ordem mínimo-máximo');
 });
 
-// 10/3 é o que uma receita migrada da proporção 3:5:5 guarda. Sem `numTexto`
-// o aviso sairia com "incremento 3.3333333333333335" — dezessete dígitos
-// significativos num app de cozinha.
-test('o aviso da faixa formata incremento fracionário', () => {
-  const r = calcular({ ...ENTRADAS_PADRAO, propIncremento: 10 / 3, hidratacaoAtivado: 0.05 });
+// 5/3 é o que uma receita migrada da proporção 3:5:5 guarda (a antiga 10/3,
+// dividida por dois). Sem `numTexto` o aviso sairia com "alimentação
+// 1.6666666666666667" — dezessete dígitos significativos num app de cozinha.
+test('o aviso da faixa formata alimentação fracionária', () => {
+  const r = calcular({ ...ENTRADAS_PADRAO, propAlimento: 5 / 3, hidratacaoAtivado: 0.05 });
   const aviso = r.avisos.find((a) => /alcança/i.test(a));
   assert.ok(aviso, `esperava o aviso da faixa, vieram ${JSON.stringify(r.avisos)}`);
-  assert.match(aviso, /incremento 3,33\b/, 'duas casas e vírgula');
-  assert.ok(!/3\.33/.test(aviso), 'nada de ponto decimal no texto');
+  assert.match(aviso, /alimentação 1,67\b/, 'duas casas e vírgula');
+  assert.ok(!/1\.67/.test(aviso), 'nada de ponto decimal no texto');
 });
 
 // ---------------------------------------------------------------------------
@@ -508,8 +522,8 @@ test('farinha do pote em 0% não recebe farinha na ativação', () => {
 /** Todo valor que se pesa na ativação, em várias configurações plausíveis. */
 const CENARIOS_DE_ATIVACAO = [
   { nome: 'padrão 1:6 a 100%', entradas: {} },
-  { nome: 'incremento 3,33', entradas: { propIncremento: 10 / 3 } },
-  { nome: 'incremento 4', entradas: { propIncremento: 4 } },
+  { nome: 'alimentação 1,67', entradas: { propAlimento: 5 / 3 } },
+  { nome: 'alimentação 2', entradas: { propAlimento: 2 } },
   { nome: 'starter alto', entradas: { pctStarter: 0.35 } },
   { nome: 'starter baixo', entradas: { pctStarter: 0.05 } },
   { nome: 'mãe a 80%', entradas: { hidratacaoMae: 0.8 } },
@@ -545,7 +559,7 @@ test('as partes somam exatamente o total, sem sobrar nem faltar grama', () => {
 test('o total ativado e a sobra usam os valores já arredondados', () => {
   const r = calcular({
     ...ENTRADAS_PADRAO,
-    propIncremento: 10 / 3, // equivalente à antiga proporção 3:5:5
+    propAlimento: 5 / 3, // equivalente à antiga proporção 3:5:5 (total 10/3)
   });
   assert.equal(
     r.starter.totalAtivado,
@@ -848,7 +862,7 @@ test('número de pães zero é rejeitado com aviso', () => {
 });
 
 test('incremento zero avisa que o pote não se repõe', () => {
-  const r = calcular({ ...ENTRADAS_PADRAO, propIncremento: 0 });
+  const r = calcular({ ...ENTRADAS_PADRAO, propAlimento: 0 });
   todosFinitos(r);
   // Mãe pura direto na massa: dá para fazer o pão, mas não sobra nada para o
   // pote, e a conta da reposição dividiria por zero.

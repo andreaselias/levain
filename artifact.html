@@ -1786,9 +1786,10 @@ const ENTRADAS_PADRAO = {
 
   // Starter
   hidratacaoMae: 1,
-  // Partes de alimento por parte de mãe: 10 g de mãe com 6 pedem 60 g de
-  // farinha mais água. Equivale à proporção 1 : 3 : 3 que havia antes.
-  propIncremento: 6,
+  // Alimentação do pote na notação clássica do padeiro, 1:x:x — 3 é o 1:3:3
+  // de sempre. O total pesado é o dobro disto (farinha e água contam
+  // separado): 10 g de mãe com 3 pedem 60 g de farinha mais água ao todo.
+  propAlimento: 3,
   // Hidratação do ativado PRONTO, já contando a água que veio dentro da mãe.
   // É entrada, não resultado: o incremento é repartido para chegar nela.
   hidratacaoAtivado: 1,
@@ -1968,7 +1969,10 @@ function calcular(entradas) {
   // Precisa vir antes da farinha: a hidratação do starter entra no denominador.
   // Ela não é mais derivada das proporções — é o que o usuário pediu, e o
   // incremento é que se ajusta para entregá-la.
-  const p = e.propIncremento;
+  // `propAlimento` guarda a notação do padeiro (1:x:x); a conta quer o total
+  // de farinha + água, que é o dobro porque o campo conta as duas partes
+  // juntas como se fossem uma.
+  const p = 2 * e.propAlimento;
   const divisorMae = 1 + e.hidratacaoMae;
   const hAct = e.hidratacaoAtivado;
   const divisorAlvo = 1 + hAct;
@@ -2095,7 +2099,7 @@ function calcular(entradas) {
   if (p <= 0) {
     // Sem alimento o pote não se repõe, e `starter / p` dividiria por zero.
     // Vale a mãe inteira indo para a massa.
-    avisos.push('Sem incremento, o pote não se repõe: a mãe vai inteira para a massa.');
+    avisos.push('Sem alimentação, o pote não se repõe: a mãe vai inteira para a massa.');
     maeParaAtivar = roundUp(starter);
   } else if (divisorMae > 0 && divisorAlvo > 0) {
     // O ativado cobre a massa e ainda repõe a mãe que saiu do pote — sem isso
@@ -2123,7 +2127,7 @@ function calcular(entradas) {
       const minimo = e.hidratacaoMae / (1 + p * divisorMae);
       const maximo = e.hidratacaoMae + p * divisorMae;
       avisos.push(
-        `Com o pote a ${pctTexto(e.hidratacaoMae)} e incremento ${numTexto(p)}, a hidratação do ativado só alcança de ${pctTexto(minimo)} a ${pctTexto(maximo)}. Os números da massa só fecham depois de o alvo voltar para dentro dessa faixa.`
+        `Com o pote a ${pctTexto(e.hidratacaoMae)} e alimentação ${numTexto(e.propAlimento)}, a hidratação do ativado só alcança de ${pctTexto(minimo)} a ${pctTexto(maximo)}. Os números da massa só fecham depois de o alvo voltar para dentro dessa faixa.`
       );
       const incremento = maeParaAtivar * p;
       if (aguaAtivar < 0) {
@@ -2404,8 +2408,8 @@ const CAMPOS = [
 
   // --- Starter -------------------------------------------------------------
   { chave: 'hidratacaoMae', rotulo: 'Hidratação do starter-mãe', aba: 'starter', grupo: 'Starter-mãe', unidade: '%', fator: 100, passo: 5, casas: 0, dica: '100% significa partes iguais de água e farinha no pote.' },
-  { chave: 'propIncremento', rotulo: 'Incremento por parte de mãe', aba: 'starter', grupo: 'Ativação', unidade: '', passo: 0.5, casas: 2, dica: 'Quanto alimento entra por parte de mãe. 3 significa 30 g de farinha mais água para cada 10 g tirados do pote.' },
-  { chave: 'hidratacaoAtivado', rotulo: 'Hidratação do ativado', aba: 'starter', grupo: 'Ativação', unidade: '%', fator: 100, passo: 5, casas: 1, dica: 'Hidratação do ativado pronto, já contando a água que veio dentro da mãe. O incremento se reparte para chegar nela.' },
+  { chave: 'propAlimento', rotulo: 'Alimentação do pote', aba: 'starter', grupo: 'Ativação', unidade: '', passo: 0.5, casas: 2, dica: 'Partes de alimento por parte de mãe, na conta de 1:3:3 — ponha 3. São seis partes no total, repartidas entre farinha e água pela hidratação do ativado.' },
+  { chave: 'hidratacaoAtivado', rotulo: 'Hidratação do ativado', aba: 'starter', grupo: 'Ativação', unidade: '%', fator: 100, passo: 5, casas: 1, dica: 'Hidratação do ativado pronto, já contando a água que veio dentro da mãe. A alimentação se reparte entre farinha e água para chegar nela.' },
   { chave: 'arredondamentoAtivacao', rotulo: 'Passo da balança', aba: 'starter', grupo: 'Ativação', unidade: 'g', passo: 0.5, casas: 1, dica: 'Arredonda o que você pesa para alimentar o pote. As partes continuam somando o total exato. Zero desliga.' },
 
   // --- Custos --------------------------------------------------------------
@@ -2505,6 +2509,9 @@ function formatarValor(campo, valor) {
  *   v3  catálogo só de nome e preço, com duas listas de composição separadas
  *   v4  ativação por incremento (propIncremento + hidratacaoAtivado) em vez
  *       das três proporções separadas
+ *   v5  o incremento vira alimentação na notação clássica do padeiro
+ *       (propAlimento): o campo guarda 1:x:x, não mais o total de partes —
+ *       propIncremento ÷ 2
  *
  * Roda ao carregar o estado do aparelho. O critério é conservador: quem já
  * usava o app não pode ver número mudar. Há duas exceções, e nenhuma das duas
@@ -2515,7 +2522,7 @@ function formatarValor(campo, valor) {
 
 
 
-const VERSAO_ESTADO = 4;
+const VERSAO_ESTADO = 5;
 
 function num(valor, padrao) {
   const n = typeof valor === 'number' ? valor : Number(valor);
@@ -2537,17 +2544,21 @@ const CAMPOS_MORTOS = [
   'propAtivacaoStarter',
   'propAtivacaoFarinha',
   'propAtivacaoAgua',
+  // v4: o incremento (total de partes) virou propAlimento (notação clássica)
+  'propIncremento',
 ];
 
 /**
  * v3 guardava a ativação como três proporções — starter, farinha, água — e
- * derivava a hidratação do ativado delas. v4 inverte: diz-se quanto alimento
- * entra por parte de starter e que hidratação se quer no ativado pronto.
+ * derivava a hidratação do ativado delas. As versões seguintes invertem:
+ * diz-se a alimentação na notação clássica do padeiro, 1:x:x
+ * (`propAlimento`), e a hidratação que se quer no ativado pronto.
  *
- * A troca é bijetiva, então a conversão é exata: `p` junta farinha e água numa
- * razão só contra o starter, e a hidratação é a própria fórmula que `calc.js`
- * usava para derivá-la. Vale para v1 e v2 também — os três formatos guardavam
- * essas mesmas chaves.
+ * A troca é bijetiva, então a conversão é exata: a razão farinha+água contra o
+ * starter dá o total de alimento; dividir por dois desfaz o fato de esse total
+ * contar farinha e água em separado — 1:3:3 tem que voltar como 3, não 6. A
+ * hidratação é a própria fórmula que `calc.js` usava para derivá-la. Vale para
+ * v1 e v2 também — os três formatos guardavam essas mesmas chaves.
  */
 function converterAtivacao(v) {
   const rSt = num(v.propAtivacaoStarter, 1);
@@ -2563,12 +2574,12 @@ function converterAtivacao(v) {
   // é exatamente zerar lá. Não troque um pelo outro sem refazer essa conta.
   if (!(rSt > 0) || !(divisorMae > 0) || farinhaDaProporcao === 0) {
     return {
-      propIncremento: ENTRADAS_PADRAO.propIncremento,
+      propAlimento: ENTRADAS_PADRAO.propAlimento,
       hidratacaoAtivado: ENTRADAS_PADRAO.hidratacaoAtivado,
     };
   }
   return {
-    propIncremento: (rFl + rWa) / rSt,
+    propAlimento: (rFl + rWa) / (2 * rSt),
     // Fração única de propósito: a forma com divisões aninhadas
     // `(rWa + rSt·hMae/dMae) / (rFl + rSt/dMae)` é a mesma álgebra, mas
     // arredonda no meio do caminho e erra o último bit em 37,72% dos pares
@@ -2589,7 +2600,7 @@ function escalares(v) {
   return saida;
 }
 
-/** v1 → v4: os três campos fixos de farinha viram catálogo e composição. */
+/** v1 → v5: os três campos fixos de farinha viram catálogo e composição. */
 function deV1(v) {
   const saida = escalares(v);
 
@@ -2631,7 +2642,7 @@ function deV1(v) {
   return saida;
 }
 
-/** v2 → v4: separa a participação, que vinha grudada no item do catálogo. */
+/** v2 → v5: separa a participação, que vinha grudada no item do catálogo. */
 function deV2(v) {
   const saida = escalares(v);
   const farinhas = v.farinhas.map((f, i) => ({
@@ -2661,13 +2672,25 @@ function deV2(v) {
 }
 
 /**
- * v3 → v4: troca as proporções de ativação e preserva todo o resto como veio.
+ * v3 → v5: troca as proporções de ativação e preserva todo o resto como veio.
  * O spread cru, em vez de `escalares`, é de propósito: retrato de diário pode
  * ser parcial, e remontá-lo pelo padrão apagaria a distinção entre "campo que
  * a fornada não tinha" e "campo que ela tinha igual ao padrão".
  */
 function deV3(v) {
   const saida = { ...v, ...converterAtivacao(v) };
+  for (const morto of CAMPOS_MORTOS) delete saida[morto];
+  return saida;
+}
+
+/**
+ * v4 → v5: só troca o nome e a escala do campo de ativação — propIncremento
+ * guardava o total de partes de alimento (farinha + água); propAlimento
+ * guarda a notação clássica do padeiro, 1:x:x, que é a metade exata disso.
+ * O resto da receita não muda de forma nenhuma.
+ */
+function deV4(v) {
+  const saida = { ...v, propAlimento: num(v.propIncremento, ENTRADAS_PADRAO.propAlimento * 2) / 2 };
   for (const morto of CAMPOS_MORTOS) delete saida[morto];
   return saida;
 }
@@ -2683,7 +2706,11 @@ function temProporcoesAntigas(v) {
 
 function migrarEntradas(entradas) {
   const v = entradas && typeof entradas === 'object' ? entradas : {};
-  if (Array.isArray(v.composicaoPao)) return temProporcoesAntigas(v) ? deV3(v) : v;
+  if (Array.isArray(v.composicaoPao)) {
+    if (temProporcoesAntigas(v)) return deV3(v);
+    if (Object.hasOwn(v, 'propIncremento')) return deV4(v);
+    return v;
+  }
   if (Array.isArray(v.farinhas)) return deV2(v);
   return deV1(v);
 }
@@ -3521,11 +3548,11 @@ function saidasStarter(r, entradas) {
   // arredondamento aparece sozinha na métrica de hidratação real, ao lado.
   //
   // As duas guardas dizem o que a nota afirma: que alguma coisa volta para o
-  // pote, e que ela volta diferente. Sem incremento a mãe vai inteira para a
+  // pote, e que ela volta diferente. Sem alimentação a mãe vai inteira para a
   // massa e nada deriva; sem sobra não volta nada, e uma receita sem starter
   // nenhum não tem pote para derivar.
   const poteDeriva =
-    entradas.propIncremento > 0 &&
+    entradas.propAlimento > 0 &&
     r.starter.sobra > 0 &&
     !mesmoNumero(entradas.hidratacaoAtivado, entradas.hidratacaoMae);
   // A farinha que se pesa para alimentar o pote, nomeada uma a uma: num pote

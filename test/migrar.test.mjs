@@ -249,7 +249,7 @@ test('migrarEstado converte receitas e os retratos guardados no diário', () => 
   assert.ok(Array.isArray(novo.receitas[0].entradas.farinhas), 'receita migrada');
   assert.ok(Array.isArray(novo.registros[0].snapshot.farinhas), 'retrato do diário migrado');
   assert.equal(novo.registros[0].observacao, 'oi', 'o resto do registro fica intacto');
-  assert.equal(novo.versao, 4);
+  assert.equal(novo.versao, 5);
 });
 
 test('migrarEstado não estraga um estado que já está em v2', () => {
@@ -288,7 +288,7 @@ test('migração preserva o formato já escolhido, sem virar número', () => {
  * de `ENTRADAS_PADRAO` de propósito — escrita à mão, ela apodrece em silêncio
  * assim que um padrão qualquer mudar.
  */
-const { propIncremento, hidratacaoAtivado, ...RESTO_PADRAO } = ENTRADAS_PADRAO;
+const { propAlimento, hidratacaoAtivado, ...RESTO_PADRAO } = ENTRADAS_PADRAO;
 const ENTRADAS_V3_BASE = {
   ...RESTO_PADRAO,
   propAtivacaoStarter: 1,
@@ -342,7 +342,7 @@ test('a migração v3 → v4 não muda um grama', () => {
     assert.ok(!('propAtivacaoFarinha' in migrada), `${rotulo}: proporção antiga apagada`);
     assert.ok(!('propAtivacaoStarter' in migrada), `${rotulo}: proporção antiga apagada`);
     assert.ok(!('propAtivacaoAgua' in migrada), `${rotulo}: proporção antiga apagada`);
-    perto(migrada.propIncremento, ouro.p, `${rotulo}: incremento`);
+    perto(migrada.propAlimento, ouro.p / 2, `${rotulo}: alimentação`);
     perto(migrada.hidratacaoAtivado, ouro.hAlvo, `${rotulo}: hidratação do ativado`);
 
     // E o que importa de verdade: o ticket e a massa saem iguais aos do motor
@@ -367,7 +367,7 @@ test('migrar duas vezes dá o mesmo que migrar uma', () => {
 
 test('v3 com proporção de starter zerada cai no padrão sem NaN', () => {
   const migrada = migrarEntradas(v3({ propAtivacaoStarter: 0, propAtivacaoFarinha: 3, propAtivacaoAgua: 3 }));
-  assert.ok(Number.isFinite(migrada.propIncremento), 'incremento finito');
+  assert.ok(Number.isFinite(migrada.propAlimento), 'alimentação finita');
   assert.ok(Number.isFinite(migrada.hidratacaoAtivado), 'hidratação finita');
   const r = calcular(migrada);
   assert.ok(Number.isFinite(r.pao.agua), 'a conta sobrevive');
@@ -383,7 +383,7 @@ test('v1 com proporções fora do padrão também converte', () => {
     propAtivacaoFarinha: 4,
     propAtivacaoAgua: 4,
   });
-  perto(migrada.propIncremento, 8, 'v1 converte o incremento');
+  perto(migrada.propAlimento, 4, 'v1 converte a alimentação');
   // 1:4:4 com a mãe a 100% dá (4 + 0,5) / (4 + 0,5) = 1.
   perto(migrada.hidratacaoAtivado, 1, 'v1 converte a hidratação');
   assert.ok(!('propAtivacaoAgua' in migrada), 'a chave antiga não sobrevive');
@@ -399,7 +399,7 @@ test('v2 com proporções fora do padrão também converte', () => {
     propAtivacaoFarinha: 4,
     propAtivacaoAgua: 4,
   });
-  perto(migrada.propIncremento, 8, 'v2 converte o incremento');
+  perto(migrada.propAlimento, 4, 'v2 converte a alimentação');
   perto(migrada.hidratacaoAtivado, 1, 'v2 converte a hidratação');
   assert.ok(!('propAtivacaoAgua' in migrada), 'a chave antiga não sobrevive');
 });
@@ -473,14 +473,15 @@ test('a migração muda de número só nas divergências já conhecidas', () => 
               if (massaBase === null) {
                 massaBase = massa;
 
-                // O motor antigo nunca guardava `propIncremento`/`hidratacaoAtivado`;
+                // O motor antigo nunca guardava `propAlimento`/`hidratacaoAtivado`;
                 // derivava a hidratação do ativado direto das três proporções,
                 // pela fórmula com divisões aninhadas (a mesma que
                 // `converterAtivacao` rejeitou por arredondar no meio). Como a
                 // massa só enxerga as proporções através de `hidratacaoAtivado`
-                // (`propIncremento` é a mesma fórmula nos dois motores), calcular
-                // com esse `hidratacaoAtivado` antigo reproduz exatamente a massa
-                // que o motor antigo produzia — sem reviver o motor antigo.
+                // (`propAlimento` é a mesma fórmula, a menos do fator 2, nos
+                // dois motores), calcular com esse `hidratacaoAtivado` antigo
+                // reproduz exatamente a massa que o motor antigo produzia —
+                // sem reviver o motor antigo.
                 const divisorMaeAntigo = 1 + hMae;
                 const hActAntigo = (rWa + (rSt * hMae) / divisorMaeAntigo) / (rFl + rSt / divisorMaeAntigo);
                 const rAntigo = calcular({ ...migrado, hidratacaoAtivado: hActAntigo });
@@ -501,4 +502,36 @@ test('a migração muda de número só nas divergências já conhecidas', () => 
   assert.deepEqual(achadas.sort(), [...DIVERGENCIAS_CONHECIDAS].sort(), 'o conjunto de divergências mudou');
   assert.deepEqual(massaMudou, [], 'o passo da balança não pode mover a massa');
   assert.deepEqual(massaDivergiuDoAntigo, [], 'a massa não pode divergir do motor antigo');
+});
+
+// ---------------------------------------------------------------------------
+// v4 → v5: o total de partes de alimento vira a notação do padeiro
+// ---------------------------------------------------------------------------
+
+// v4 guardava `propIncremento`, o total de partes de alimento por parte de mãe:
+// a alimentação 1:3:3 se escrevia 6. v5 guarda o número que o padeiro escreve,
+// que é a metade exata. Sem a divisão, uma receita v4 passaria a alimentar o
+// pote com o dobro — e em silêncio, porque o ticket continua fechando sozinho.
+test('v4 vira v5 dividindo a alimentação por dois', () => {
+  const v4 = (propIncremento, extra = {}) => {
+    const { propAlimento, ...resto } = { ...ENTRADAS_PADRAO, ...extra };
+    return { ...resto, propIncremento };
+  };
+
+  const padrao = migrarEntradas(v4(6));
+  perto(padrao.propAlimento, 3, 'o 1:3:3 de v4 vira 3');
+  assert.ok(!('propIncremento' in padrao), 'a chave de v4 não sobrevive');
+  const r = calcular(padrao);
+  assert.equal(r.starter.maeParaAtivar, 20, 'starter-mãe');
+  assert.equal(r.starter.farinhaAtivar, 60, 'farinha');
+  assert.equal(r.starter.aguaAtivar, 60, 'água');
+
+  // Valor fora do padrão: é onde o dobro passaria despercebido, porque não há
+  // número redondo para estranhar.
+  const fino = migrarEntradas(v4(5.475, { hidratacaoAtivado: 0.85 }));
+  perto(fino.propAlimento, 2.7375, 'metade exata de 5,475');
+  const rf = calcular(fino);
+  assert.equal(rf.starter.maeParaAtivar, 22, 'starter-mãe da receita fina');
+  assert.equal(rf.starter.farinhaAtivar, 66, 'farinha da receita fina');
+  assert.equal(rf.starter.aguaAtivar, 54, 'água da receita fina');
 });
