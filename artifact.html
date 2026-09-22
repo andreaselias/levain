@@ -3515,10 +3515,13 @@ function saidasStarter(r, entradas) {
   // mandar igualar o que já está igual faz o app parecer quebrado. A deriva do
   // arredondamento aparece sozinha na métrica de hidratação real, ao lado.
   //
-  // Sem incremento a mãe volta inteira ao pote e nada deriva, por mais que o
-  // alvo diga outra coisa — daí a guarda do incremento.
+  // As duas guardas dizem o que a nota afirma: que alguma coisa volta para o
+  // pote, e que ela volta diferente. Sem incremento a mãe volta inteira e nada
+  // deriva; sem sobra não volta nada, e uma receita sem starter nenhum não tem
+  // pote para derivar.
   const poteDeriva =
     entradas.propIncremento > 0 &&
+    r.starter.sobra > 0 &&
     !mesmoNumero(entradas.hidratacaoAtivado, entradas.hidratacaoMae);
   // A farinha que se pesa para alimentar o pote, nomeada uma a uma: num pote
   // misto, "farinha: 54 g" não diz quanto pôr de cada.
