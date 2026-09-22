@@ -271,6 +271,19 @@ test('peso-alvo negativo não faz a guarda mentir sobre a faixa', () => {
   );
 });
 
+// O aviso carrega números calculados por um formatador próprio, e até aqui
+// nenhum teste olhava para eles: o regex de /alcança/ casa com o texto fixo e
+// passaria com a faixa trocada, sem o ×100, ou com a variável errada.
+test('o aviso da faixa diz os números certos', () => {
+  const r = calcular({ ...ENTRADAS_PADRAO, hidratacaoAtivado: 0.05 });
+  const aviso = r.avisos.find((a) => /alcança/i.test(a));
+  assert.ok(aviso, `esperava o aviso da faixa, vieram ${JSON.stringify(r.avisos)}`);
+  // Pote a 100% e incremento 6: mínimo 1/13 = 7,7%, máximo 13 = 1300%.
+  assert.match(aviso, /pote a 100,0%/, 'a hidratação do pote');
+  assert.match(aviso, /incremento 6\b/, 'o incremento, sem casas sobrando');
+  assert.match(aviso, /de 7,7% a 1300,0%/, 'a faixa, na ordem mínimo-máximo');
+});
+
 // ---------------------------------------------------------------------------
 // Fornadas: quantos pães cabem no forno de uma vez
 // ---------------------------------------------------------------------------
