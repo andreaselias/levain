@@ -455,13 +455,14 @@ test('a migração muda de número só nas divergências já conhecidas', () => 
   const snapA = (x, s) => (s > 0 ? excelRound(x / s) * s : x);
 
   const achadas = [];
-  let paoDivergiu = 0;
-  for (const passo of [0.1, 0.2, 0.25, 0.5, 1, 2, 2.5, 5, 10, 20, 25]) {
-    for (const rSt of [1, 2, 3, 4]) {
-      for (const rFl of [1, 2, 3, 4, 5, 6, 7, 8]) {
-        for (const rWa of [1, 2, 3, 4, 5, 6, 7, 8]) {
-          for (const hMae of [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]) {
-            for (const pctStarter of [0.1, 0.2, 0.25, 0.3, 0.35]) {
+  const massaMudou = [];
+  for (const rSt of [1, 2, 3, 4]) {
+    for (const rFl of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      for (const rWa of [1, 2, 3, 4, 5, 6, 7, 8]) {
+        for (const hMae of [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]) {
+          for (const pctStarter of [0.1, 0.2, 0.25, 0.3, 0.35]) {
+            let massaBase = null;
+            for (const passo of [0.1, 0.2, 0.25, 0.5, 1, 2, 2.5, 5, 10, 20, 25]) {
               const antigas = {
                 propAtivacaoStarter: rSt,
                 propAtivacaoFarinha: rFl,
@@ -479,16 +480,22 @@ test('a migração muda de número só nas divergências já conhecidas', () => 
               ) {
                 achadas.push(`${rSt}:${rFl}:${rWa} mãe ${hMae} starter ${pctStarter} passo ${passo}`);
               }
-              // A massa nunca pode divergir: a exceção é só do que se pesa
-              // para alimentar o pote. 400 só vale para o starter em 20% —
-              // pctStarter muda pao.agua por conta própria, não por divergência.
-              if (r.pao.agua !== 400 && rSt === 1 && rFl === 3 && rWa === 3 && hMae === 1 && pctStarter === 0.2) paoDivergiu++;
+
+              // O passo da balança é lido só na seção 6; a massa sai das
+              // seções 3 a 5. Mudar o passo não pode mover um grama do pão —
+              // é isso que faz a exceção da migração ser só do pote.
+              const massa = [r.pao.farinhaTotal, r.pao.agua, r.pao.starter, r.pao.sal, r.pao.massaTotal].join('/');
+              if (massaBase === null) massaBase = massa;
+              else if (massa !== massaBase) {
+                massaMudou.push(`${rSt}:${rFl}:${rWa} mãe ${hMae} starter ${pctStarter} passo ${passo}: ${massa} ≠ ${massaBase}`);
+              }
             }
           }
         }
       }
     }
   }
-  assert.deepEqual(achadas, DIVERGENCIAS_CONHECIDAS, 'o conjunto de divergências mudou');
-  assert.equal(paoDivergiu, 0, 'a massa não pode divergir em nenhum caso');
+
+  assert.deepEqual(achadas.sort(), [...DIVERGENCIAS_CONHECIDAS].sort(), 'o conjunto de divergências mudou');
+  assert.deepEqual(massaMudou, [], 'o passo da balança não pode mover a massa');
 });
