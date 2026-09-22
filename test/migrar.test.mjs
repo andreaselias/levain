@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calcular } from '../src/calc.js';
+import { calcular, ENTRADAS_PADRAO } from '../src/calc.js';
 import { migrarEntradas, migrarEstado } from '../src/migrar.js';
 
 const TOL = 1e-6;
@@ -282,41 +282,18 @@ test('migração preserva o formato já escolhido, sem virar número', () => {
 // v3 → v4: as três proporções viram incremento + hidratação do ativado
 // ---------------------------------------------------------------------------
 
+/**
+ * Uma receita v3 completa: o padrão de hoje com as duas entradas novas
+ * trocadas de volta pelas três proporções que o formato v3 guardava. Derivada
+ * de `ENTRADAS_PADRAO` de propósito — escrita à mão, ela apodrece em silêncio
+ * assim que um padrão qualquer mudar.
+ */
+const { propIncremento, hidratacaoAtivado, ...RESTO_PADRAO } = ENTRADAS_PADRAO;
 const ENTRADAS_V3_BASE = {
-  pesoAssadoDesejado: 500,
-  numeroPaes: 2,
-  hidratacao: 0.7,
-  pctStarter: 0.2,
-  pctSal: 0.02,
-  farinhas: [
-    { id: 'f-branca', nome: 'Farinha branca', preco: 4.46 },
-    { id: 'f-integral', nome: 'Farinha integral', preco: 11 },
-  ],
-  composicaoPao: [
-    { farinhaId: 'f-branca', pct: 0 },
-    { farinhaId: 'f-integral', pct: 0.1 },
-  ],
-  composicaoStarter: [{ farinhaId: 'f-branca', pct: 0 }],
-  liquidos: [],
-  solidos: [],
-  fatorArredondamento: 10,
-  perdaForno: 0.11,
-  volumeEspecifico: 2.7,
-  formato: 'batard',
-  paesPorFornada: 2,
-  tempoPreAquecimento: 45,
-  tempoCozimento: 40,
-  hidratacaoMae: 1,
+  ...RESTO_PADRAO,
   propAtivacaoStarter: 1,
   propAtivacaoFarinha: 3,
   propAtivacaoAgua: 3,
-  arredondamentoAtivacao: 1,
-  precoSal: 2.5,
-  precoKwh: 0.8653,
-  potenciaForno: 0.6,
-  embalagemExterna: 1.44,
-  embalagemInterna: 0.63,
-  etiqueta: 0.04,
 };
 
 /** Uma receita v3 completa, com as proporções que o formato guardava. */

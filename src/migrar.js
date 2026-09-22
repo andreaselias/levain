@@ -55,6 +55,9 @@ function converterAtivacao(v) {
   const farinhaDaProporcao = rFl + rSt / divisorMae;
 
   // Entrada degenerada cai no padrão em vez de propagar NaN para a receita.
+  // `farinhaDaProporcao` é o denominador da fração única dividido por
+  // `divisorMae` — `rFl·dMae + rSt = dMae·(rFl + rSt/dMae)` — então zerar aqui
+  // é exatamente zerar lá. Não troque um pelo outro sem refazer essa conta.
   if (!(rSt > 0) || !(divisorMae > 0) || farinhaDaProporcao === 0) {
     return {
       propIncremento: ENTRADAS_PADRAO.propIncremento,
