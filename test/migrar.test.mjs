@@ -433,6 +433,7 @@ test('a migração muda de número só nas divergências já conhecidas', () => 
 
   const achadas = [];
   const massaMudou = [];
+  const massaDivergiuDoAntigo = [];
   for (const rSt of [1, 2, 3, 4]) {
     for (const rFl of [1, 2, 3, 4, 5, 6, 7, 8]) {
       for (const rWa of [1, 2, 3, 4, 5, 6, 7, 8]) {
@@ -448,7 +449,8 @@ test('a migração muda de número só nas divergências já conhecidas', () => 
                 pctStarter,
                 arredondamentoAtivacao: passo,
               };
-              const r = calcular(migrarEntradas(v3(antigas)));
+              const migrado = migrarEntradas(v3(antigas));
+              const r = calcular(migrado);
               const mae = roundUp((r.pao.starter * rSt) / (rFl + rWa));
               if (
                 r.starter.maeParaAtivar !== mae ||
@@ -459,11 +461,34 @@ test('a migração muda de número só nas divergências já conhecidas', () => 
               }
 
               // O passo da balança é lido só na seção 6; a massa sai das
-              // seções 3 a 5. Mudar o passo não pode mover um grama do pão —
-              // é isso que faz a exceção da migração ser só do pote.
+              // seções 3 a 5. Mudar o passo não pode mover um grama do pão.
+              // Isto não diz nada sobre motor antigo contra motor novo — quem
+              // poderia mover a massa entre os dois é o `hidratacaoAtivado`
+              // convertido, que alimenta `divisorAtivado → denom →
+              // farinhaTotal`, e isso não tem relação nenhuma com o passo. A
+              // comparação contra o motor antigo é a de baixo, fora deste
+              // sub-laço porque nem a massa nem a fórmula antiga dependem do
+              // passo.
               const massa = [r.pao.farinhaTotal, r.pao.agua, r.pao.starter, r.pao.sal, r.pao.massaTotal].join('/');
-              if (massaBase === null) massaBase = massa;
-              else if (massa !== massaBase) {
+              if (massaBase === null) {
+                massaBase = massa;
+
+                // O motor antigo nunca guardava `propIncremento`/`hidratacaoAtivado`;
+                // derivava a hidratação do ativado direto das três proporções,
+                // pela fórmula com divisões aninhadas (a mesma que
+                // `converterAtivacao` rejeitou por arredondar no meio). Como a
+                // massa só enxerga as proporções através de `hidratacaoAtivado`
+                // (`propIncremento` é a mesma fórmula nos dois motores), calcular
+                // com esse `hidratacaoAtivado` antigo reproduz exatamente a massa
+                // que o motor antigo produzia — sem reviver o motor antigo.
+                const divisorMaeAntigo = 1 + hMae;
+                const hActAntigo = (rWa + (rSt * hMae) / divisorMaeAntigo) / (rFl + rSt / divisorMaeAntigo);
+                const rAntigo = calcular({ ...migrado, hidratacaoAtivado: hActAntigo });
+                const massaAntiga = [rAntigo.pao.farinhaTotal, rAntigo.pao.agua, rAntigo.pao.starter, rAntigo.pao.sal, rAntigo.pao.massaTotal].join('/');
+                if (massaAntiga !== massa) {
+                  massaDivergiuDoAntigo.push(`${rSt}:${rFl}:${rWa} mãe ${hMae} starter ${pctStarter}: ${massa} ≠ ${massaAntiga}`);
+                }
+              } else if (massa !== massaBase) {
                 massaMudou.push(`${rSt}:${rFl}:${rWa} mãe ${hMae} starter ${pctStarter} passo ${passo}: ${massa} ≠ ${massaBase}`);
               }
             }
@@ -475,4 +500,5 @@ test('a migração muda de número só nas divergências já conhecidas', () => 
 
   assert.deepEqual(achadas.sort(), [...DIVERGENCIAS_CONHECIDAS].sort(), 'o conjunto de divergências mudou');
   assert.deepEqual(massaMudou, [], 'o passo da balança não pode mover a massa');
+  assert.deepEqual(massaDivergiuDoAntigo, [], 'a massa não pode divergir do motor antigo');
 });
