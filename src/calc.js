@@ -140,6 +140,11 @@ function num(valor, padrao) {
 
 const fin = (x) => (Number.isFinite(x) ? x : 0);
 
+/** Percentual legível para dentro dos avisos: 0,0769 → "7,7%". */
+function pctTexto(x) {
+  return `${(x * 100).toFixed(1).replace('.', ',')}%`;
+}
+
 function comoLista(valor) {
   return Array.isArray(valor) ? valor.filter((x) => x && typeof x === 'object') : [];
 }
@@ -396,6 +401,29 @@ export function calcular(entradas) {
     const aguaDaMae = (maeParaAtivar * e.hidratacaoMae) / divisorMae;
     farinhaAtivar = totalExato / divisorAlvo - farinhaDaMae;
     aguaAtivar = (totalExato * hAct) / divisorAlvo - aguaDaMae;
+
+    // Incremento só acrescenta: não há como tirar água nem farinha da mãe.
+    // Fora da faixa alcançável, a parcela negativa zera e a outra leva o
+    // incremento inteiro — o ativado mantém as p partes prometidas, na
+    // hidratação mais próxima que dá, e `hidratacaoRealAtivado` mostra onde
+    // de fato parou. A massa continua calculando com o alvo, então a receita
+    // fica inconsistente até o alvo voltar para dentro da faixa: é o aviso
+    // que carrega esse peso.
+    if (farinhaAtivar < 0 || aguaAtivar < 0) {
+      const minimo = e.hidratacaoMae / (1 + p * divisorMae);
+      const maximo = e.hidratacaoMae + p * divisorMae;
+      avisos.push(
+        `Com o pote a ${pctTexto(e.hidratacaoMae)} e incremento ${p}, a hidratação do ativado só alcança de ${pctTexto(minimo)} a ${pctTexto(maximo)}. Os números da massa só fecham depois de o alvo voltar para dentro dessa faixa.`
+      );
+      const incremento = maeParaAtivar * p;
+      if (aguaAtivar < 0) {
+        aguaAtivar = 0;
+        farinhaAtivar = incremento;
+      } else {
+        farinhaAtivar = 0;
+        aguaAtivar = incremento;
+      }
+    }
 
     farinhaAtivar = snapAtivacao(farinhaAtivar);
     aguaAtivar = snapAtivacao(aguaAtivar);

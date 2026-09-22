@@ -141,6 +141,10 @@ test('ativação do starter cobre a massa e repõe o pote', () => {
 // A promessa do campo `propIncremento` é literal: p partes de alimento por
 // parte de mãe. Sem o passo da balança para mascarar, farinha e água do
 // incremento têm que somar exatamente isso.
+//
+// Só isso: a soma fecha em `mae × p` seja qual for o divisor do alvo, então
+// este teste NÃO guarda a ligação com `hidratacaoAtivado` — quem guarda é o
+// de baixo.
 test('o incremento soma exatamente p vezes a mãe', () => {
   for (const p of [1, 3, 6, 0.5, 12]) {
     const r = calcular({
@@ -180,6 +184,53 @@ test('o incremento compensa a hidratação do pote', () => {
     });
     perto(r.starter.hidratacaoRealAtivado, 0.85, `pote a ${hMae}`);
   }
+});
+
+// Incremento só acrescenta. Com o pote a 200% e incremento pequeno, não há
+// como chegar a 40% — seria preciso tirar água da mãe.
+test('hidratação inalcançável zera a parcela negativa e avisa', () => {
+  const r = calcular({
+    ...ENTRADAS_PADRAO,
+    hidratacaoMae: 2,
+    propIncremento: 0.5,
+    hidratacaoAtivado: 0.4,
+    arredondamentoAtivacao: 0,
+  });
+  todosFinitos(r);
+  assert.equal(r.starter.aguaAtivar, 0, 'a água do incremento não pode ser negativa');
+  perto(
+    r.starter.farinhaAtivar,
+    r.starter.maeParaAtivar * 0.5,
+    'a farinha leva o incremento inteiro'
+  );
+  assert.ok(
+    r.avisos.some((a) => /alcança/i.test(a)),
+    `esperava aviso de faixa alcançável, vieram ${JSON.stringify(r.avisos)}`
+  );
+  // Entrega o mais seco possível, que ainda é mais molhado que o pedido.
+  assert.ok(
+    r.starter.hidratacaoRealAtivado > 0.4,
+    `o realizado ${r.starter.hidratacaoRealAtivado} tinha que ficar acima do alvo inalcançável`
+  );
+});
+
+test('hidratação altíssima zera a farinha e avisa', () => {
+  const r = calcular({
+    ...ENTRADAS_PADRAO,
+    propIncremento: 0.5,
+    hidratacaoAtivado: 30,
+    arredondamentoAtivacao: 0,
+  });
+  todosFinitos(r);
+  assert.equal(r.starter.farinhaAtivar, 0, 'a farinha do incremento não pode ser negativa');
+  perto(r.starter.aguaAtivar, r.starter.maeParaAtivar * 0.5, 'a água leva o incremento inteiro');
+  assert.ok(r.avisos.some((a) => /alcança/i.test(a)), 'esperava aviso de faixa alcançável');
+});
+
+// Dentro da faixa, nada de aviso nem de recorte.
+test('alvo dentro da faixa não dispara a guarda', () => {
+  const r = calcular({ ...ENTRADAS_PADRAO, hidratacaoAtivado: 0.85 });
+  assert.equal(r.avisos.filter((a) => /alcança/i.test(a)).length, 0, 'não devia avisar');
 });
 
 // ---------------------------------------------------------------------------
