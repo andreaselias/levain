@@ -159,6 +159,17 @@ function igual(a, b) {
   return Math.abs(x - y) <= TOLERANCIA_DIFF;
 }
 
+/**
+ * A comparação tolerante também serve fora do diff: qualquer tela que decida
+ * mostrar algo com base em "estes dois números são o mesmo" precisa da mesma
+ * régua, senão 0,8499999999999999 e 0,85 passam a ser coisas diferentes.
+ *
+ * `export { igual as mesmoNumero }` seria o re-export direto, mas o
+ * empacotador só reconhece `export const|function|let|class` de uma linha só
+ * — por isso o alias vira uma constante, não uma sintaxe de re-export.
+ */
+export const mesmoNumero = igual;
+
 function diffDeLista(anterior, atual, definicao, mudancas) {
   const antes = Array.isArray(anterior[definicao.chave]) ? anterior[definicao.chave] : [];
   const depois = Array.isArray(atual[definicao.chave]) ? atual[definicao.chave] : [];

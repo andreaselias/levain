@@ -9,8 +9,8 @@
  */
 
 import { calcular, calibrarPerda, calibrarVolumeEspecifico, ENTRADAS_PADRAO } from './calc.js';
-import { CAMPOS, CAMPO_POR_CHAVE, ESCALAS, GRUPOS_DE_ESCALA, MOLDE, formatarEntrada, formatarValor, paraArmazenamento } from './campos.js';
-import { criarPersistencia, criarRegistro, diffDoRegistro, estadoInicial, exportar, gerarId, importar, novaReceita, receitaAtiva, receitaDoRegistro, registrosDaReceita } from './store.js';
+import { CAMPOS, CAMPO_POR_CHAVE, ESCALAS, GRUPOS_DE_ESCALA, MOLDE, formatarEntrada, formatarValor, paraArmazenamento, paraExibicao } from './campos.js';
+import { criarPersistencia, criarRegistro, diffDoRegistro, estadoInicial, exportar, gerarId, importar, mesmoNumero, novaReceita, receitaAtiva, receitaDoRegistro, registrosDaReceita } from './store.js';
 
 const ABAS = [
   { id: 'starter', glifo: '🫧', rotulo: 'Starter' },
@@ -386,8 +386,21 @@ function entradasPao(entradas) {
 // Aba Starter
 // ---------------------------------------------------------------------------
 
-function saidasStarter(r) {
+function saidasStarter(r, entradas) {
   const composicao = r.starter.farinhas.filter((f) => f.gramas > 0.05);
+  // O conselho da nota é "iguale as duas", então ela só cabe quando as duas de
+  // fato diferem: com os campos iguais e a deriva vinda do passo da balança,
+  // mandar igualar o que já está igual faz o app parecer quebrado. A deriva do
+  // arredondamento aparece sozinha na métrica de hidratação real, ao lado.
+  //
+  // As duas guardas dizem o que a nota afirma: que alguma coisa volta para o
+  // pote, e que ela volta diferente. Sem incremento a mãe vai inteira para a
+  // massa e nada deriva; sem sobra não volta nada, e uma receita sem starter
+  // nenhum não tem pote para derivar.
+  const poteDeriva =
+    entradas.propIncremento > 0 &&
+    r.starter.sobra > 0 &&
+    !mesmoNumero(entradas.hidratacaoAtivado, entradas.hidratacaoMae);
   // A farinha que se pesa para alimentar o pote, nomeada uma a uma: num pote
   // misto, "farinha: 54 g" não diz quanto pôr de cada.
   const paraPesar = r.starter.farinhasAtivar.filter((f) => f.gramas > 0.05);
@@ -416,7 +429,7 @@ function saidasStarter(r) {
     <section class="secao">
       <h2 class="secao-titulo">O que o starter carrega</h2>
       <div class="metricas">
-        ${metrica('Hidratação do ativado', pct(r.starter.hidratacaoAtivado), true)}
+        ${metrica('Hidratação real do ativado', pct(r.starter.hidratacaoRealAtivado), true)}
         ${metrica('Volta ao pote', g(r.starter.sobra))}
         ${metrica('Farinha embutida', gAuto(r.starter.farinhaNoStarter))}
         ${metrica('Água embutida', gAuto(r.starter.aguaNoStarter))}
@@ -425,6 +438,9 @@ function saidasStarter(r) {
         ? `<p class="nota-rodape">Da farinha já embutida no starter: ${composicao
             .map((f) => `${gAuto(f.gramas)} de ${escapar(f.nome.toLowerCase())}`)
             .join(', ')}.</p>`
+        : ''}
+      ${poteDeriva
+        ? `<p class="nota-rodape">A sobra volta para o pote a ${pct(r.starter.hidratacaoRealAtivado)}, e o pote está a ${pct(entradas.hidratacaoMae)}. A cada fornada ele caminha nessa direção — para ficar parado, iguale a hidratação do ativado à do pote.</p>`
         : ''}
     </section>`;
 }
@@ -776,7 +792,7 @@ function atualizar() {
 
   document.getElementById('saidas').innerHTML =
     abaAtiva === 'starter'
-      ? saidasStarter(r)
+      ? saidasStarter(r, ativa.entradas)
       : abaAtiva === 'pao'
         ? saidasPao(r)
         : abaAtiva === 'custos'
@@ -1479,7 +1495,25 @@ const ACOES = {
     const entrada = document.querySelector(seletor);
     if (!entrada) return;
 
-    const atual = paraNumero(entrada.value);
+    // O valor de partida do botão não deve depender de quanta precisão a
+    // última renderização por acaso preservou. Hoje os dois caminhos quase
+    // sempre concordam porque o valor guardado quase sempre já está na grade
+    // que o campo exibe — ler o texto ou ler o guardado dá o mesmo número.
+    // Divergem quando o guardado foge dessa grade e cai numa fronteira exata
+    // de arredondamento — `pctSal` tem `passo`/`casas` alinhados e mesmo assim
+    // guardado em 0,01375 exibe 1,38, e um clique de menos dá 1,28 pelo texto
+    // contra 1,27 pelo guardado — e passariam a divergir com frequência no dia
+    // em que alguém puser um campo cujo `passo` não caia na grade do seu
+    // `casas`.
+    //
+    // O texto só entra quando não há valor guardado, o que na prática é
+    // backup corrompido: o campo aparece vazio e o clique o devolve à grade.
+    const guardado = chaveCampo
+      ? receitaAtiva(estado).entradas[chaveCampo]
+      : itemPorId(lista, id)?.[attr];
+    const atual = Number.isFinite(Number(guardado))
+      ? paraExibicao(molde, Number(guardado))
+      : paraNumero(entrada.value);
     const proximo = Math.max(0, (Number.isFinite(atual) ? atual : 0) + Number(sinal) * (molde.passo ?? 1));
     // Passos fracionários acumulam ruído binário; a casa decimal do campo corta.
     const limpo = Number(proximo.toFixed(molde.casas ?? 0));

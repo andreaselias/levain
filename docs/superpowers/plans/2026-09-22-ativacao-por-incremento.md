@@ -796,7 +796,11 @@ document.querySelector('[data-acao="passo"][data-campo="propIncremento"][data-si
 document.querySelector('input[data-campo="propIncremento"]').value;
 ```
 
-Expected hoje: `"6,1"` — o 5,55 foi lido do texto já truncado para 5,6. Esperado depois: `"6,05"`.
+Expected hoje: `"6,05"` — e depois também. Este roteiro **não** demonstra o
+defeito: com `casas: 2` o campo já exibe `5,55` inteiro, e os dois caminhos
+concordam. Ver a correção no fim deste plano; para ver a divergência, use
+`pctSal` guardado em `0,01375` com um clique de `−`, que dá `1,28` pelo texto
+contra `1,27` pelo guardado.
 
 - [ ] **Step 2: Ler o valor guardado em vez do texto**
 
@@ -909,3 +913,96 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 | Nota de deriva do pote | 5 |
 | Métrica renomeada | 5 |
 | Conserto do botão de passo | 6 |
+
+---
+
+## Achados das revisões, registrados para não se perderem
+
+Nenhum destes entra no escopo destas sete tarefas. Ficam anotados porque
+apareceram na revisão e não têm dono.
+
+**`propIncremento` denormal derruba a ativação em silêncio.** Com
+`propIncremento: 5e-310`, `starter / p` estoura para `Infinity`, a subtração
+vira `NaN`, e `fin()` mapeia o objeto `starter` inteiro para zeros — sem aviso
+nenhum, indistinguível de "não há o que ativar". Com `1e-300` a mãe sai a
+1,2e+302 g, número finito e absurdo, também sem aviso. `fin()` só peneira
+`NaN` e `Infinity`, não magnitude implausível. O mesmo vale para
+`hidratacaoMae` chegando perto de -100% sem cruzar.
+
+Nenhum campo do formulário produz isso: os steppers são quantizados por `passo`
+e `casas`. Só um backup montado à mão ou uma chamada direta a `calcular()`
+alcança. É o assunto de quem for endurecer a validação de entrada algum dia,
+não desta leva.
+
+**`'o total ativado e a sobra usam os valores já arredondados'` não exercita
+arredondamento fracionário.** Com `propIncremento: 10/3` cai em 60/60 exatos —
+mas a proporção 3:5:5 que havia antes também caía, então não é regressão
+introduzida aqui. Defeito pré-existente do teste, não da mudança.
+
+**O botão de passo: o defeito é outro, e menor, do que este plano afirmava.** A
+Task 6 foi escrita dizendo que um valor migrado como `5,55` ou `10/3` perde
+precisão ao primeiro clique no `+`. Medido na implementação: não perde. Os dois
+caminhos — ler o texto exibido ou ler o valor guardado — dão resultado idêntico
+para `5,55`, `10/3` e `0,7368…`. A razão é que o valor guardado quase sempre já
+está na grade que o campo exibe — ler o texto ou ler o guardado dá o mesmo
+número. (Não é, como uma rodada anterior desta correção chegou a afirmar, que
+todo par `passo`/`casas` do projeto caia na mesma grade decimal e que nessa
+condição `round(round(x,n) + passo, n)` seja sempre igual a `round(x + passo,
+n)` — essa identidade é falsa, e o contraexemplo mora neste próprio projeto:
+`pctSal` tem `passo`/`casas` alinhados e diverge assim mesmo, ver abaixo.)
+
+A divergência existe, mas só numa fronteira exata de arredondamento — o valor
+guardado precisa estar fora da grade que o campo exibe *e* cair bem em cima de
+um empate. A taxa medida depende inteiramente da grade varrida: 0,96% das
+combinações a uma casa além de `casas`, 0,16% a duas casas além, 0,02% a três,
+e 0,00% num sweep contínuo. Exemplo concreto: `pctSal` guardado em `0,01375`
+exibe `1,38`; um clique de `−` dá `1,28` partindo do texto e `1,27` partindo do
+guardado.
+
+O conserto fica, por um motivo diferente do que o plano deu: o valor de partida
+do botão não deve depender de quanta precisão a última renderização por acaso
+preservou. Isso é verdade quer o valor guardado esteja na grade hoje ou não, e
+fica mais importante assim que alguém acrescentar um campo cujo `passo` não
+caia na grade do seu `casas`.
+
+**A migração tem uma exceção combinada: oito receitas mudam de número.** A
+conversão é exata em 98.552 das 98.560 combinações varridas (razões 1-4 : 1-8 :
+1-8, pote de 50% a 200%, starter de 10% a 35%, passo de balança de 0,1 a 25 g).
+As oito que sobram estão congeladas no teste `'a migração muda de número só nas
+divergências já conhecidas'`, que falha se aparecer uma nova ou se alguma sumir.
+
+O mecanismo: onde o valor exato pré-arredondamento cai em cima de um empate do
+passo da balança, um erro de última casa decide o empate para o outro lado e a
+ativação sai um passo diferente. Não é "p dízima em binário" — várias das
+divergentes têm p inteiro; o erro nasce no cálculo de `hidratacaoAtivado`.
+
+Duas medições anteriores estavam erradas e ficam registradas como tal: a
+primeira varreu só o pote em {50, 100, 150, 200}% e concluiu 3 divergências,
+todas no passo de 10 g. O pote anda de 5 em 5% no formulário, 175% é valor
+comum, e é justamente onde a maioria das divergências mora. Grade escolhida por
+quem quer um resultado produz esse resultado.
+
+A fórmula da hidratação usa fração única — `(rWa·dMae + rSt·hMae) / (rFl·dMae +
+rSt)` — e não a forma com divisões aninhadas. São a mesma álgebra, mas a
+aninhada arredonda no meio e erra o último bit em 37,72% dos pares razão ×
+hidratação do pote varridos (zero em 256 no pote padrão); a fração única bate
+com o valor exato em racionais. Isso levou as divergências de 11 para 8, que é
+o piso: verificado contra aritmética exata, nenhuma fórmula que calcule a
+hidratação verdadeira faz melhor.
+
+Zero não é alcançável. O resíduo nasce do cancelamento em
+`totalExato/divisorAlvo − farinhaDaMae` dentro de `calc.js`, não da conversão.
+Existe um par `(p, h)` a ±1 ulp que conserta cada caso, mas a direção do ajuste
+alterna sem regra — seria constante mágica, e disso não se sai.
+
+**A massa nunca diverge.** Em nenhuma das 98.560 combinações algum valor de
+`pao.*` mudou: farinha, água, sal e peso do pão saem idênticos. A exceção é só
+do que se pesa para alimentar o pote — `farinhaAtivar`, `aguaAtivar` e os
+derivados `totalAtivado` e `sobra`, por um passo de balança.
+
+**Correção de uma afirmação anterior deste registro:** dizer que "a resposta
+antiga era arbitrária do outro lado" estava errado. `excelRound` é convenção
+especificada — metade para longe do zero, com `precisao15` ali justamente para
+bater com a planilha. Sob a regra do próprio código, 80 g é a resposta definida
+e 70 g é violação dela. As duas erram 5 g do valor exato, mas só uma segue a
+regra da casa.

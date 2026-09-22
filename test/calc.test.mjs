@@ -128,7 +128,7 @@ test('custos reproduzem a planilha', () => {
 // e por isso estes números divergem dela de propósito.
 test('ativação do starter cobre a massa e repõe o pote', () => {
   const { starter } = calcular(ENTRADAS_PADRAO);
-  perto(starter.hidratacaoAtivado, 1, 'hidratação do ativado');
+  perto(starter.hidratacaoRealAtivado, 1, 'hidratação real do ativado');
   assert.equal(starter.maeParaAtivar, 20, 'starter-mãe');
   assert.equal(starter.farinhaAtivar, 60, 'farinha');
   assert.equal(starter.aguaAtivar, 60, 'água');
@@ -136,6 +136,163 @@ test('ativação do starter cobre a massa e repõe o pote', () => {
   assert.equal(starter.sobra, 20, 'volta ao pote os mesmos 20 g que saíram');
   perto(starter.farinhaNoStarter, 60, 'farinha embutida');
   perto(starter.aguaNoStarter, 60, 'água embutida');
+});
+
+// A promessa do campo `propIncremento` é literal: p partes de alimento por
+// parte de mãe. Sem o passo da balança para mascarar, farinha e água do
+// incremento têm que somar exatamente isso.
+//
+// Só isso: a soma fecha em `mae × p` seja qual for o divisor do alvo, então
+// este teste NÃO guarda a ligação com `hidratacaoAtivado` — quem guarda é o
+// de baixo.
+test('o incremento soma exatamente p vezes a mãe', () => {
+  for (const p of [1, 3, 6, 0.5, 12]) {
+    const r = calcular({
+      ...ENTRADAS_PADRAO,
+      propIncremento: p,
+      arredondamentoAtivacao: 0,
+    });
+    perto(
+      r.starter.farinhaAtivar + r.starter.aguaAtivar,
+      r.starter.maeParaAtivar * p,
+      `incremento com p=${p}`
+    );
+  }
+});
+
+// A hidratação do ativado deixa de ser descoberta e passa a ser obedecida.
+test('a hidratação pedida para o ativado é a que sai', () => {
+  for (const alvo of [0.6, 0.85, 1, 1.25]) {
+    const r = calcular({
+      ...ENTRADAS_PADRAO,
+      hidratacaoAtivado: alvo,
+      arredondamentoAtivacao: 0,
+    });
+    perto(r.starter.hidratacaoRealAtivado, alvo, `alvo ${alvo}`);
+  }
+});
+
+// O pote molhado ou seco muda o que a mãe carrega, e o incremento compensa
+// para o ativado cair no alvo mesmo assim.
+test('o incremento compensa a hidratação do pote', () => {
+  for (const hMae of [0.5, 1, 1.6]) {
+    const r = calcular({
+      ...ENTRADAS_PADRAO,
+      hidratacaoMae: hMae,
+      hidratacaoAtivado: 0.85,
+      arredondamentoAtivacao: 0,
+    });
+    perto(r.starter.hidratacaoRealAtivado, 0.85, `pote a ${hMae}`);
+  }
+});
+
+// Incremento só acrescenta. Com o pote a 200% e incremento pequeno, não há
+// como chegar a 40% — seria preciso tirar água da mãe.
+test('hidratação inalcançável zera a parcela negativa e avisa', () => {
+  const r = calcular({
+    ...ENTRADAS_PADRAO,
+    hidratacaoMae: 2,
+    propIncremento: 0.5,
+    hidratacaoAtivado: 0.4,
+    arredondamentoAtivacao: 0,
+  });
+  todosFinitos(r);
+  assert.equal(r.starter.aguaAtivar, 0, 'a água do incremento não pode ser negativa');
+  perto(
+    r.starter.farinhaAtivar,
+    r.starter.maeParaAtivar * 0.5,
+    'a farinha leva o incremento inteiro'
+  );
+  assert.ok(
+    r.avisos.some((a) => /alcança/i.test(a)),
+    `esperava aviso de faixa alcançável, vieram ${JSON.stringify(r.avisos)}`
+  );
+  // Entrega o mais seco possível, que ainda é mais molhado que o pedido.
+  assert.ok(
+    r.starter.hidratacaoRealAtivado > 0.4,
+    `o realizado ${r.starter.hidratacaoRealAtivado} tinha que ficar acima do alvo inalcançável`
+  );
+});
+
+test('hidratação altíssima zera a farinha e avisa', () => {
+  const r = calcular({
+    ...ENTRADAS_PADRAO,
+    propIncremento: 0.5,
+    hidratacaoAtivado: 30,
+    arredondamentoAtivacao: 0,
+  });
+  todosFinitos(r);
+  assert.equal(r.starter.farinhaAtivar, 0, 'a farinha do incremento não pode ser negativa');
+  perto(r.starter.aguaAtivar, r.starter.maeParaAtivar * 0.5, 'a água leva o incremento inteiro');
+  assert.ok(r.avisos.some((a) => /alcança/i.test(a)), 'esperava aviso de faixa alcançável');
+});
+
+// Dentro da faixa, nada de aviso nem de recorte.
+test('alvo dentro da faixa não dispara a guarda', () => {
+  const r = calcular({ ...ENTRADAS_PADRAO, hidratacaoAtivado: 0.85 });
+  assert.equal(r.avisos.filter((a) => /alcança/i.test(a)).length, 0, 'não devia avisar');
+});
+
+// A guarda recorta antes do passo da balança, então o que ela devolve ainda
+// tem que cair em grama inteira e as partes ainda têm que somar o total.
+test('o recorte da guarda sobrevive ao passo da balança', () => {
+  const r = calcular({
+    ...ENTRADAS_PADRAO,
+    hidratacaoMae: 0.5,
+    propIncremento: 0.3,
+    hidratacaoAtivado: 0.02,
+    arredondamentoAtivacao: 1,
+  });
+  todosFinitos(r);
+  const inteiro = (v) => Math.abs(v - Math.round(v)) < 1e-9;
+  assert.ok(inteiro(r.starter.farinhaAtivar), `farinha em grama inteira, deu ${r.starter.farinhaAtivar}`);
+  assert.ok(inteiro(r.starter.aguaAtivar), `água em grama inteira, deu ${r.starter.aguaAtivar}`);
+  assert.equal(
+    r.starter.farinhasAtivar.reduce((s, f) => s + f.gramas, 0),
+    r.starter.farinhaAtivar,
+    'as partes somam o total mesmo depois do recorte'
+  );
+  assert.equal(
+    r.starter.totalAtivado,
+    r.starter.maeParaAtivar + r.starter.farinhaAtivar + r.starter.aguaAtivar,
+    'o total é a soma do que se pesa'
+  );
+});
+
+// Peso-alvo negativo já é lixo entrando, mas a guarda não pode piorar: sem o
+// `maeParaAtivar > 0` ela anuncia uma faixa que o alvo pedido não viola.
+test('peso-alvo negativo não faz a guarda mentir sobre a faixa', () => {
+  const r = calcular({ ...ENTRADAS_PADRAO, pesoAssadoDesejado: -500 });
+  todosFinitos(r);
+  assert.equal(
+    r.avisos.filter((a) => /alcança/i.test(a)).length,
+    0,
+    `o alvo padrão está dentro da faixa; não cabe avisar, vieram ${JSON.stringify(r.avisos)}`
+  );
+});
+
+// O aviso carrega números calculados por um formatador próprio, e até aqui
+// nenhum teste olhava para eles: o regex de /alcança/ casa com o texto fixo e
+// passaria com a faixa trocada, sem o ×100, ou com a variável errada.
+test('o aviso da faixa diz os números certos', () => {
+  const r = calcular({ ...ENTRADAS_PADRAO, hidratacaoAtivado: 0.05 });
+  const aviso = r.avisos.find((a) => /alcança/i.test(a));
+  assert.ok(aviso, `esperava o aviso da faixa, vieram ${JSON.stringify(r.avisos)}`);
+  // Pote a 100% e incremento 6: mínimo 1/13 = 7,7%, máximo 13 = 1300%.
+  assert.match(aviso, /pote a 100,0%/, 'a hidratação do pote');
+  assert.match(aviso, /incremento 6\b/, 'o incremento, sem casas sobrando');
+  assert.match(aviso, /de 7,7% a 1300,0%/, 'a faixa, na ordem mínimo-máximo');
+});
+
+// 10/3 é o que uma receita migrada da proporção 3:5:5 guarda. Sem `numTexto`
+// o aviso sairia com "incremento 3.3333333333333335" — dezessete dígitos
+// significativos num app de cozinha.
+test('o aviso da faixa formata incremento fracionário', () => {
+  const r = calcular({ ...ENTRADAS_PADRAO, propIncremento: 10 / 3, hidratacaoAtivado: 0.05 });
+  const aviso = r.avisos.find((a) => /alcança/i.test(a));
+  assert.ok(aviso, `esperava o aviso da faixa, vieram ${JSON.stringify(r.avisos)}`);
+  assert.match(aviso, /incremento 3,33\b/, 'duas casas e vírgula');
+  assert.ok(!/3\.33/.test(aviso), 'nada de ponto decimal no texto');
 });
 
 // ---------------------------------------------------------------------------
@@ -350,12 +507,13 @@ test('farinha do pote em 0% não recebe farinha na ativação', () => {
 
 /** Todo valor que se pesa na ativação, em várias configurações plausíveis. */
 const CENARIOS_DE_ATIVACAO = [
-  { nome: 'padrão 1:3:3', entradas: {} },
-  { nome: 'proporção 3:5:5', entradas: { propAtivacaoStarter: 3, propAtivacaoFarinha: 5, propAtivacaoAgua: 5 } },
-  { nome: 'proporção 1:2:2', entradas: { propAtivacaoStarter: 1, propAtivacaoFarinha: 2, propAtivacaoAgua: 2 } },
+  { nome: 'padrão 1:6 a 100%', entradas: {} },
+  { nome: 'incremento 3,33', entradas: { propIncremento: 10 / 3 } },
+  { nome: 'incremento 4', entradas: { propIncremento: 4 } },
   { nome: 'starter alto', entradas: { pctStarter: 0.35 } },
   { nome: 'starter baixo', entradas: { pctStarter: 0.05 } },
   { nome: 'mãe a 80%', entradas: { hidratacaoMae: 0.8 } },
+  { nome: 'ativado a 85%', entradas: { hidratacaoAtivado: 0.85 } },
 ];
 
 const TRES_FARINHAS = (a, b) =>
@@ -387,9 +545,7 @@ test('as partes somam exatamente o total, sem sobrar nem faltar grama', () => {
 test('o total ativado e a sobra usam os valores já arredondados', () => {
   const r = calcular({
     ...ENTRADAS_PADRAO,
-    propAtivacaoStarter: 3,
-    propAtivacaoFarinha: 5,
-    propAtivacaoAgua: 5,
+    propIncremento: 10 / 3, // equivalente à antiga proporção 3:5:5
   });
   assert.equal(
     r.starter.totalAtivado,
@@ -691,15 +847,8 @@ test('número de pães zero é rejeitado com aviso', () => {
   assert.ok(r.avisos.length > 0);
 });
 
-test('proporção de starter zero na ativação zera a ativação com aviso', () => {
-  const r = calcular({ ...ENTRADAS_PADRAO, propAtivacaoStarter: 0 });
-  todosFinitos(r);
-  assert.equal(r.starter.maeParaAtivar, 0);
-  assert.ok(r.avisos.length > 0);
-});
-
-test('ativação sem farinha nem água avisa que o pote não se repõe', () => {
-  const r = calcular({ ...ENTRADAS_PADRAO, propAtivacaoFarinha: 0, propAtivacaoAgua: 0 });
+test('incremento zero avisa que o pote não se repõe', () => {
+  const r = calcular({ ...ENTRADAS_PADRAO, propIncremento: 0 });
   todosFinitos(r);
   // Mãe pura direto na massa: dá para fazer o pão, mas não sobra nada para o
   // pote, e a conta da reposição dividiria por zero.
