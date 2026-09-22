@@ -909,3 +909,28 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 | Nota de deriva do pote | 5 |
 | Métrica renomeada | 5 |
 | Conserto do botão de passo | 6 |
+
+---
+
+## Achados das revisões, registrados para não se perderem
+
+Nenhum destes entra no escopo destas sete tarefas. Ficam anotados porque
+apareceram na revisão e não têm dono.
+
+**`propIncremento` denormal derruba a ativação em silêncio.** Com
+`propIncremento: 5e-310`, `starter / p` estoura para `Infinity`, a subtração
+vira `NaN`, e `fin()` mapeia o objeto `starter` inteiro para zeros — sem aviso
+nenhum, indistinguível de "não há o que ativar". Com `1e-300` a mãe sai a
+1,2e+302 g, número finito e absurdo, também sem aviso. `fin()` só peneira
+`NaN` e `Infinity`, não magnitude implausível. O mesmo vale para
+`hidratacaoMae` chegando perto de -100% sem cruzar.
+
+Nenhum campo do formulário produz isso: os steppers são quantizados por `passo`
+e `casas`. Só um backup montado à mão ou uma chamada direta a `calcular()`
+alcança. É o assunto de quem for endurecer a validação de entrada algum dia,
+não desta leva.
+
+**`'o total ativado e a sobra usam os valores já arredondados'` não exercita
+arredondamento fracionário.** Com `propIncremento: 10/3` cai em 60/60 exatos —
+mas a proporção 3:5:5 que havia antes também caía, então não é regressão
+introduzida aqui. Defeito pré-existente do teste, não da mudança.
