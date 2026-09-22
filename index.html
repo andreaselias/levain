@@ -3570,7 +3570,7 @@ function saidasStarter(r, entradas) {
             .join(', ')}.</p>`
         : ''}
       ${poteDeriva
-        ? `<p class="nota-rodape">A sobra volta para o pote com a hidratação do ativado, diferente da que o pote tem. A cada fornada o pote caminha nessa direção — para ele ficar parado, iguale as duas.</p>`
+        ? `<p class="nota-rodape">A sobra volta para o pote a ${pct(r.starter.hidratacaoRealAtivado)}, e o pote está a ${pct(entradas.hidratacaoMae)}. A cada fornada ele caminha nessa direção — para ficar parado, iguale a hidratação do ativado à do pote.</p>`
         : ''}
     </section>`;
 }
