@@ -388,6 +388,10 @@ function entradasPao(entradas) {
 
 function saidasStarter(r, entradas) {
   const composicao = r.starter.farinhas.filter((f) => f.gramas > 0.05);
+  // O que volta para o pote é o ativado como ele de fato saiu, depois do passo
+  // da balança — não o alvo que se pediu. Comparar o realizado também resolve
+  // sozinho o caso sem incremento, onde a mãe volta inteira e nada deriva.
+  const poteDeriva = !mesmoNumero(r.starter.hidratacaoRealAtivado, entradas.hidratacaoMae);
   // A farinha que se pesa para alimentar o pote, nomeada uma a uma: num pote
   // misto, "farinha: 54 g" não diz quanto pôr de cada.
   const paraPesar = r.starter.farinhasAtivar.filter((f) => f.gramas > 0.05);
@@ -426,9 +430,9 @@ function saidasStarter(r, entradas) {
             .map((f) => `${gAuto(f.gramas)} de ${escapar(f.nome.toLowerCase())}`)
             .join(', ')}.</p>`
         : ''}
-      ${mesmoNumero(entradas.hidratacaoAtivado, entradas.hidratacaoMae)
-        ? ''
-        : `<p class="nota-rodape">A sobra volta para o pote com a hidratação do ativado, diferente da que o pote tem. A cada fornada o pote caminha nessa direção — para ele ficar parado, iguale as duas.</p>`}
+      ${poteDeriva
+        ? `<p class="nota-rodape">A sobra volta para o pote com a hidratação do ativado, diferente da que o pote tem. A cada fornada o pote caminha nessa direção — para ele ficar parado, iguale as duas.</p>`
+        : ''}
     </section>`;
 }
 
