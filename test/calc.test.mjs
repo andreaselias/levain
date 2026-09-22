@@ -284,6 +284,17 @@ test('o aviso da faixa diz os números certos', () => {
   assert.match(aviso, /de 7,7% a 1300,0%/, 'a faixa, na ordem mínimo-máximo');
 });
 
+// 10/3 é o que uma receita migrada da proporção 3:5:5 guarda. Sem `numTexto`
+// o aviso sairia com "incremento 3.3333333333333335" — dezessete dígitos
+// significativos num app de cozinha.
+test('o aviso da faixa formata incremento fracionário', () => {
+  const r = calcular({ ...ENTRADAS_PADRAO, propIncremento: 10 / 3, hidratacaoAtivado: 0.05 });
+  const aviso = r.avisos.find((a) => /alcança/i.test(a));
+  assert.ok(aviso, `esperava o aviso da faixa, vieram ${JSON.stringify(r.avisos)}`);
+  assert.match(aviso, /incremento 3,33\b/, 'duas casas e vírgula');
+  assert.ok(!/3\.33/.test(aviso), 'nada de ponto decimal no texto');
+});
+
 // ---------------------------------------------------------------------------
 // Fornadas: quantos pães cabem no forno de uma vez
 // ---------------------------------------------------------------------------

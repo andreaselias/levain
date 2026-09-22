@@ -249,7 +249,7 @@ test('migrarEstado converte receitas e os retratos guardados no diário', () => 
   assert.ok(Array.isArray(novo.receitas[0].entradas.farinhas), 'receita migrada');
   assert.ok(Array.isArray(novo.registros[0].snapshot.farinhas), 'retrato do diário migrado');
   assert.equal(novo.registros[0].observacao, 'oi', 'o resto do registro fica intacto');
-  assert.equal(novo.versao, 3);
+  assert.equal(novo.versao, 4);
 });
 
 test('migrarEstado não estraga um estado que já está em v2', () => {
@@ -276,4 +276,180 @@ test('migração preserva o formato já escolhido, sem virar número', () => {
   const migrado = migrarEntradas({ ...V1, formato: 'boule', volumeEspecifico: 2.2 });
   assert.equal(migrado.formato, 'boule');
   perto(migrado.volumeEspecifico, 2.2, 'volume específico preservado');
+});
+
+// ---------------------------------------------------------------------------
+// v3 → v4: as três proporções viram incremento + hidratação do ativado
+// ---------------------------------------------------------------------------
+
+const ENTRADAS_V3_BASE = {
+  pesoAssadoDesejado: 500,
+  numeroPaes: 2,
+  hidratacao: 0.7,
+  pctStarter: 0.2,
+  pctSal: 0.02,
+  farinhas: [
+    { id: 'f-branca', nome: 'Farinha branca', preco: 4.46 },
+    { id: 'f-integral', nome: 'Farinha integral', preco: 11 },
+  ],
+  composicaoPao: [
+    { farinhaId: 'f-branca', pct: 0 },
+    { farinhaId: 'f-integral', pct: 0.1 },
+  ],
+  composicaoStarter: [{ farinhaId: 'f-branca', pct: 0 }],
+  liquidos: [],
+  solidos: [],
+  fatorArredondamento: 10,
+  perdaForno: 0.11,
+  volumeEspecifico: 2.7,
+  formato: 'batard',
+  paesPorFornada: 2,
+  tempoPreAquecimento: 45,
+  tempoCozimento: 40,
+  hidratacaoMae: 1,
+  propAtivacaoStarter: 1,
+  propAtivacaoFarinha: 3,
+  propAtivacaoAgua: 3,
+  arredondamentoAtivacao: 1,
+  precoSal: 2.5,
+  precoKwh: 0.8653,
+  potenciaForno: 0.6,
+  embalagemExterna: 1.44,
+  embalagemInterna: 0.63,
+  etiqueta: 0.04,
+};
+
+/** Uma receita v3 completa, com as proporções que o formato guardava. */
+const v3 = (proporcoes) => ({ ...ENTRADAS_V3_BASE, ...proporcoes });
+
+/**
+ * Retratos tirados com o motor ANTIGO, antes da reparametrização, rodando as
+ * proporções de cada caso. São o critério de aceitação da migração: se algum
+ * número destes mudar, a conversão não foi exata e receitas salvas de gente de
+ * verdade mudaram sozinhas.
+ */
+const OURO_V3 = [
+  {
+    prop: { propAtivacaoStarter: 1, propAtivacaoFarinha: 3, propAtivacaoAgua: 3 },
+    p: 6, hAlvo: 1,
+    mae: 20, far: 60, ag: 60, total: 140, sobra: 20, paoAgua: 400,
+  },
+  {
+    prop: { propAtivacaoStarter: 1, propAtivacaoFarinha: 3, propAtivacaoAgua: 2.55, hidratacaoMae: 0.85 },
+    p: 5.55, hAlvo: 0.85,
+    mae: 22, far: 66, ag: 56, total: 144, sobra: 24, paoAgua: 400,
+  },
+  {
+    prop: { propAtivacaoStarter: 3, propAtivacaoFarinha: 5, propAtivacaoAgua: 5 },
+    p: 10 / 3, hAlvo: 1,
+    mae: 36, far: 60, ag: 60, total: 156, sobra: 36, paoAgua: 400,
+  },
+  {
+    prop: { propAtivacaoStarter: 1, propAtivacaoFarinha: 2, propAtivacaoAgua: 2 },
+    p: 4, hAlvo: 1,
+    mae: 30, far: 60, ag: 60, total: 150, sobra: 30, paoAgua: 400,
+  },
+  {
+    prop: { propAtivacaoStarter: 2, propAtivacaoFarinha: 6, propAtivacaoAgua: 4, hidratacaoMae: 1.2 },
+    p: 5, hAlvo: 0.7368421053,
+    mae: 24, far: 72, ag: 48, total: 144, sobra: 24, paoAgua: 410,
+  },
+];
+
+test('a migração v3 → v4 não muda um grama', () => {
+  for (const ouro of OURO_V3) {
+    const migrada = migrarEntradas(v3(ouro.prop));
+    const rotulo = JSON.stringify(ouro.prop);
+
+    // As chaves mortas somem, as novas chegam com o valor convertido.
+    assert.ok(!('propAtivacaoFarinha' in migrada), `${rotulo}: proporção antiga apagada`);
+    assert.ok(!('propAtivacaoStarter' in migrada), `${rotulo}: proporção antiga apagada`);
+    assert.ok(!('propAtivacaoAgua' in migrada), `${rotulo}: proporção antiga apagada`);
+    perto(migrada.propIncremento, ouro.p, `${rotulo}: incremento`);
+    perto(migrada.hidratacaoAtivado, ouro.hAlvo, `${rotulo}: hidratação do ativado`);
+
+    // E o que importa de verdade: o ticket e a massa saem iguais aos do motor
+    // antigo.
+    const r = calcular(migrada);
+    assert.equal(r.starter.maeParaAtivar, ouro.mae, `${rotulo}: starter-mãe`);
+    assert.equal(r.starter.farinhaAtivar, ouro.far, `${rotulo}: farinha da ativação`);
+    assert.equal(r.starter.aguaAtivar, ouro.ag, `${rotulo}: água da ativação`);
+    assert.equal(r.starter.totalAtivado, ouro.total, `${rotulo}: total ativado`);
+    assert.equal(r.starter.sobra, ouro.sobra, `${rotulo}: volta ao pote`);
+    assert.equal(r.pao.agua, ouro.paoAgua, `${rotulo}: água da massa`);
+    assert.equal(r.pao.starter, 120, `${rotulo}: starter na massa`);
+    assert.equal(r.pao.farinhaTotal, 590, `${rotulo}: farinha total`);
+  }
+});
+
+test('migrar duas vezes dá o mesmo que migrar uma', () => {
+  const uma = migrarEntradas(v3({ propAtivacaoStarter: 1, propAtivacaoFarinha: 3, propAtivacaoAgua: 2.55 }));
+  const duas = migrarEntradas(uma);
+  assert.deepEqual(duas, uma, 'a migração é idempotente');
+});
+
+test('v3 com proporção de starter zerada cai no padrão sem NaN', () => {
+  const migrada = migrarEntradas(v3({ propAtivacaoStarter: 0, propAtivacaoFarinha: 3, propAtivacaoAgua: 3 }));
+  assert.ok(Number.isFinite(migrada.propIncremento), 'incremento finito');
+  assert.ok(Number.isFinite(migrada.hidratacaoAtivado), 'hidratação finita');
+  const r = calcular(migrada);
+  assert.ok(Number.isFinite(r.pao.agua), 'a conta sobrevive');
+});
+
+// Antes, v1 e v2 caíam em `escalares`, que só copia chaves presentes no padrão:
+// uma receita antiga com proporção 1:4:4 perdia o 4:4 e virava o 3:3 do padrão
+// em silêncio. A conversão tem que valer nos três formatos.
+test('v1 com proporções fora do padrão também converte', () => {
+  const migrada = migrarEntradas({
+    ...V1,
+    propAtivacaoStarter: 1,
+    propAtivacaoFarinha: 4,
+    propAtivacaoAgua: 4,
+  });
+  perto(migrada.propIncremento, 8, 'v1 converte o incremento');
+  // 1:4:4 com a mãe a 100% dá (4 + 0,5) / (4 + 0,5) = 1.
+  perto(migrada.hidratacaoAtivado, 1, 'v1 converte a hidratação');
+  assert.ok(!('propAtivacaoAgua' in migrada), 'a chave antiga não sobrevive');
+});
+
+// A conversão é exata em todo passo de balança que uma balança de cozinha tem.
+// A exceção mora no passo de 10 g: uma proporção como 3:1:1 vira p = 2/3, dízima
+// em binário, e o valor exato cai em cima de um empate — 75 g num passo de 10 —
+// que um erro de 6e-14 decide para o outro lado. É exceção combinada e está
+// registrada no plano; este teste existe para avisar se algum dia passar disso.
+test('a migração é exata em todo passo de balança realista', () => {
+  const p15 = (x) => (!Number.isFinite(x) || x === 0 ? x : Number(x.toPrecision(15)));
+  const excelRound = (x) => { const v = p15(x); return v < 0 ? -Math.round(-v) : Math.round(v); };
+  const roundUp = (x) => { const v = p15(x); return v < 0 ? -Math.ceil(-v) : Math.ceil(v); };
+  const snapA = (x, s) => (s > 0 ? excelRound(x / s) * s : x);
+
+  const divergentes = [];
+  for (const passo of [0.5, 1, 2, 5]) {
+    for (const rSt of [1, 2, 3, 4]) {
+      for (const rFl of [1, 3, 5, 8]) {
+        for (const rWa of [1, 3, 5, 8]) {
+          for (const hMae of [0.5, 1, 1.5, 2]) {
+            const antigas = {
+              propAtivacaoStarter: rSt,
+              propAtivacaoFarinha: rFl,
+              propAtivacaoAgua: rWa,
+              hidratacaoMae: hMae,
+              pctStarter: 0.25,
+              arredondamentoAtivacao: passo,
+            };
+            const r = calcular(migrarEntradas(v3(antigas)));
+            const mae = roundUp((r.pao.starter * rSt) / (rFl + rWa));
+            if (
+              r.starter.maeParaAtivar !== mae ||
+              r.starter.farinhaAtivar !== snapA((mae * rFl) / rSt, passo) ||
+              r.starter.aguaAtivar !== snapA((mae * rWa) / rSt, passo)
+            ) {
+              divergentes.push(`${rSt}:${rFl}:${rWa} mãe ${hMae} passo ${passo}`);
+            }
+          }
+        }
+      }
+    }
+  }
+  assert.deepEqual(divergentes, [], 'nenhuma receita pode mudar de número ao migrar');
 });

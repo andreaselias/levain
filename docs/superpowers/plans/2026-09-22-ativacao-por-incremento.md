@@ -934,3 +934,26 @@ não desta leva.
 arredondamento fracionário.** Com `propIncremento: 10/3` cai em 60/60 exatos —
 mas a proporção 3:5:5 que havia antes também caía, então não é regressão
 introduzida aqui. Defeito pré-existente do teste, não da mudança.
+
+**A migração tem uma exceção combinada, no empate do passo de 10 g.** A
+conversão é exata em todo passo de balança realista — 0 divergências em 6144
+combinações para cada um dos passos 0,5, 1, 2 e 5 g. No passo de 10 g aparecem
+3 em 6144, todas com a mesma assinatura: uma proporção como 3:1:1 vira
+`p = 2/3`, dízima em binário, e o valor exato pré-arredondamento cai em cima de
+um empate (75 g num passo de 10). Um erro de 6e-14 decide o empate para o outro
+lado, e a ativação sai 70 g onde saía 80 g.
+
+Não tem conserto por reformulação: testadas quatro formas algebricamente
+equivalentes, a de fração única e a que deriva uma parcela do invariante
+consertam 2 dos 3 casos, nenhuma conserta o terceiro. A precisão se perde
+quando `p` e `hAlvo` viram float, e nenhum arranjo da aritmética a traz de
+volta.
+
+Aceita de propósito, no lugar de forçar o empate com uma normalização mais
+curta dentro de `snapAtivacao`. O valor exato é 75: o motor antigo respondia 80
+e o novo responde 70, e os dois erram por 5 g. A resposta antiga não era mais
+certa, era arbitrária do outro lado. `precisao15` existe para bater com a
+planilha de origem e não vai virar caso especial para ganhar um empate.
+
+O teste `'a migração é exata em todo passo de balança realista'` prende a faixa
+que importa e avisa se isso algum dia passar do empate.
