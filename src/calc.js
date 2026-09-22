@@ -81,9 +81,12 @@ export const ENTRADAS_PADRAO = {
 
   // Starter
   hidratacaoMae: 1,
-  propAtivacaoStarter: 1,
-  propAtivacaoFarinha: 3,
-  propAtivacaoAgua: 3,
+  // Partes de alimento por parte de mãe: 10 g de mãe com 6 pedem 60 g de
+  // farinha mais água. Equivale à proporção 1 : 3 : 3 que havia antes.
+  propIncremento: 6,
+  // Hidratação do ativado PRONTO, já contando a água que veio dentro da mãe.
+  // É entrada, não resultado: o incremento é repartido para chegar nela.
+  hidratacaoAtivado: 1,
   // Passo da balança para o que se pesa ao alimentar o pote. Separado do
   // arredondamento da massa porque a escala é outra: 10 g numa ativação de
   // 54 g destruiria a proporção.
@@ -248,26 +251,23 @@ export function calcular(entradas) {
 
   // --- 2. Starter ativado --------------------------------------------------
   // Precisa vir antes da farinha: a hidratação do starter entra no denominador.
-  const rSt = e.propAtivacaoStarter;
-  const rFl = e.propAtivacaoFarinha;
-  const rWa = e.propAtivacaoAgua;
-  const somaProp = rSt + rFl + rWa;
+  // Ela não é mais derivada das proporções — é o que o usuário pediu, e o
+  // incremento é que se ajusta para entregá-la.
+  const p = e.propIncremento;
   const divisorMae = 1 + e.hidratacaoMae;
+  const hAct = e.hidratacaoAtivado;
+  const divisorAlvo = 1 + hAct;
 
-  let hAct = 0;
-  if (rSt <= 0) {
-    avisos.push('A proporção de starter na ativação precisa ser maior que zero.');
-  } else if (divisorMae <= 0) {
+  if (divisorMae <= 0) {
     avisos.push('A hidratação do starter-mãe precisa ser maior que -100%.');
-  } else {
-    const farinhaDaProporcao = rFl + rSt / divisorMae;
-    if (farinhaDaProporcao === 0) {
-      avisos.push('As proporções de ativação não produzem farinha alguma.');
-    } else {
-      hAct = (rWa + (rSt * e.hidratacaoMae) / divisorMae) / farinhaDaProporcao;
-    }
   }
-  const divisorAtivado = 1 + hAct;
+  if (divisorAlvo <= 0) {
+    avisos.push('A hidratação do ativado precisa ser maior que -100%.');
+  }
+  // Zero é o valor que o resto da conta já sabe tratar como "não dá": as
+  // guardas de `divisorAtivado === 0` zeram a massa em vez de produzir gramas
+  // negativas.
+  const divisorAtivado = divisorAlvo > 0 ? divisorAlvo : 0;
 
   // --- 3. Peso-alvo da massa e farinha total ------------------------------
   let alvoMassa = 0;
@@ -369,35 +369,46 @@ export function calcular(entradas) {
   const tempoTotal = e.tempoPreAquecimento + e.tempoCozimento * fornadas;
 
   // --- 6. Ativação do starter ---------------------------------------------
-  // Tudo que se pesa ao alimentar o pote cai no passo da balança: as
-  // proporções sozinhas produzem valores como 46,667 g, que ninguém mede.
+  // Tudo que se pesa ao alimentar o pote cai no passo da balança: as contas
+  // sozinhas produzem valores como 46,667 g, que ninguém mede.
   const passoAtivacao = e.arredondamentoAtivacao;
   const snapAtivacao = (x) => (passoAtivacao > 0 ? excelRound(x / passoAtivacao) * passoAtivacao : x);
 
   let maeParaAtivar = 0;
   let farinhaAtivar = 0;
   let aguaAtivar = 0;
-  const alimento = rFl + rWa;
-  if (rSt > 0 && somaProp > 0) {
-    if (alimento <= 0) {
-      // Mãe pura, sem alimentar: o pote não tem de onde se repor, e a conta da
-      // reposição dividiria por zero. Vale a mãe inteira indo para a massa.
-      avisos.push(
-        'Sem farinha nem água na ativação, o pote não se repõe: a mãe vai inteira para a massa.'
-      );
-      maeParaAtivar = roundUp(starter);
-    } else {
-      // O ativado cobre a massa e ainda repõe a mãe que saiu do pote — sem isso
-      // o pote encolhe a cada fornada. Quer-se `totalAtivado = starter + mae`;
-      // como o ativado é `mae * somaProp / rSt`, isolar a mãe tira o `rSt` do
-      // denominador e sobra o que se alimenta: farinha mais água.
-      maeParaAtivar = roundUp((starter * rSt) / alimento);
-    }
-    farinhaAtivar = snapAtivacao((maeParaAtivar * rFl) / rSt);
-    aguaAtivar = snapAtivacao((maeParaAtivar * rWa) / rSt);
+  if (p <= 0) {
+    // Sem alimento o pote não se repõe, e `starter / p` dividiria por zero.
+    // Vale a mãe inteira indo para a massa.
+    avisos.push('Sem incremento, o pote não se repõe: a mãe vai inteira para a massa.');
+    maeParaAtivar = roundUp(starter);
+  } else if (divisorMae > 0 && divisorAlvo > 0) {
+    // O ativado cobre a massa e ainda repõe a mãe que saiu do pote — sem isso
+    // o pote encolhe a cada fornada. Quer-se `totalAtivado = starter + mae`;
+    // como o ativado é `mae × (1 + p)`, isolar a mãe deixa `mae × p = starter`.
+    maeParaAtivar = roundUp(starter / p);
+
+    // O incremento é o que falta para o ativado inteiro bater na hidratação
+    // pedida, descontado o que a mãe já trouxe. As duas parcelas somam
+    // `maeParaAtivar × p` por construção.
+    const totalExato = maeParaAtivar * (1 + p);
+    const farinhaDaMae = maeParaAtivar / divisorMae;
+    const aguaDaMae = (maeParaAtivar * e.hidratacaoMae) / divisorMae;
+    farinhaAtivar = totalExato / divisorAlvo - farinhaDaMae;
+    aguaAtivar = (totalExato * hAct) / divisorAlvo - aguaDaMae;
+
+    farinhaAtivar = snapAtivacao(farinhaAtivar);
+    aguaAtivar = snapAtivacao(aguaAtivar);
   }
   const totalAtivado = maeParaAtivar + farinhaAtivar + aguaAtivar;
   const sobra = Math.max(totalAtivado - starter, 0);
+
+  // O que o ativado de fato ficou depois do passo da balança, que desvia do
+  // alvo. Espelha o par `hidratacao` / `hidratacaoReal` da aba Pão.
+  const farinhaRealAtivado = divisorMae > 0 ? maeParaAtivar / divisorMae + farinhaAtivar : farinhaAtivar;
+  const aguaRealAtivado =
+    divisorMae > 0 ? (maeParaAtivar * e.hidratacaoMae) / divisorMae + aguaAtivar : aguaAtivar;
+  const hidratacaoRealAtivado = farinhaRealAtivado > 0 ? aguaRealAtivado / farinhaRealAtivado : 0;
 
   // A farinha embutida no starter, repartida pela composição DELE — que é
   // independente da massa. É o que permite cobrar o preço certo de um starter
@@ -514,7 +525,7 @@ export function calcular(entradas) {
 
   return {
     starter: {
-      hidratacaoAtivado: fin(hAct),
+      hidratacaoRealAtivado: fin(hidratacaoRealAtivado),
       maeParaAtivar: fin(maeParaAtivar),
       farinhaAtivar: fin(farinhaAtivar),
       aguaAtivar: fin(aguaAtivar),
