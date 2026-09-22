@@ -9,7 +9,7 @@
  */
 
 import { calcular, calibrarPerda, calibrarVolumeEspecifico, ENTRADAS_PADRAO } from './calc.js';
-import { CAMPOS, CAMPO_POR_CHAVE, ESCALAS, GRUPOS_DE_ESCALA, MOLDE, formatarEntrada, formatarValor, paraArmazenamento } from './campos.js';
+import { CAMPOS, CAMPO_POR_CHAVE, ESCALAS, GRUPOS_DE_ESCALA, MOLDE, formatarEntrada, formatarValor, paraArmazenamento, paraExibicao } from './campos.js';
 import { criarPersistencia, criarRegistro, diffDoRegistro, estadoInicial, exportar, gerarId, importar, mesmoNumero, novaReceita, receitaAtiva, receitaDoRegistro, registrosDaReceita } from './store.js';
 
 const ABAS = [
@@ -1495,7 +1495,16 @@ const ACOES = {
     const entrada = document.querySelector(seletor);
     if (!entrada) return;
 
-    const atual = paraNumero(entrada.value);
+    // O texto do campo já vem cortado por `casas`; partir dele regrava o valor
+    // truncado e come a precisão de quem digitou 5,55 ou veio da migração. O
+    // valor guardado é a fonte, e o texto só o substitui quando não há nada
+    // guardado ainda.
+    const guardado = chaveCampo
+      ? receitaAtiva(estado).entradas[chaveCampo]
+      : itemPorId(lista, id)?.[attr];
+    const atual = Number.isFinite(Number(guardado))
+      ? paraExibicao(molde, Number(guardado))
+      : paraNumero(entrada.value);
     const proximo = Math.max(0, (Number.isFinite(atual) ? atual : 0) + Number(sinal) * (molde.passo ?? 1));
     // Passos fracionários acumulam ruído binário; a casa decimal do campo corta.
     const limpo = Number(proximo.toFixed(molde.casas ?? 0));
