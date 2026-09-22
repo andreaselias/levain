@@ -386,7 +386,7 @@ function entradasPao(entradas) {
 // Aba Starter
 // ---------------------------------------------------------------------------
 
-function saidasStarter(r) {
+function saidasStarter(r, entradas) {
   const composicao = r.starter.farinhas.filter((f) => f.gramas > 0.05);
   // A farinha que se pesa para alimentar o pote, nomeada uma a uma: num pote
   // misto, "farinha: 54 g" não diz quanto pôr de cada.
@@ -416,7 +416,7 @@ function saidasStarter(r) {
     <section class="secao">
       <h2 class="secao-titulo">O que o starter carrega</h2>
       <div class="metricas">
-        ${metrica('Hidratação do ativado', pct(r.starter.hidratacaoAtivado), true)}
+        ${metrica('Hidratação real do ativado', pct(r.starter.hidratacaoRealAtivado), true)}
         ${metrica('Volta ao pote', g(r.starter.sobra))}
         ${metrica('Farinha embutida', gAuto(r.starter.farinhaNoStarter))}
         ${metrica('Água embutida', gAuto(r.starter.aguaNoStarter))}
@@ -425,6 +425,9 @@ function saidasStarter(r) {
         ? `<p class="nota-rodape">Da farinha já embutida no starter: ${composicao
             .map((f) => `${gAuto(f.gramas)} de ${escapar(f.nome.toLowerCase())}`)
             .join(', ')}.</p>`
+        : ''}
+      ${entradas.hidratacaoAtivado !== entradas.hidratacaoMae
+        ? `<p class="nota-rodape">A sobra volta para o pote com a hidratação do ativado, diferente da que o pote tem. A cada fornada o pote caminha nessa direção — para ele ficar parado, iguale as duas.</p>`
         : ''}
     </section>`;
 }
@@ -776,7 +779,7 @@ function atualizar() {
 
   document.getElementById('saidas').innerHTML =
     abaAtiva === 'starter'
-      ? saidasStarter(r)
+      ? saidasStarter(r, ativa.entradas)
       : abaAtiva === 'pao'
         ? saidasPao(r)
         : abaAtiva === 'custos'

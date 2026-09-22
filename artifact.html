@@ -1786,9 +1786,12 @@ const ENTRADAS_PADRAO = {
 
   // Starter
   hidratacaoMae: 1,
-  propAtivacaoStarter: 1,
-  propAtivacaoFarinha: 3,
-  propAtivacaoAgua: 3,
+  // Partes de alimento por parte de mãe: 10 g de mãe com 6 pedem 60 g de
+  // farinha mais água. Equivale à proporção 1 : 3 : 3 que havia antes.
+  propIncremento: 6,
+  // Hidratação do ativado PRONTO, já contando a água que veio dentro da mãe.
+  // É entrada, não resultado: o incremento é repartido para chegar nela.
+  hidratacaoAtivado: 1,
   // Passo da balança para o que se pesa ao alimentar o pote. Separado do
   // arredondamento da massa porque a escala é outra: 10 g numa ativação de
   // 54 g destruiria a proporção.
@@ -1841,6 +1844,16 @@ function num(valor, padrao) {
 }
 
 const fin = (x) => (Number.isFinite(x) ? x : 0);
+
+/** Percentual legível para dentro dos avisos: 0,0769 → "7,7%". */
+function pctTexto(x) {
+  return `${(x * 100).toFixed(1).replace('.', ',')}%`;
+}
+
+/** Contagem legível para dentro dos avisos: 10/3 → "3,33"; 6 → "6". */
+function numTexto(x) {
+  return String(Number(x.toFixed(2))).replace('.', ',');
+}
 
 function comoLista(valor) {
   return Array.isArray(valor) ? valor.filter((x) => x && typeof x === 'object') : [];
@@ -1953,26 +1966,23 @@ function calcular(entradas) {
 
   // --- 2. Starter ativado --------------------------------------------------
   // Precisa vir antes da farinha: a hidratação do starter entra no denominador.
-  const rSt = e.propAtivacaoStarter;
-  const rFl = e.propAtivacaoFarinha;
-  const rWa = e.propAtivacaoAgua;
-  const somaProp = rSt + rFl + rWa;
+  // Ela não é mais derivada das proporções — é o que o usuário pediu, e o
+  // incremento é que se ajusta para entregá-la.
+  const p = e.propIncremento;
   const divisorMae = 1 + e.hidratacaoMae;
+  const hAct = e.hidratacaoAtivado;
+  const divisorAlvo = 1 + hAct;
 
-  let hAct = 0;
-  if (rSt <= 0) {
-    avisos.push('A proporção de starter na ativação precisa ser maior que zero.');
-  } else if (divisorMae <= 0) {
+  if (divisorMae <= 0) {
     avisos.push('A hidratação do starter-mãe precisa ser maior que -100%.');
-  } else {
-    const farinhaDaProporcao = rFl + rSt / divisorMae;
-    if (farinhaDaProporcao === 0) {
-      avisos.push('As proporções de ativação não produzem farinha alguma.');
-    } else {
-      hAct = (rWa + (rSt * e.hidratacaoMae) / divisorMae) / farinhaDaProporcao;
-    }
   }
-  const divisorAtivado = 1 + hAct;
+  if (divisorAlvo <= 0) {
+    avisos.push('A hidratação do ativado precisa ser maior que -100%.');
+  }
+  // Zero é o valor que o resto da conta já sabe tratar como "não dá": as
+  // guardas de `divisorAtivado === 0` zeram a massa em vez de produzir gramas
+  // negativas.
+  const divisorAtivado = divisorAlvo > 0 ? divisorAlvo : 0;
 
   // --- 3. Peso-alvo da massa e farinha total ------------------------------
   let alvoMassa = 0;
@@ -2074,35 +2084,69 @@ function calcular(entradas) {
   const tempoTotal = e.tempoPreAquecimento + e.tempoCozimento * fornadas;
 
   // --- 6. Ativação do starter ---------------------------------------------
-  // Tudo que se pesa ao alimentar o pote cai no passo da balança: as
-  // proporções sozinhas produzem valores como 46,667 g, que ninguém mede.
+  // Tudo que se pesa ao alimentar o pote cai no passo da balança: as contas
+  // sozinhas produzem valores como 46,667 g, que ninguém mede.
   const passoAtivacao = e.arredondamentoAtivacao;
   const snapAtivacao = (x) => (passoAtivacao > 0 ? excelRound(x / passoAtivacao) * passoAtivacao : x);
 
   let maeParaAtivar = 0;
   let farinhaAtivar = 0;
   let aguaAtivar = 0;
-  const alimento = rFl + rWa;
-  if (rSt > 0 && somaProp > 0) {
-    if (alimento <= 0) {
-      // Mãe pura, sem alimentar: o pote não tem de onde se repor, e a conta da
-      // reposição dividiria por zero. Vale a mãe inteira indo para a massa.
+  if (p <= 0) {
+    // Sem alimento o pote não se repõe, e `starter / p` dividiria por zero.
+    // Vale a mãe inteira indo para a massa.
+    avisos.push('Sem incremento, o pote não se repõe: a mãe vai inteira para a massa.');
+    maeParaAtivar = roundUp(starter);
+  } else if (divisorMae > 0 && divisorAlvo > 0) {
+    // O ativado cobre a massa e ainda repõe a mãe que saiu do pote — sem isso
+    // o pote encolhe a cada fornada. Quer-se `totalAtivado = starter + mae`;
+    // como o ativado é `mae × (1 + p)`, isolar a mãe deixa `mae × p = starter`.
+    maeParaAtivar = roundUp(starter / p);
+
+    // O incremento é o que falta para o ativado inteiro bater na hidratação
+    // pedida, descontado o que a mãe já trouxe. As duas parcelas somam
+    // `maeParaAtivar × p` por construção.
+    const totalExato = maeParaAtivar * (1 + p);
+    const farinhaDaMae = maeParaAtivar / divisorMae;
+    const aguaDaMae = (maeParaAtivar * e.hidratacaoMae) / divisorMae;
+    farinhaAtivar = totalExato / divisorAlvo - farinhaDaMae;
+    aguaAtivar = (totalExato * hAct) / divisorAlvo - aguaDaMae;
+
+    // Incremento só acrescenta: não há como tirar água nem farinha da mãe.
+    // Fora da faixa alcançável, a parcela negativa zera e a outra leva o
+    // incremento inteiro — o ativado mantém as p partes prometidas, na
+    // hidratação mais próxima que dá, e `hidratacaoRealAtivado` mostra onde
+    // de fato parou. A massa continua calculando com o alvo, então a receita
+    // fica inconsistente até o alvo voltar para dentro da faixa: é o aviso
+    // que carrega esse peso.
+    if (maeParaAtivar > 0 && (farinhaAtivar < 0 || aguaAtivar < 0)) {
+      const minimo = e.hidratacaoMae / (1 + p * divisorMae);
+      const maximo = e.hidratacaoMae + p * divisorMae;
       avisos.push(
-        'Sem farinha nem água na ativação, o pote não se repõe: a mãe vai inteira para a massa.'
+        `Com o pote a ${pctTexto(e.hidratacaoMae)} e incremento ${numTexto(p)}, a hidratação do ativado só alcança de ${pctTexto(minimo)} a ${pctTexto(maximo)}. Os números da massa só fecham depois de o alvo voltar para dentro dessa faixa.`
       );
-      maeParaAtivar = roundUp(starter);
-    } else {
-      // O ativado cobre a massa e ainda repõe a mãe que saiu do pote — sem isso
-      // o pote encolhe a cada fornada. Quer-se `totalAtivado = starter + mae`;
-      // como o ativado é `mae * somaProp / rSt`, isolar a mãe tira o `rSt` do
-      // denominador e sobra o que se alimenta: farinha mais água.
-      maeParaAtivar = roundUp((starter * rSt) / alimento);
+      const incremento = maeParaAtivar * p;
+      if (aguaAtivar < 0) {
+        aguaAtivar = 0;
+        farinhaAtivar = incremento;
+      } else {
+        farinhaAtivar = 0;
+        aguaAtivar = incremento;
+      }
     }
-    farinhaAtivar = snapAtivacao((maeParaAtivar * rFl) / rSt);
-    aguaAtivar = snapAtivacao((maeParaAtivar * rWa) / rSt);
+
+    farinhaAtivar = snapAtivacao(farinhaAtivar);
+    aguaAtivar = snapAtivacao(aguaAtivar);
   }
   const totalAtivado = maeParaAtivar + farinhaAtivar + aguaAtivar;
   const sobra = Math.max(totalAtivado - starter, 0);
+
+  // O que o ativado de fato ficou depois do passo da balança, que desvia do
+  // alvo. Espelha o par `hidratacao` / `hidratacaoReal` da aba Pão.
+  const farinhaRealAtivado = divisorMae > 0 ? maeParaAtivar / divisorMae + farinhaAtivar : farinhaAtivar;
+  const aguaRealAtivado =
+    divisorMae > 0 ? (maeParaAtivar * e.hidratacaoMae) / divisorMae + aguaAtivar : aguaAtivar;
+  const hidratacaoRealAtivado = farinhaRealAtivado > 0 ? aguaRealAtivado / farinhaRealAtivado : 0;
 
   // A farinha embutida no starter, repartida pela composição DELE — que é
   // independente da massa. É o que permite cobrar o preço certo de um starter
@@ -2219,7 +2263,7 @@ function calcular(entradas) {
 
   return {
     starter: {
-      hidratacaoAtivado: fin(hAct),
+      hidratacaoRealAtivado: fin(hidratacaoRealAtivado),
       maeParaAtivar: fin(maeParaAtivar),
       farinhaAtivar: fin(farinhaAtivar),
       aguaAtivar: fin(aguaAtivar),
@@ -2360,9 +2404,8 @@ const CAMPOS = [
 
   // --- Starter -------------------------------------------------------------
   { chave: 'hidratacaoMae', rotulo: 'Hidratação do starter-mãe', aba: 'starter', grupo: 'Starter-mãe', unidade: '%', fator: 100, passo: 5, casas: 0, dica: '100% significa partes iguais de água e farinha no pote.' },
-  { chave: 'propAtivacaoStarter', rotulo: 'Proporção — starter', aba: 'starter', grupo: 'Ativação', unidade: '', passo: 1, casas: 1 },
-  { chave: 'propAtivacaoFarinha', rotulo: 'Proporção — farinha', aba: 'starter', grupo: 'Ativação', unidade: '', passo: 1, casas: 1 },
-  { chave: 'propAtivacaoAgua', rotulo: 'Proporção — água', aba: 'starter', grupo: 'Ativação', unidade: '', passo: 1, casas: 1 },
+  { chave: 'propIncremento', rotulo: 'Incremento por parte de starter', aba: 'starter', grupo: 'Ativação', unidade: '', passo: 0.5, casas: 2, dica: 'Quanto alimento entra por parte de mãe. 3 significa 30 g de farinha mais água para cada 10 g tirados do pote.' },
+  { chave: 'hidratacaoAtivado', rotulo: 'Hidratação do ativado', aba: 'starter', grupo: 'Ativação', unidade: '%', fator: 100, passo: 5, casas: 1, dica: 'Hidratação do ativado pronto, já contando a água que veio dentro da mãe. O incremento se reparte para chegar nela.' },
   { chave: 'arredondamentoAtivacao', rotulo: 'Passo da balança', aba: 'starter', grupo: 'Ativação', unidade: 'g', passo: 0.5, casas: 1, dica: 'Arredonda o que você pesa para alimentar o pote. As partes continuam somando o total exato. Zero desliga.' },
 
   // --- Custos --------------------------------------------------------------
@@ -2468,7 +2511,7 @@ function formatarValor(campo, valor) {
 
 
 
-const VERSAO_ESTADO = 3;
+const VERSAO_ESTADO = 4;
 
 function num(valor, padrao) {
   const n = typeof valor === 'number' ? valor : Number(valor);
@@ -2486,7 +2529,49 @@ const CAMPOS_MORTOS = [
   'precoCenteio',
   'precoMelado',
   'precoExtras',
+  // v3: as três proporções viraram propIncremento + hidratacaoAtivado
+  'propAtivacaoStarter',
+  'propAtivacaoFarinha',
+  'propAtivacaoAgua',
 ];
+
+/**
+ * v3 guardava a ativação como três proporções — starter, farinha, água — e
+ * derivava a hidratação do ativado delas. v4 inverte: diz-se quanto alimento
+ * entra por parte de starter e que hidratação se quer no ativado pronto.
+ *
+ * A troca é bijetiva, então a conversão é exata: `p` junta farinha e água numa
+ * razão só contra o starter, e a hidratação é a própria fórmula que `calc.js`
+ * usava para derivá-la. Vale para v1 e v2 também — os três formatos guardavam
+ * essas mesmas chaves.
+ */
+function converterAtivacao(v) {
+  const rSt = num(v.propAtivacaoStarter, 1);
+  const rFl = num(v.propAtivacaoFarinha, 3);
+  const rWa = num(v.propAtivacaoAgua, 3);
+  const hMae = num(v.hidratacaoMae, ENTRADAS_PADRAO.hidratacaoMae);
+  const divisorMae = 1 + hMae;
+  const farinhaDaProporcao = rFl + rSt / divisorMae;
+
+  // Entrada degenerada cai no padrão em vez de propagar NaN para a receita.
+  // `farinhaDaProporcao` é o denominador da fração única dividido por
+  // `divisorMae` — `rFl·dMae + rSt = dMae·(rFl + rSt/dMae)` — então zerar aqui
+  // é exatamente zerar lá. Não troque um pelo outro sem refazer essa conta.
+  if (!(rSt > 0) || !(divisorMae > 0) || farinhaDaProporcao === 0) {
+    return {
+      propIncremento: ENTRADAS_PADRAO.propIncremento,
+      hidratacaoAtivado: ENTRADAS_PADRAO.hidratacaoAtivado,
+    };
+  }
+  return {
+    propIncremento: (rFl + rWa) / rSt,
+    // Fração única de propósito: a forma com divisões aninhadas
+    // `(rWa + rSt·hMae/dMae) / (rFl + rSt/dMae)` é a mesma álgebra, mas
+    // arredonda no meio do caminho e erra o último bit em 38% das razões.
+    // Esta chega ao piso: bate com o valor exato em racionais.
+    hidratacaoAtivado: (rWa * divisorMae + rSt * hMae) / (rFl * divisorMae + rSt),
+  };
+}
 
 function escalares(v) {
   const saida = {};
@@ -2536,6 +2621,7 @@ function deV1(v) {
     saida.solidos.push({ id: 's-extras', nome: 'Extras', gramasPorPao: extras / paes, preco: num(v.precoExtras, 10) });
   }
 
+  Object.assign(saida, converterAtivacao(v));
   for (const morto of CAMPOS_MORTOS) delete saida[morto];
   return saida;
 }
@@ -2564,13 +2650,35 @@ function deV2(v) {
   saida.liquidos = (Array.isArray(v.liquidos) ? v.liquidos : []).map((l) => ({ ...l }));
   saida.solidos = (Array.isArray(v.solidos) ? v.solidos : []).map((s) => ({ ...s }));
 
+  Object.assign(saida, converterAtivacao(v));
   for (const morto of CAMPOS_MORTOS) delete saida[morto];
   return saida;
 }
 
+/**
+ * v3 → v4: troca as proporções de ativação e preserva todo o resto como veio.
+ * O spread cru, em vez de `escalares`, é de propósito: retrato de diário pode
+ * ser parcial, e remontá-lo pelo padrão apagaria a distinção entre "campo que
+ * a fornada não tinha" e "campo que ela tinha igual ao padrão".
+ */
+function deV3(v) {
+  const saida = { ...v, ...converterAtivacao(v) };
+  for (const morto of CAMPOS_MORTOS) delete saida[morto];
+  return saida;
+}
+
+/** As três proporções de ativação são a marca de que o objeto ainda é v3. */
+function temProporcoesAntigas(v) {
+  return (
+    Object.hasOwn(v, 'propAtivacaoStarter') ||
+    Object.hasOwn(v, 'propAtivacaoFarinha') ||
+    Object.hasOwn(v, 'propAtivacaoAgua')
+  );
+}
+
 function migrarEntradas(entradas) {
   const v = entradas && typeof entradas === 'object' ? entradas : {};
-  if (Array.isArray(v.composicaoPao)) return v; // já é v3
+  if (Array.isArray(v.composicaoPao)) return temProporcoesAntigas(v) ? deV3(v) : v;
   if (Array.isArray(v.farinhas)) return deV2(v);
   return deV1(v);
 }
@@ -3389,7 +3497,7 @@ function entradasPao(entradas) {
 // Aba Starter
 // ---------------------------------------------------------------------------
 
-function saidasStarter(r) {
+function saidasStarter(r, entradas) {
   const composicao = r.starter.farinhas.filter((f) => f.gramas > 0.05);
   // A farinha que se pesa para alimentar o pote, nomeada uma a uma: num pote
   // misto, "farinha: 54 g" não diz quanto pôr de cada.
@@ -3419,7 +3527,7 @@ function saidasStarter(r) {
     <section class="secao">
       <h2 class="secao-titulo">O que o starter carrega</h2>
       <div class="metricas">
-        ${metrica('Hidratação do ativado', pct(r.starter.hidratacaoAtivado), true)}
+        ${metrica('Hidratação real do ativado', pct(r.starter.hidratacaoRealAtivado), true)}
         ${metrica('Volta ao pote', g(r.starter.sobra))}
         ${metrica('Farinha embutida', gAuto(r.starter.farinhaNoStarter))}
         ${metrica('Água embutida', gAuto(r.starter.aguaNoStarter))}
@@ -3428,6 +3536,9 @@ function saidasStarter(r) {
         ? `<p class="nota-rodape">Da farinha já embutida no starter: ${composicao
             .map((f) => `${gAuto(f.gramas)} de ${escapar(f.nome.toLowerCase())}`)
             .join(', ')}.</p>`
+        : ''}
+      ${entradas.hidratacaoAtivado !== entradas.hidratacaoMae
+        ? `<p class="nota-rodape">A sobra volta para o pote com a hidratação do ativado, diferente da que o pote tem. A cada fornada o pote caminha nessa direção — para ele ficar parado, iguale as duas.</p>`
         : ''}
     </section>`;
 }
@@ -3779,7 +3890,7 @@ function atualizar() {
 
   document.getElementById('saidas').innerHTML =
     abaAtiva === 'starter'
-      ? saidasStarter(r)
+      ? saidasStarter(r, ativa.entradas)
       : abaAtiva === 'pao'
         ? saidasPao(r)
         : abaAtiva === 'custos'
