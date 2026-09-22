@@ -3518,10 +3518,16 @@ function entradasPao(entradas) {
 
 function saidasStarter(r, entradas) {
   const composicao = r.starter.farinhas.filter((f) => f.gramas > 0.05);
-  // O que volta para o pote é o ativado como ele de fato saiu, depois do passo
-  // da balança — não o alvo que se pediu. Comparar o realizado também resolve
-  // sozinho o caso sem incremento, onde a mãe volta inteira e nada deriva.
-  const poteDeriva = !mesmoNumero(r.starter.hidratacaoRealAtivado, entradas.hidratacaoMae);
+  // O conselho da nota é "iguale as duas", então ela só cabe quando as duas de
+  // fato diferem: com os campos iguais e a deriva vinda do passo da balança,
+  // mandar igualar o que já está igual faz o app parecer quebrado. A deriva do
+  // arredondamento aparece sozinha na métrica de hidratação real, ao lado.
+  //
+  // Sem incremento a mãe volta inteira ao pote e nada deriva, por mais que o
+  // alvo diga outra coisa — daí a guarda do incremento.
+  const poteDeriva =
+    entradas.propIncremento > 0 &&
+    !mesmoNumero(entradas.hidratacaoAtivado, entradas.hidratacaoMae);
   // A farinha que se pesa para alimentar o pote, nomeada uma a uma: num pote
   // misto, "farinha: 54 g" não diz quanto pôr de cada.
   const paraPesar = r.starter.farinhasAtivar.filter((f) => f.gramas > 0.05);
