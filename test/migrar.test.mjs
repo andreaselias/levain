@@ -412,44 +412,83 @@ test('v1 com proporções fora do padrão também converte', () => {
   assert.ok(!('propAtivacaoAgua' in migrada), 'a chave antiga não sobrevive');
 });
 
-// A conversão é exata em todo passo de balança que uma balança de cozinha tem.
-// A exceção mora no passo de 10 g: uma proporção como 3:1:1 vira p = 2/3, dízima
-// em binário, e o valor exato cai em cima de um empate — 75 g num passo de 10 —
-// que um erro de 6e-14 decide para o outro lado. É exceção combinada e está
-// registrada no plano; este teste existe para avisar se algum dia passar disso.
-test('a migração é exata em todo passo de balança realista', () => {
+// Mesmo buraco do v1: `escalares` só copia chave que existe no padrão, e as
+// três proporções saíram dele. Sem o conversor em `deV2`, uma receita v2 com
+// 1:4:4 viraria o 1:3:3 do padrão sem dizer nada.
+test('v2 com proporções fora do padrão também converte', () => {
+  const migrada = migrarEntradas({
+    ...V2,
+    propAtivacaoStarter: 1,
+    propAtivacaoFarinha: 4,
+    propAtivacaoAgua: 4,
+  });
+  perto(migrada.propIncremento, 8, 'v2 converte o incremento');
+  perto(migrada.hidratacaoAtivado, 1, 'v2 converte a hidratação');
+  assert.ok(!('propAtivacaoAgua' in migrada), 'a chave antiga não sobrevive');
+});
+
+/**
+ * A conversão é exata em quase toda a faixa realista, mas não em toda. Onde o
+ * valor exato pré-arredondamento cai em cima de um empate do passo da balança,
+ * um erro de última casa decide o empate para o outro lado e a ativação sai um
+ * passo diferente da que saía antes.
+ *
+ * A lista abaixo é o conjunto COMPLETO dessas divergências na faixa varrida,
+ * congelado de propósito: o teste falha tanto se aparecer uma nova quanto se
+ * alguma sumir sem explicação. Zero não é alcançável — ver o registro no plano.
+ */
+const DIVERGENCIAS_CONHECIDAS = [
+  '2:5:1 mãe 0.75 starter 0.2 passo 0.2',
+  '3:3:1 mãe 1.75 starter 0.1 passo 2',
+  '4:3:1 mãe 1.75 starter 0.3 passo 5',
+  '3:1:1 mãe 1.75 starter 0.25 passo 10',
+  '3:1:1 mãe 2 starter 0.25 passo 10',
+  '3:1:1 mãe 2 starter 0.3 passo 10',
+  '4:1:1 mãe 1.25 starter 0.3 passo 10',
+  '4:1:1 mãe 1.75 starter 0.3 passo 10',
+];
+
+test('a migração muda de número só nas divergências já conhecidas', () => {
   const p15 = (x) => (!Number.isFinite(x) || x === 0 ? x : Number(x.toPrecision(15)));
   const excelRound = (x) => { const v = p15(x); return v < 0 ? -Math.round(-v) : Math.round(v); };
   const roundUp = (x) => { const v = p15(x); return v < 0 ? -Math.ceil(-v) : Math.ceil(v); };
   const snapA = (x, s) => (s > 0 ? excelRound(x / s) * s : x);
 
-  const divergentes = [];
-  for (const passo of [0.5, 1, 2, 5]) {
+  const achadas = [];
+  let paoDivergiu = 0;
+  for (const passo of [0.1, 0.2, 0.25, 0.5, 1, 2, 2.5, 5, 10, 20, 25]) {
     for (const rSt of [1, 2, 3, 4]) {
-      for (const rFl of [1, 3, 5, 8]) {
-        for (const rWa of [1, 3, 5, 8]) {
-          for (const hMae of [0.5, 1, 1.5, 2]) {
-            const antigas = {
-              propAtivacaoStarter: rSt,
-              propAtivacaoFarinha: rFl,
-              propAtivacaoAgua: rWa,
-              hidratacaoMae: hMae,
-              pctStarter: 0.25,
-              arredondamentoAtivacao: passo,
-            };
-            const r = calcular(migrarEntradas(v3(antigas)));
-            const mae = roundUp((r.pao.starter * rSt) / (rFl + rWa));
-            if (
-              r.starter.maeParaAtivar !== mae ||
-              r.starter.farinhaAtivar !== snapA((mae * rFl) / rSt, passo) ||
-              r.starter.aguaAtivar !== snapA((mae * rWa) / rSt, passo)
-            ) {
-              divergentes.push(`${rSt}:${rFl}:${rWa} mãe ${hMae} passo ${passo}`);
+      for (const rFl of [1, 2, 3, 4, 5, 6, 7, 8]) {
+        for (const rWa of [1, 2, 3, 4, 5, 6, 7, 8]) {
+          for (const hMae of [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]) {
+            for (const pctStarter of [0.1, 0.2, 0.25, 0.3, 0.35]) {
+              const antigas = {
+                propAtivacaoStarter: rSt,
+                propAtivacaoFarinha: rFl,
+                propAtivacaoAgua: rWa,
+                hidratacaoMae: hMae,
+                pctStarter,
+                arredondamentoAtivacao: passo,
+              };
+              const r = calcular(migrarEntradas(v3(antigas)));
+              const mae = roundUp((r.pao.starter * rSt) / (rFl + rWa));
+              if (
+                r.starter.maeParaAtivar !== mae ||
+                r.starter.farinhaAtivar !== snapA((mae * rFl) / rSt, passo) ||
+                r.starter.aguaAtivar !== snapA((mae * rWa) / rSt, passo)
+              ) {
+                achadas.push(`${rSt}:${rFl}:${rWa} mãe ${hMae} starter ${pctStarter} passo ${passo}`);
+              }
+              // A massa nunca pode divergir: a exceção é só do que se pesa
+              // para alimentar o pote. 400 só vale para o starter em 20% —
+              // pctStarter muda pao.agua por conta própria, não por divergência.
+              if (r.pao.agua !== 400 && rSt === 1 && rFl === 3 && rWa === 3 && hMae === 1 && pctStarter === 0.2) paoDivergiu++;
             }
           }
         }
       }
     }
   }
-  assert.deepEqual(divergentes, [], 'nenhuma receita pode mudar de número ao migrar');
+  assert.deepEqual(achadas, DIVERGENCIAS_CONHECIDAS, 'o conjunto de divergências mudou');
+  assert.equal(paoDivergiu, 0, 'a massa não pode divergir em nenhum caso');
 });

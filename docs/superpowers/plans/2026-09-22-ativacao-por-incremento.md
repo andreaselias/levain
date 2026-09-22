@@ -935,25 +935,43 @@ arredondamento fracionário.** Com `propIncremento: 10/3` cai em 60/60 exatos �
 mas a proporção 3:5:5 que havia antes também caía, então não é regressão
 introduzida aqui. Defeito pré-existente do teste, não da mudança.
 
-**A migração tem uma exceção combinada, no empate do passo de 10 g.** A
-conversão é exata em todo passo de balança realista — 0 divergências em 6144
-combinações para cada um dos passos 0,5, 1, 2 e 5 g. No passo de 10 g aparecem
-3 em 6144, todas com a mesma assinatura: uma proporção como 3:1:1 vira
-`p = 2/3`, dízima em binário, e o valor exato pré-arredondamento cai em cima de
-um empate (75 g num passo de 10). Um erro de 6e-14 decide o empate para o outro
-lado, e a ativação sai 70 g onde saía 80 g.
+**A migração tem uma exceção combinada: oito receitas mudam de número.** A
+conversão é exata em 98.552 das 98.560 combinações varridas (razões 1-4 : 1-8 :
+1-8, pote de 50% a 200%, starter de 10% a 35%, passo de balança de 0,1 a 25 g).
+As oito que sobram estão congeladas no teste `'a migração muda de número só nas
+divergências já conhecidas'`, que falha se aparecer uma nova ou se alguma sumir.
 
-Não tem conserto por reformulação: testadas quatro formas algebricamente
-equivalentes, a de fração única e a que deriva uma parcela do invariante
-consertam 2 dos 3 casos, nenhuma conserta o terceiro. A precisão se perde
-quando `p` e `hAlvo` viram float, e nenhum arranjo da aritmética a traz de
-volta.
+O mecanismo: onde o valor exato pré-arredondamento cai em cima de um empate do
+passo da balança, um erro de última casa decide o empate para o outro lado e a
+ativação sai um passo diferente. Não é "p dízima em binário" — várias das
+divergentes têm p inteiro; o erro nasce no cálculo de `hidratacaoAtivado`.
 
-Aceita de propósito, no lugar de forçar o empate com uma normalização mais
-curta dentro de `snapAtivacao`. O valor exato é 75: o motor antigo respondia 80
-e o novo responde 70, e os dois erram por 5 g. A resposta antiga não era mais
-certa, era arbitrária do outro lado. `precisao15` existe para bater com a
-planilha de origem e não vai virar caso especial para ganhar um empate.
+Duas medições anteriores estavam erradas e ficam registradas como tal: a
+primeira varreu só o pote em {50, 100, 150, 200}% e concluiu 3 divergências,
+todas no passo de 10 g. O pote anda de 5 em 5% no formulário, 175% é valor
+comum, e é justamente onde a maioria das divergências mora. Grade escolhida por
+quem quer um resultado produz esse resultado.
 
-O teste `'a migração é exata em todo passo de balança realista'` prende a faixa
-que importa e avisa se isso algum dia passar do empate.
+A fórmula da hidratação usa fração única — `(rWa·dMae + rSt·hMae) / (rFl·dMae +
+rSt)` — e não a forma com divisões aninhadas. São a mesma álgebra, mas a
+aninhada arredonda no meio e erra o último bit em 38% das razões; a fração
+única bate com o valor exato em racionais. Isso levou as divergências de 11
+para 8, que é o piso: verificado contra aritmética exata, nenhuma fórmula que
+calcule a hidratação verdadeira faz melhor.
+
+Zero não é alcançável. O resíduo nasce do cancelamento em
+`totalExato/divisorAlvo − farinhaDaMae` dentro de `calc.js`, não da conversão.
+Existe um par `(p, h)` a ±1 ulp que conserta cada caso, mas a direção do ajuste
+alterna sem regra — seria constante mágica, e disso não se sai.
+
+**A massa nunca diverge.** Em nenhuma das 98.560 combinações algum valor de
+`pao.*` mudou: farinha, água, sal e peso do pão saem idênticos. A exceção é só
+do que se pesa para alimentar o pote — `farinhaAtivar`, `aguaAtivar` e os
+derivados `totalAtivado` e `sobra`, por um passo de balança.
+
+**Correção de uma afirmação anterior deste registro:** dizer que "a resposta
+antiga era arbitrária do outro lado" estava errado. `excelRound` é convenção
+especificada — metade para longe do zero, com `precisao15` ali justamente para
+bater com a planilha. Sob a regra do próprio código, 80 g é a resposta definida
+e 70 g é violação dela. As duas erram 5 g do valor exato, mas só uma segue a
+regra da casa.

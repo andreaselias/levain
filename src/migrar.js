@@ -63,7 +63,11 @@ function converterAtivacao(v) {
   }
   return {
     propIncremento: (rFl + rWa) / rSt,
-    hidratacaoAtivado: (rWa + (rSt * hMae) / divisorMae) / farinhaDaProporcao,
+    // Fração única de propósito: a forma com divisões aninhadas
+    // `(rWa + rSt·hMae/dMae) / (rFl + rSt/dMae)` é a mesma álgebra, mas
+    // arredonda no meio do caminho e erra o último bit em 38% das razões.
+    // Esta chega ao piso: bate com o valor exato em racionais.
+    hidratacaoAtivado: (rWa * divisorMae + rSt * hMae) / (rFl * divisorMae + rSt),
   };
 }
 
