@@ -145,6 +145,11 @@ function pctTexto(x) {
   return `${(x * 100).toFixed(1).replace('.', ',')}%`;
 }
 
+/** Contagem legível para dentro dos avisos: 10/3 → "3,33"; 6 → "6". */
+function numTexto(x) {
+  return String(Number(x.toFixed(2))).replace('.', ',');
+}
+
 function comoLista(valor) {
   return Array.isArray(valor) ? valor.filter((x) => x && typeof x === 'object') : [];
 }
@@ -409,11 +414,11 @@ export function calcular(entradas) {
     // de fato parou. A massa continua calculando com o alvo, então a receita
     // fica inconsistente até o alvo voltar para dentro da faixa: é o aviso
     // que carrega esse peso.
-    if (farinhaAtivar < 0 || aguaAtivar < 0) {
+    if (maeParaAtivar > 0 && (farinhaAtivar < 0 || aguaAtivar < 0)) {
       const minimo = e.hidratacaoMae / (1 + p * divisorMae);
       const maximo = e.hidratacaoMae + p * divisorMae;
       avisos.push(
-        `Com o pote a ${pctTexto(e.hidratacaoMae)} e incremento ${p}, a hidratação do ativado só alcança de ${pctTexto(minimo)} a ${pctTexto(maximo)}. Os números da massa só fecham depois de o alvo voltar para dentro dessa faixa.`
+        `Com o pote a ${pctTexto(e.hidratacaoMae)} e incremento ${numTexto(p)}, a hidratação do ativado só alcança de ${pctTexto(minimo)} a ${pctTexto(maximo)}. Os números da massa só fecham depois de o alvo voltar para dentro dessa faixa.`
       );
       const incremento = maeParaAtivar * p;
       if (aguaAtivar < 0) {

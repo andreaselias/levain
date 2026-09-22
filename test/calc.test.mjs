@@ -233,6 +233,44 @@ test('alvo dentro da faixa não dispara a guarda', () => {
   assert.equal(r.avisos.filter((a) => /alcança/i.test(a)).length, 0, 'não devia avisar');
 });
 
+// A guarda recorta antes do passo da balança, então o que ela devolve ainda
+// tem que cair em grama inteira e as partes ainda têm que somar o total.
+test('o recorte da guarda sobrevive ao passo da balança', () => {
+  const r = calcular({
+    ...ENTRADAS_PADRAO,
+    hidratacaoMae: 2,
+    propIncremento: 0.5,
+    hidratacaoAtivado: 0.4,
+    arredondamentoAtivacao: 1,
+  });
+  todosFinitos(r);
+  const inteiro = (v) => Math.abs(v - Math.round(v)) < 1e-9;
+  assert.ok(inteiro(r.starter.farinhaAtivar), `farinha em grama inteira, deu ${r.starter.farinhaAtivar}`);
+  assert.ok(inteiro(r.starter.aguaAtivar), `água em grama inteira, deu ${r.starter.aguaAtivar}`);
+  assert.equal(
+    r.starter.farinhasAtivar.reduce((s, f) => s + f.gramas, 0),
+    r.starter.farinhaAtivar,
+    'as partes somam o total mesmo depois do recorte'
+  );
+  assert.equal(
+    r.starter.totalAtivado,
+    r.starter.maeParaAtivar + r.starter.farinhaAtivar + r.starter.aguaAtivar,
+    'o total é a soma do que se pesa'
+  );
+});
+
+// Peso-alvo negativo já é lixo entrando, mas a guarda não pode piorar: sem o
+// `maeParaAtivar > 0` ela anuncia uma faixa que o alvo pedido não viola.
+test('peso-alvo negativo não faz a guarda mentir sobre a faixa', () => {
+  const r = calcular({ ...ENTRADAS_PADRAO, pesoAssadoDesejado: -500 });
+  todosFinitos(r);
+  assert.equal(
+    r.avisos.filter((a) => /alcança/i.test(a)).length,
+    0,
+    `o alvo padrão está dentro da faixa; não cabe avisar, vieram ${JSON.stringify(r.avisos)}`
+  );
+});
+
 // ---------------------------------------------------------------------------
 // Fornadas: quantos pães cabem no forno de uma vez
 // ---------------------------------------------------------------------------
