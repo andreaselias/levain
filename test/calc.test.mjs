@@ -238,9 +238,9 @@ test('alvo dentro da faixa não dispara a guarda', () => {
 test('o recorte da guarda sobrevive ao passo da balança', () => {
   const r = calcular({
     ...ENTRADAS_PADRAO,
-    hidratacaoMae: 2,
-    propIncremento: 0.5,
-    hidratacaoAtivado: 0.4,
+    hidratacaoMae: 0.5,
+    propIncremento: 0.3,
+    hidratacaoAtivado: 0.02,
     arredondamentoAtivacao: 1,
   });
   todosFinitos(r);
